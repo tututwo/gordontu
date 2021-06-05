@@ -27,14 +27,18 @@ content:
   filter_button:
   - name: All
     tag: '*'
-  - name: Deep Learning
-    tag: Deep Learning
-  - name: Other
-    tag: Demo
-
+  - name: Charts
+    tag: Charts
+  - name: Maps
+    tag: Maps
+  - name: Complex Project
+    tag: Complex Project
+  - name: Create Coding for Fun
+    tag: Create Coding for Fun
 design:
+
   # Choose how many columns the section has. Valid values: '1' or '2'.
-  columns: '2'
+  columns: '1'
 
   # Toggle between the various page layout types.
   #   1 = List
@@ -45,4 +49,10 @@ design:
 
   # For Showcase view, flip alternate rows?
   flip_alt_rows: false
+  spacing:
+    # Customize the section spacing. Order is top, right, bottom, left.
+    padding: ["20px", "0", "20px", "0"]
+    
+  background:
+    image:background.jpg
 ---

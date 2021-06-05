@@ -20,7 +20,7 @@ twitter: ''
 
 # Contact (edit or remove options as required)
 
-email: tugordon@outlook.com
+# email: tugordon@outlook.com
 # phone: 888 888 88 88
 # address:
 #  # street: 450 Serra Mall
@@ -79,6 +79,7 @@ highlight_languages:
   - r
   - python
   - latex
+  - javascript
 math: false
 diagram: false
 privacy_pack: false
