@@ -1,0 +1,25 @@
+////////////////////////////////* About Section ////////////////////////////////
+#about {
+  height: 100vh;
+}
+
+.big-title {
+  animation: flipInX 1s both;
+  animation-delay: 0.5s;
+}
+
+.btn-primary {background-color: pink}
+
+a, h3.article-title a:hover {
+  color:lightgray
+}
+
+
+// icon
+
+
+////////////////////////////////* Project Section ////////////////////////////////
+// the Project title text
+.mb-0 {
+  color: red
+}

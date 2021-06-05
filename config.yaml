@@ -6,7 +6,7 @@ theme: "starter-hugo-academic"
 
 title: Gordon Tu ☯︎ 涂钰坤 # Website name
 baseurl: 'https://gordontu.netlify.app/' # Website URL
-copyright: '@Gordon Tu ☯︎ 涂钰坤2021' # Footer text, e.g. '© {year} Me'
+#copyright: '@Gordon Tu ☯︎ 涂钰坤2021' # Footer text, e.g. '© {year} Me'
 
 ############################
 ## LANGUAGE

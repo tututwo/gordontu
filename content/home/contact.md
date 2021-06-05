@@ -2,13 +2,13 @@
 # An instance of the Contact widget.
 # Documentation: https://sourcethemes.com/academic/docs/page-builder/
 widget: contact
-
+active: false
 # This file represents a page section.
 headless: true
 
 # Order that this section appears on the page.
 weight: 130
-
+active: false
 title: Contact
 subtitle:
 
@@ -27,4 +27,7 @@ content:
   
 design:
   columns: '2'
+  spacing:
+    # Customize the section spacing. Order is top, right, bottom, left.
+    padding: ["20px", "0", "0px", "0"]
 ---
