@@ -6,19 +6,19 @@ name = "isabella"
 light = false
 
 # Primary
-primary = "#EF476F"
+primary = "#031e3b"
 
 # Menu
-menu_primary = "#F7F7F7"
-menu_text = "#FCA311"
-menu_text_active = "#0EAD69"
-menu_title = "#118AB2"
+menu_primary = "#031e3b"
+menu_text = "#031e3b"
+menu_text_active = "#031e3b"
+menu_title = "#031e3b"
 
 # Backgrounds
-background = "#F7F7F7"
-home_section_odd = "#F7F7F7"
-home_section_even = "#F7F7F7"
+background = "#031e3b"
+home_section_odd = "#031e3b"
+home_section_even = "#031e3b"
 
 # font = "rose"
-link = "#D90429"
-link_hover = "#118AB2"
+link = "#031e3b"
+link_hover = "#031e3b"
