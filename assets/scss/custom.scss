@@ -1,11 +1,13 @@
 ////////////////////////////////* About Section ////////////////////////////////
 #about {
+  background-color: #0b0c26;
   height: 100vh;
 }
 
 .big-title {
   animation: flipInX 1s both;
   animation-delay: 0.5s;
+  color:white
 }
 
 .btn-primary {background-color: pink}

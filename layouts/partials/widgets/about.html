@@ -21,10 +21,37 @@
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.0.0/animate.min.css"
   />
+  <script src="https://unpkg.com/css-doodle@0.18.1/css-doodle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.6.1/gsap.min.js"></script>
 </head>
-<!-- About widget -->
 
+<css-doodle>
+  :doodle{
+    position: absolute
+  }
+  <style>
+@grid: 14 / 80%;
+
+@random {
+  border-left: 1px solid #5d81bc;
+}
+@random {
+  border-top: 1px solid #5d81bc;
+}
+@random(.25) {
+  background: linear-gradient(
+    @p(#fff, tan, #5d81bc), @lp
+  )
+  50% / @r(60%) @lr
+  no-repeat;
+}
+@random {
+  filter: drop-shadow(0 0 10px #fff);
+}
+  </style>
+</css-doodle>
+<!-- About widget -->
+  <div id = "title">
     <div class="big-title">
       <h1>
         Hi, I'm Gordon Tu,涂钰坤
@@ -36,7 +63,8 @@
         A data visualization enthusiast and practitioner
       </h2>
     </div>
-    
+  </div>
+
     <ul class="network-icon" aria-hidden="true">
       {{ range $person.social }}
       {{ $pack := or .icon_pack "fas" }}
@@ -66,7 +94,6 @@
       <span class = "hero-text">R</span>
       <span class = "hero-text">QGIS</span>
     </div>
-
     <script>
       // github etc.. icon
       gsap.from(
@@ -78,4 +105,9 @@
         }
       )
     </script>
+
+
+
+
+  
 
