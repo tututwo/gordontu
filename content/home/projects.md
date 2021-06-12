@@ -54,7 +54,7 @@ design:
     # Customize the section spacing. Order is top, right, bottom, left.
     padding: ["20px", "0", "20px", "0"]
 
-  background:
-    image: background.jpg
-    image_darken: 0.6
+  # background:
+  #   image: background.jpg
+  #   image_darken: 0.6
 ---

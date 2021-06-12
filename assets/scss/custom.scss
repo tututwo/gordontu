@@ -1,7 +1,10 @@
 ////////////////////////////////* About Section ////////////////////////////////
 #about {
-  background-color: #0b0c26;
+  // background-color: #0b0c26;
   height: 100vh;
+  margin: 0;
+  background: #151830;
+  overflow: hidden;
 }
 
 .big-title {
@@ -21,6 +24,15 @@ a, h3.article-title a:hover {
 
 
 ////////////////////////////////* Project Section ////////////////////////////////
+// the whole project
+#projects {
+  // background-color: #0b0c26;
+  // height: 100vh;
+  margin: 0;
+  background: #151830;
+  overflow: hidden;
+}
+
 // the Project title text
 .mb-0 {
   color: red

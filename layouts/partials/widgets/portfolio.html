@@ -5,7 +5,32 @@
 {{ $st := .page }}
 {{ $items_type := $st.Params.content.page_type | default "project" }}
 {{ $columns := $st.Params.design.columns | default "2" }}
+<css-doodle>
+  <style>
+    :doodle{
+      position: absolute
+    }
+    @grid: 22 / 90vmax auto;
 
+  @random {
+    border-left: 1px solid #5d81bc;
+  }
+  @random {
+    border-top: 1px solid #5d81bc;
+  }
+  @random(.25) {
+    background: linear-gradient(
+      @p(#fff, tan, #5d81bc), @lp
+    )
+    50% / @r(60%) @lr
+    no-repeat;
+  }
+  @random {
+    filter: drop-shadow(0 0 10px #fff);
+  }
+
+  </style>
+</css-doodle>
 <div class="col-12 {{if eq $columns "2"}}col-lg-8{{end}}">
 
   {{ with $st.Content }}{{ . }}{{ end }}
