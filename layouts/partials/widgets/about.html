@@ -25,6 +25,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.6.1/gsap.min.js"></script>
 </head>
 
+
 <css-doodle>
   <style>
     :doodle{
@@ -38,7 +39,7 @@
   @random(0.4) {
     border-top: 1px solid #5d81bc;
   }
-  @random(.2) {
+  @random(.3) {
     background: linear-gradient(
       @p(#fff, tan, #5d81bc), @lp
     )
@@ -48,8 +49,8 @@
   @random {
     filter: drop-shadow(0 0 10px #fff);
   }
-  transition: 1s ease @rand(500ms),background 1s ease @r(100ms);
-  transform: rotate(360deg)
+  opacity: @r(0.4, 0.8)
+
   </style>
 </css-doodle>
 <!-- About widget -->
