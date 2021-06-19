@@ -31,25 +31,26 @@
     :doodle{
       position: absolute
     }
-  @grid: 22 / 90vmax auto;
+    @grid: 22 / 90vmax;
 
-  @random(0.3) {
-    border-left: 1px solid #5d81bc;
-  }
-  @random(0.4) {
-    border-top: 1px solid #5d81bc;
-  }
-  @random(.3) {
-    background: linear-gradient(
-      @p(#fff, tan, #5d81bc), @lp
-    )
-    50% / @r(60%) @lr
-    no-repeat;
-  }
-  @random {
-    filter: drop-shadow(0 0 10px #fff);
-  }
-  opacity: @r(0.4, 0.8)
+
+    @random(0.3) {
+      border-left: 1px solid #5d81bc;
+    }
+    @random(0.4) {
+      border-top: 1px solid #5d81bc;
+    }
+    @random(.3) {
+      background: linear-gradient(
+        @p(#fff, tan, #5d81bc), @lp
+      )
+      50% / @r(60%) @lr
+      no-repeat;
+    }
+    @random {
+      filter: drop-shadow(0 0 10px #fff);
+    }
+    opacity: @r(0.4, 0.8)
 
   </style>
 </css-doodle>
