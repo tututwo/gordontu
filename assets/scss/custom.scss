@@ -1,6 +1,7 @@
 ////////////////////////////////* About Section ////////////////////////////////
 #about {
   // background-color: #0b0c26;
+  width: 100vw;
   height: 100vh;
   margin: 0;
   background: #151830;
@@ -19,7 +20,6 @@ a, h3.article-title a:hover {
   color:lightgray
 }
 
-
 // icon
 
 
@@ -37,3 +37,4 @@ a, h3.article-title a:hover {
 .mb-0 {
   color: red
 }
+

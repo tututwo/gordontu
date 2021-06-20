@@ -26,12 +26,12 @@
 </head>
 
 
-<css-doodle>
+<css-doodle click-to-update>
   <style>
     :doodle{
       position: absolute
     }
-    @grid: 22 / 90vmax;
+    @grid: 12 / 90vmax;
 
 
     @random(0.3) {
@@ -45,13 +45,30 @@
         @p(#fff, tan, #5d81bc), @lp
       )
       50% / @r(60%) @lr
-      no-repeat;
+      no-repeat;  
+      
     }
     @random {
       filter: drop-shadow(0 0 10px #fff);
     }
-    opacity: @r(0.4, 0.8)
+    opacity: @r(0.4, 0.8);
 
+    /* transition: 2s ease;
+    will-change: transform;
+    transform: rotate(90deg); */
+    transition: 0.8s ease;
+    transform: scale(@rand(0.45, 1.2)) rotate(90deg);
+    border-radius: @repeat(4, @rand(40%, 60%));
+    :after{
+        content: '';
+                position: absolute;
+                transition: 5s;
+                left: @rand(20%, 99%);
+                top: @rand(20%, 99%);
+                @size: 25px;
+                border-radius: 50%;
+                background: #@repeat(6, @p([0-9a-f]));
+      }
   </style>
 </css-doodle>
 <!-- About widget -->

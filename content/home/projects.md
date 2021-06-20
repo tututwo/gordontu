@@ -27,14 +27,16 @@ content:
   filter_button:
   - name: All
     tag: '*'
-  - name: Charts
-    tag: Charts
-  - name: Maps
-    tag: Maps
-  - name: Complex Project
-    tag: Complex Project
-  - name: Create Coding for Fun
-    tag: Create Coding for Fun
+  - name: Chart
+    tag: Chart
+  - name: Map
+    tag: Map
+  - name: Svelte Project
+    tag: Svelte Project
+  - name: Practice
+    tag: Practice
+  - name: Creative Art
+    tag: Creative Art
 design:
 
   # Choose how many columns the section has. Valid values: '1' or '2'.
