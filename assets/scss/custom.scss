@@ -1,9 +1,16 @@
+:root {
+  --bg: #051626;
+}
 .container{
   max-width: 2000px;
   position: relative;
   // display: flex;
   // align-items: center;
   // justify-content: center;
+  // display: flex;
+  // align-items: center;
+  // justify-content: center;
+  // background: var(--bg);
 }
 .container-xl{
   max-width: 2000px;
