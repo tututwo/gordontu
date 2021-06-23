@@ -3,7 +3,7 @@
 }
 .container{
   max-width: 2000px;
-  position: relative;
+  // position: relative;
   // display: flex;
   // align-items: center;
   // justify-content: center;
@@ -30,12 +30,17 @@
   margin: 0;
   background: #151830;
   overflow: hidden;
+  position: relative;
 }
 
+#title{
+  z-index: 3;
+}
 .big-title {
   animation: flipInX 1s both;
   animation-delay: 0.5s;
-  color:white
+  color:white;
+
 }
 
 .btn-primary {background-color: lightskyblue}
@@ -45,7 +50,10 @@ a, h3.article-title a:hover {
 }
 
 // icon
-
+.network-icon{
+  position: absolute;
+  z-index: 3
+}
 
 ////////////////////////////////* Project Section ////////////////////////////////
 // the whole project
@@ -55,10 +63,15 @@ a, h3.article-title a:hover {
   margin: 0;
   background: #151830;
   overflow: hidden;
+  position: relative
 }
 
 // the Project title text
 .mb-0 {
   color: red
+}
+
+css-doodle{
+  z-index: 1;
 }
 
