@@ -81,7 +81,7 @@
   <css-doodle >
 
     :doodle {
-      @grid: 100x1 / 90vmin;
+      @grid: 40x1 / 90vmin;
       perspective: 18vmin;
       position:absolute
     }
@@ -100,8 +100,8 @@
     border-radius: 50%;
     transform-style: preserve-3d;
     <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
-    animation: scale-up 60s linear infinite;
-    animation-delay: calc(@i * -.6s);
+    animation: scale-up 20s linear infinite;
+    animation-delay: calc(@i * -.5s);
   
     @keyframes scale-up {
       0% {

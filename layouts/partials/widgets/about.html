@@ -30,7 +30,7 @@
 <css-doodle click-to-update>
 
   :doodle {
-    @grid: 200x1 / 90vmin;
+    @grid: 100x1 / 90vmin;
     perspective: 18vmin;
     position:absolute
   }
@@ -51,7 +51,7 @@
   <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
   animation: scale-up 80s linear infinite;
   <!-- 0.4s * grid numbers 50 = scale-up决定了20s无限循环 -->
-  animation-delay: calc(@i * -.4s);
+  animation-delay: calc(@i * -.8s);
 
   @keyframes scale-up {
     0% {
@@ -122,23 +122,23 @@
     </div>
     <script>
       // github etc.. icon
-      gsap.from(
-        'ul li',
-        {
-          y: 100,
-          duration: 3
-        }
-      )
+      // gsap.from(
+      //   'ul li',
+      //   {
+      //     y: 100,
+      //     duration: 3
+      //   }
+      // )
       let app = document.getElementById('app');
       let typewriter = new Typewriter(app, {
           loop: false,
           cursor: "_"
       });
 
-      typewriter.typeString("Hi, I'm Gordon Tu, 涂钰坤")
+      typewriter.typeString("Hi, I'm  <strong>Gordon Tu</strong>, 涂钰坤")
                 .pauseFor(1500)
                 .deleteChars(5)
-                .typeString('<br> A <strong>data visualization enthusiast and practitioner!</strong>')
+                .typeString('<br> A data visualization enthusiast and practitioner!')
                 .pauseFor(1500)
                 // .deleteAll()
                 // .pauseFor(1000)
