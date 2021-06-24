@@ -23,19 +23,20 @@
   />
   <script src="https://unpkg.com/css-doodle@0.19.0/css-doodle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.6.1/gsap.min.js"></script>
+  <script src="https://unpkg.com/typewriter-effect@latest/dist/core.js"></script>
 </head>
 
 
-<css-doodle>
+<css-doodle click-to-update>
 
   :doodle {
-    @grid: 50x1 / 90vmin;
+    @grid: 200x1 / 90vmin;
     perspective: 18vmin;
     position:absolute
   }
 
   background: @m(
-    @r(10, 70), 
+    @r(1, 50), 
     radial-gradient(
       @p(#f5f7f9,#e0d7ee,#c9b9e1,#af9cd2,#9480c1,#7866b0,#5b4e9d,#3b388a,#0b2377) 15%,
       transparent 50%
@@ -49,6 +50,7 @@
   transform-style: preserve-3d;
   <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
   animation: scale-up 80s linear infinite;
+  <!-- 0.4s * grid numbers 50 = scale-up决定了20s无限循环 -->
   animation-delay: calc(@i * -.4s);
 
   @keyframes scale-up {
@@ -73,17 +75,20 @@
 </css-doodle>
 <!-- About widget -->
   <div id = "title">
-    <div class="big-title">
+    <div id = "app">
+
+    </div>
+    <!-- <div class="big-title">
       <h1>
         Hi, I'm Gordon Tu,涂钰坤
       </h1>
-    </div>
-
+    </div> -->
+<!-- 
     <div class = 'sub-title'>
       <h2>
         A data visualization enthusiast and practitioner
       </h2>
-    </div>
+    </div> -->
   </div>
 
     <ul class="network-icon" aria-hidden="true">
@@ -124,15 +129,22 @@
           duration: 3
         }
       )
-      // gsap.to()
-      /* gsap.to(
-  'css-doodle', {
-    rotation: 360,
-    ease: "none",
-    duration: 10,
-    repeat: -1
-  }
-) */
+      let app = document.getElementById('app');
+      let typewriter = new Typewriter(app, {
+          loop: false,
+          cursor: "_"
+      });
+
+      typewriter.typeString("Hi, I'm Gordon Tu, 涂钰坤")
+                .pauseFor(1500)
+                .deleteChars(5)
+                .typeString('<br> A <strong>data visualization enthusiast and practitioner!</strong>')
+                .pauseFor(1500)
+                // .deleteAll()
+                // .pauseFor(1000)
+                // .typeString('Check out TypeWriterJS')
+                // .pauseFor(1000)
+                .start();
 
     </script>
 

@@ -1,51 +1,5 @@
-<css-doodle>
 
-  :doodle {
-    @grid: 50x1;
-    perspective: 53vmin;
-    position:absolute;
-    width:100%;
-    height:100%
-  }
-<!-- @r 200, 240 控制雪花数量 -->
-  background: @m(
-    @r(20,80), 
-    radial-gradient(
-      @p(#f5f7f9,#e0d7ee,#c9b9e1,#af9cd2,#9480c1,#7866b0,#5b4e9d,#3b388a,#0b2377) 55%,
-      transparent 50%
-    ) @r(100%) @r(100%) / @r(1%, 3%) @lr no-repeat
-  );
 
-  @size: 80%;
-  @place-cell: center;
-  z-index: 1;
-
-  border-radius: 50%;
-  transform-style: preserve-3d;
-  <!-- this controls the speed -->
-  animation: scale-up 60s linear infinite;
-  animation-delay: calc(@i * -.4s);
-
-  @keyframes scale-up {
-    0% {
-      opacity: 0;
-      transform: translate3d(0, 0, 0) rotate(0);
-    }
-    10% { 
-      opacity: 1; 
-    }
-    95% {
-      transform:
-        translate3d(0, 0, @r(50vmin, 55vmin))
-        rotate(@r(-360deg, 360deg));
-    }
-    100% {
-      opacity: 0;
-      transform: translate3d(0, 0, 1vmin);
-    }
-  }
-
-</css-doodle>
 {{/* Portfolio Widget */}}
 
 {{/* Initialise */}}
@@ -122,4 +76,51 @@
 
     {{ end }}
   </div>
+</div>
+<div id = "project-doodle">
+  <css-doodle >
+
+    :doodle {
+      @grid: 100x1 / 90vmin;
+      perspective: 18vmin;
+      position:absolute
+    }
+  
+    background: @m(
+      @r(0, 20), 
+      radial-gradient(
+        @p(#f5f7f9,#e0d7ee,#c9b9e1,#af9cd2,#9480c1,#7866b0,#5b4e9d,#3b388a,#0b2377) 35%,
+        transparent 50%
+      ) @r(100%) @r(100%) / @r(1%, 3%) @lr no-repeat
+    );
+  
+    @size: 80%;
+    @place-cell: center;
+  
+    border-radius: 50%;
+    transform-style: preserve-3d;
+    <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
+    animation: scale-up 60s linear infinite;
+    animation-delay: calc(@i * -.6s);
+  
+    @keyframes scale-up {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) rotate(0);
+      }
+      10% { 
+        opacity: 1; 
+      }
+      95% {
+        transform:
+          translate3d(0, 0, @r(50vmin, 55vmin))
+          rotate(@r(-360deg, 360deg));
+      }
+      100% {
+        opacity: 0;
+        transform: translate3d(0, 0, 1vmin);
+      }
+    }
+  
+  </css-doodle>
 </div>

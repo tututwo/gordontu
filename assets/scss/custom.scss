@@ -32,18 +32,29 @@
   overflow: hidden;
   position: relative;
 }
-
+// title
 #title{
   z-index: 3;
 }
-.big-title {
-  animation: flipInX 1s both;
-  animation-delay: 0.5s;
-  color:white;
+// .big-title {
+//   animation: flipInX 1s both;
+//   animation-delay: 0.5s;
+//   color:white;
 
+// }
+.Typewriter__wrapper{
+  font-size: 50px;
+  font-weight: regular;
+  color: white;
+  left: 40
 }
 
-.btn-primary {background-color: lightskyblue}
+/* Removing the cursor */
+.Typewriter__cursor{
+  display: inline-block;
+  color: white;
+  font-size: 50px
+}
 
 a, h3.article-title a:hover {
   color:lightgray
@@ -51,10 +62,12 @@ a, h3.article-title a:hover {
 
 // icon
 .network-icon{
-  position: absolute;
-  z-index: 3
+  position: relative;
+  z-index: 3;
 }
-
+.network-icon a {
+  color: #7866B0
+}
 ////////////////////////////////* Project Section ////////////////////////////////
 // the whole project
 #projects {
@@ -63,15 +76,37 @@ a, h3.article-title a:hover {
   margin: 0;
   background: #151830;
   overflow: hidden;
-  position: relative
+  position: relative;
+  z-index:3
+}
+#project-doodle{
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000; 
 }
 
 // the Project title text
-.mb-0 {
-  color: red
+.section-heading > h1 {
+  color: #fbf5f9
 }
 
 css-doodle{
   z-index: 1;
 }
+
+.project-toolbar{
+  position: relative;
+  z-index: 3;
+}
+
+// button
+.btn-group a {
+  color: white
+}
+.btn-primary {
+  background-color: #AF9CD2
+}
+
 
