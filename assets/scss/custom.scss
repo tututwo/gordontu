@@ -26,7 +26,9 @@
 }
 // title
 #title{
-  z-index: 10
+  z-index: 10;
+    margin-top: 12%;
+    margin-left: 12%
 }
 // .big-title {
 //   animation: flipInX 1s both;
@@ -48,7 +50,6 @@
   font-size: 2rem;
   font-weight: regular;
   color: white;
-  left: 40%;
 
 }
 
@@ -73,7 +74,7 @@ a, h3.article-title a:hover {
   width: 100%;
   z-index: 3;
   justify-content: center;
-  top: 70vh
+  top: 45vh
 }
 
 .network-icon a {
@@ -83,7 +84,8 @@ a, h3.article-title a:hover {
 .skill-list{
   position: relative;
   left: -1%;
-  justify-content: left;
+  margin-left: 12%;
+
 }
 
 
