@@ -25,12 +25,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.6.1/gsap.min.js"></script>
   <script src="https://unpkg.com/typewriter-effect@latest/dist/core.js"></script>
 </head>
-
-
+  <!-- 0.4s * grid numbers 50 = scale-up决定了20s无限循环 -->
+  <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
 <css-doodle click-to-update>
 
   :doodle {
-    @grid: 100x1 / 90vmin;
+    @grid: 50x1 / 90vmin;
     perspective: 18vmin;
     position:absolute
   }
@@ -48,10 +48,10 @@
   pointer-events: none;
   border-radius: 50%;
   transform-style: preserve-3d;
-  <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
-  animation: scale-up 80s linear infinite;
-  <!-- 0.4s * grid numbers 50 = scale-up决定了20s无限循环 -->
-  animation-delay: calc(@i * -.8s);
+
+  animation: scale-up 50s linear infinite;
+
+  animation-delay: calc(@i * -1.2s);
 
   @keyframes scale-up {
     0% {
@@ -137,7 +137,7 @@
 
       typewriter.typeString("Hi, I'm  <strong>Gordon Tu</strong>, 涂钰坤")
                 .pauseFor(1500)
-                .deleteChars(5)
+                .deleteChars(4)
                 .typeString('<br> A data visualization enthusiast and practitioner!')
                 .pauseFor(1500)
                 // .deleteAll()
