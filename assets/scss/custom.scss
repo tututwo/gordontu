@@ -34,8 +34,18 @@
 //   color:white;
 
 // }
+.my-sub-title{
+  display:inline;
+  font-size: 1.1rem;
+}
+.my-toolbox{
+  display:inline;
+  font-size: 1.1rem;
+}
+
+//* typewriter effect
 .Typewriter__wrapper{
-  font-size: 2em;
+  font-size: 2rem;
   font-weight: regular;
   color: white;
   left: 40%;
@@ -43,6 +53,9 @@
 }
 
 /* Removing the cursor */
+#app{
+  justify-content: center;
+}
 .Typewriter__cursor{
   display: inline-block;
   color: white;
@@ -56,11 +69,24 @@ a, h3.article-title a:hover {
 // icon
 .network-icon{
   position: relative;
+  display: inline-flex;
+  width: 100%;
   z-index: 3;
+  justify-content: center;
+  top: 80vh
 }
+
 .network-icon a {
   color: #7866B0
 }
+
+.skill-list{
+  position: relative;
+  left: -1%;
+  justify-content: left;
+}
+
+
 ////////////////////////////////* Project Section ////////////////////////////////
 // the whole project
 #projects {
