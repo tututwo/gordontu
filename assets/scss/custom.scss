@@ -74,20 +74,34 @@ a, h3.article-title a:hover {
   width: 100%;
   z-index: 3;
   justify-content: center;
-  top: 35vh
+  top: 19vh
 }
 
 .network-icon a {
   color: #7866B0
 }
 
-.skill-list{
-  position: relative;
-  left: -1%;
-  margin-left: 12%;
 
+//* just trying to use responsive css here
+/* middle size style */
+@media screen and (max-width:500px) {
+  .skill-list{
+    position: relative;
+    // margin-left: 12%;
+    justify-content: left;
+    left:-1rem
+  }
 }
 
+/* large size style */
+@media screen and (min-width:500px) {
+  .skill-list{
+    position: relative;
+    // margin-left: 12%;
+    justify-content: left;
+    left:-1rem
+  }
+}
 
 ////////////////////////////////* Project Section ////////////////////////////////
 // the whole project
