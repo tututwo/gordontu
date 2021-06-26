@@ -27,7 +27,7 @@
 </head>
   <!-- 0.4s * grid numbers 50 = scale-up决定了20s无限循环 -->
   <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
-<!-- <css-doodle click-to-update>
+<css-doodle click-to-update>
 
   :doodle {
     @grid: 50x1 / 90vmin;
@@ -36,7 +36,7 @@
   }
 
   background: @m(
-    @r(1, 50), 
+    @r(20, 50), 
     radial-gradient(
       @p(#f5f7f9,#e0d7ee,#c9b9e1,#af9cd2,#9480c1,#7866b0,#5b4e9d,#3b388a,#0b2377) 15%,
       transparent 50%
@@ -72,7 +72,7 @@
     }
   }
 
-</css-doodle> -->
+</css-doodle>
 <!-- About widget -->
   <div id = "title">
     <div id = "app">
@@ -223,8 +223,6 @@
     </div>
   </div>
 
-
-
     <ul class="network-icon" aria-hidden="true">
       {{ range $person.social }}
       {{ $pack := or .icon_pack "fas" }}
@@ -278,7 +276,7 @@
       typewriter.typeString("Hi, I'm  <strong>Gordon Tu</strong>, 涂钰坤")
                 .pauseFor(1500)
                 .deleteChars(4)
-                .typeString('<br> <div class="my-sub-title">A Data Visualization Enthusiast and Practitioner!</div>')
+                .typeString('<br><div class="my-sub-title">   A Data Visualization Enthusiast and Practitioner!</div>')
                 .pauseFor(1500)
                 // .deleteAll()
                 // .pauseFor(500)
