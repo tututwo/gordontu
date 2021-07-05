@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
 :root {
   --bg: #051626;
 }
@@ -7,13 +8,7 @@
 .container-xl{
   max-width: 2000px;
 }
-// body { 
-//   height: 100%; 
-//   margin: 0; 
-//   display: grid; 
-//   place-items: center; 
-//   background: #930B12; 
-// }
+
 ////////////////////////////////* About Section ////////////////////////////////
 #about {
   // background-color: #0b0c26;
@@ -28,7 +23,9 @@
 #title{
   z-index: 10;
     margin-top: 12%;
-    margin-left: 12%
+    margin-left: 12%;
+    font-family: 'Special Elite', cursive;
+    letter-spacing: 0.2em;
 }
 // .big-title {
 //   animation: flipInX 1s both;
@@ -39,6 +36,8 @@
 .my-sub-title{
   display:inline;
   font-size: 1.1rem;
+  font-family: 'Special Elite', cursive;
+  letter-spacing: 0.2em;
 }
 .my-toolbox{
   display:inline;
@@ -102,7 +101,11 @@ a, h3.article-title a:hover {
     left:-1rem
   }
 }
-
+////////////////////////////////* Nav Bar Section ////////////////////////////////
+.navbar-nav {
+  font-size: 0.88rem;
+  letter-spacing: 0.1em;
+}
 ////////////////////////////////* Project Section ////////////////////////////////
 // the whole project
 #projects {
@@ -124,7 +127,10 @@ a, h3.article-title a:hover {
 
 // the Project title text
 .section-heading > h1 {
-  color: #fbf5f9
+  font-size: 2rem;
+  font-family: 'Special Elite', cursive;
+  letter-spacing: 0.2em;
+  color: #f5f7f9
 }
 
 css-doodle{
@@ -136,11 +142,35 @@ css-doodle{
   z-index: 3;
 }
 
-// button
-.btn-group a {
-  color: white
-}
+////////////////////////////////* Button Section ////////////////////////////////
+
 .btn-primary {
-  background-color: #AF9CD2
+  background-color: #5b4e9d;
+  font-family: 'Work Sans';
 }
+.btn {
+  padding: .5 rem;
+  font-size: .8rem;
+  line-height: .5;
+  border-radius: .3rem;
+}
+.dark .btn-primary, .dark .btn.btn-primary.active {
+  color: #e0d7ee;
+}
+.btn-toolbar .btn.btn-primary:active, .btn-toolbar .btn.btn-primary.active {
+  background-color: #3b388a !important;
+}
+////////////////////////////////* Post Article Section ////////////////////////////////
+.universal-wrapper{
+  max-width: 1200px;
+}
+.article-container {
+  max-width: 1200px;
+}
+////////////////////////////////* Post Article Section ////////////////////////////////
+.dark .card {
+  background:black;
+  
+}
+
 

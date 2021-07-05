@@ -1,0 +1,11 @@
+# Font style metadata
+name = "my_font_set"
+
+# Optional Google font URL
+google_fonts = "family=Roboto&family=Special+Elite&family=Work+Sans:wght@700"
+
+# Font families
+heading_font = "Work Sans"
+body_font = "Roboto"
+nav_font = "Work Sans"
+mono_font = "Roboto"

@@ -5,10 +5,10 @@
 
 # Appearance
 
-theme: Mr Robot
+theme: gordontu
 day_night: false
-font: 'Mr Robot'
-font_size: XL
+font: 'my_font_set'
+font_size: L
 
 # SEO
 

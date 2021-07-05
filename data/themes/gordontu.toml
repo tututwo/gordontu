@@ -1,18 +1,18 @@
 
 # Theme metadata
-name = "isabella"
+name = "gordontu"
 
 # Is theme light or dark?
 light = false
 
 # Primary
-primary = "#031e3b"
+primary = "white"
 
 # Menu
-menu_primary = "#031e3b"
-menu_text = "#031e3b"
-menu_text_active = "#031e3b"
-menu_title = "#031e3b"
+menu_primary = "#F7F7F7"
+menu_text = "#F7F7F7"
+menu_text_active = "#F7F7F7"
+menu_title = "#F7F7F7"
 
 # Backgrounds
 background = "#031e3b"
@@ -20,5 +20,5 @@ home_section_odd = "#031e3b"
 home_section_even = "#031e3b"
 
 # font = "rose"
-link = "#031e3b"
-link_hover = "#031e3b"
+link = "lightblue"
+link_hover = "lightblue"
