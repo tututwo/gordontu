@@ -42,7 +42,7 @@ Let's start with the easiest way.
 
 3. **Add dsv() to to it.**
 
-![dsv](featured.png)
+![featured](featured.png)
 
 ***Tips:*** 
 
@@ -145,7 +145,8 @@ What if your data is on a server and it takes some time to load it. Well, we can
    * Do not define the dataset variable inside onMount. It would be scoped in onMount so that you can't refer to it outside of onMount function.
    * Whatever is inside of onMount will be run once the rest of your code is run, aka "the component is first rendered to the DOM", aka after elements are "mounted".(Or I think of it as: the code your wrote in your .svlete file completes running for the first time.)
 
-
+## Load Data Directly into `readable()` Store
+**TO BE WRITTEN**
 
 ****
 

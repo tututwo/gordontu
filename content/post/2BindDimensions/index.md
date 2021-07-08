@@ -78,7 +78,7 @@ Just put `<svg>` inside a `<div>` element, and repeat what we did in the last se
 
 If you drag to change the width of the window, you will see a series of updated arrays, telling you the current width and height of `<div class = "chart-container">`element. 
 
-![Screen Shot 2021-07-04 at 15.51.56](featured.png)
+![featured](featured.png)
 
 ****
 
