@@ -5,13 +5,12 @@ highlight: true
 image:
   placement: 3
 math: true
-title: Svelte Data Viz Study Notes 2 - How to Define Chart Dimensions
+title: Svelte Data Viz Study Notes 3 - How to plot data points(marks) using Svelte?
 
 categories:
 - Svelte
 - Tutorial
 ---
-# How to plot data points(marks) using Svelte?
 
 So far I have learned how to import data and define the canvas. 
 
