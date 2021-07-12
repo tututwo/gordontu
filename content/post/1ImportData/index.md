@@ -139,6 +139,8 @@ What if your data is on a server and it takes some time to load it. Well, we can
    When other code finishes running, functions within onMount get called. You will change the dataset variable you defined before, and then Svelte's reactivity will happliy change other variables of interest. 
 
    In this case, onMount will return you a fulfilled promise. 
+   
+   <iframe src="https://svelte.dev/repl/4eb3f32119e044c796919d8bd64d2fa0?version=3.38.3" width="100%" height='600' title="Svelte temperature each demo"></iframe>
 
 ***Tips***: 
 

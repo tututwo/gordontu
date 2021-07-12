@@ -78,7 +78,7 @@ Just put `<svg>` inside a `<div>` element, and repeat what we did in the last se
 
 If you drag to change the width of the window, you will see a series of updated arrays, telling you the current width and height of `<div class = "chart-container">`element. 
 
-![featured](featured.png)
+<iframe src="https://svelte.dev/repl/a63b1d9ae45f487eb77fb2ce00946efc?version=3.38.3" width="100%" height='600' title="Svelte temperature each demo"></iframe>
 
 ****
 
