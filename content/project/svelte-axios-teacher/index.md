@@ -1,6 +1,6 @@
 ---
 date: "2021-07-01T00:00:00Z"
-external_link: https://layercake-axios-teacher.netlify.app/
+external_link: https://teacher-svelte.netlify.app/
 image:
   caption: Photo by Toa Heftiba on Unsplash
   focal_point: Smart
