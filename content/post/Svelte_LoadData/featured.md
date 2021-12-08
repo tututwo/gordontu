@@ -24,13 +24,13 @@ Let's use [Bloomberg's Flood Risk and Financial Cost](https://www.bloomberg.com/
 
 I'm interested in the county data they applied to US map,
 
-![Screen Shot 2021-12-08 at 01.25.04](./map.png)
+![Screen Shot 2021-12-08 at 01.25.04](map.png)
 
-but I can't find it either in *Network* panel or ![Screen Shot 2021-12-08 at 01.26.30](./network.png)
+but I can't find it either in *Network* panel or ![Screen Shot 2021-12-08 at 01.26.30](network.png)
 
 *Sources* Panel.
 
-![Screen Shot 2021-12-08 at 01.27.57](./source.png)
+![Screen Shot 2021-12-08 at 01.27.57](source.png)
 
 
 
@@ -38,11 +38,11 @@ Now that I really want the data, I gotta check the compiled files, in this case,
 
 Usually, I guess the data can be compiled into a `.js` file. Oof, this is a lot of code that I have no idea about... but no worry, I am only here for the county data.
 
- ![Screen Shot 2021-12-08 at 01.30.26](./main.png)
+ ![Screen Shot 2021-12-08 at 01.30.26](main.png)
 
 I just need to brainstorm a US county that actually exists, which is the hardest part of this tutorial, and try to find it in this file. 
 
-![Screen Shot 2021-12-08 at 01.32.26](./kent.png)
+![Screen Shot 2021-12-08 at 01.32.26](kent.png)
 
 It's **Kent County**! And it exists! The data is in `main.js`!
 
@@ -54,22 +54,22 @@ Here is the one-million dollar finding: all the data are contained in ONE variab
 
 If I can solely copy this variable, paste it to another file, and then name it `JSON` (or `csv`, it all depends on your desired data). Case closed!
 
-![Screen Shot 2021-12-08 at 01.34.59](./tA object.png)
+![Screen Shot 2021-12-08 at 01.34.59](tA object.png)
 
 1. So I right clicked `main.js/formatted` and saved it somewhere in my laptop.
 
 2. I opened it in VSCode, where I can **expand** or **collapse** variables.
 
-   ![vs1](./vs1.png)
+   ![vs1](vs1.png)
 
 3. Of course, I collapsed it, and 25,000ish rows just become two rows.
 
-   ![vs1](./vs2.png)
+   ![vs1](vs2.png)
 
 4. Then I copied two rows(actually 25,000) and `JSON.stringify()` it in a console.
 
 5. The last step is to copy and paste the final result in a JSON file.
 
-  ![JSON](./JSON.png)
+  ![JSON](JSON.png)
 
 Now I am off to go.
