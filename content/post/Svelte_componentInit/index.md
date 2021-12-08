@@ -95,7 +95,7 @@ If I want to change/update DOM elements via clicking a button:
 
 Ruben Leija made an [awesome graph](https://linguinecode.com/post/3-methods-to-run-code-after-dom-update-in-svelte).
 
-![img](svelte-lifecycle-flow.png)
+![img](flow.png)
 
 To put it in my words in this case:
 

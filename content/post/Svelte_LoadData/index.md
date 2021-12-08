@@ -24,7 +24,7 @@ Let's use [Bloomberg's Flood Risk and Financial Cost](https://www.bloomberg.com/
 
 I'm interested in the county data they applied to US map,
 
-![Screen Shot 2021-12-08 at 01.25.04](map.png)
+![Screen Shot 2021-12-08 at 01.25.04](featured.png)
 
 but I can't find it either in *Network* panel or ![Screen Shot 2021-12-08 at 01.26.30](network.png)
 
