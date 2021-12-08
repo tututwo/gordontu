@@ -1,4 +1,16 @@
-# How to Acquire Data from a Svelte Project?
+---
+date: "2021-12-08"
+diagram: true
+highlight: true
+image:
+  placement: 3
+math: true
+title: How to Acquire Data from a Svelte Project?
+
+categories:
+- Svelte
+- Tutorial
+---
 
 I was so enlightened by [Tyler Dukes' thread](https://twitter.com/mtdukes/status/1420193885750452227) about how to download data requested by the current website from other external sources.
 
