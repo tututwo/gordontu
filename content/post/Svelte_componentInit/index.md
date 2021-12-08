@@ -1,5 +1,16 @@
-# Component Initialization and Updates
+---
+date: "2021-12-08"
+diagram: true
+highlight: true
+image:
+  placement: 3
+math: true
+title: Component Initialization and Updates
 
+categories:
+- Svelte
+- Tutorial
+---
 I often see 
 
 > this must be called during component initialisation
