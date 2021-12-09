@@ -19,7 +19,7 @@ in Svelte's docs, but what exactly is **Component Initialization**???
 
 After inquiring some smart people on the Internet, I would like to jog down some notes about what's included in **Component Initialization** in case of forgetting it again, like I always do.
 
-## The Early Stage: run <script> once
+## The Early Stage: run `<script>` once
 
 TL DR:
 
@@ -63,11 +63,11 @@ Microtasks that are schedule to run.
 
 Macrotasks like `setTimeOut` runs during **Component Initialization** but not whatever is scheduled to run(aka, callbacks) inside it for whatever inside it is considered as *callbacks*
 
-Lihau has this wonderful [thread](https://twitter.com/lihautan/status/1396111979799093254) about Component Initialization, and he introduced this trick: *In <script>, put everything inside ONE function. Whatever runs at the first time runs during **Component Initialization**.*
+Lihau has this wonderful [thread](https://twitter.com/lihautan/status/1396111979799093254) about Component Initialization, and he introduced this trick: *In `<script>`, put everything inside ONE function. Whatever runs at the first time runs during **Component Initialization**.*
 
 ## A Bit Later: Mounting
 
-Basically when <scirpt> is run. Elements defined in *.svelte*, the component, is added to the DOM. This step is called **component mouting**.
+Basically when `<scirpt>` is run. Elements defined in *.svelte*, the component, is added to the DOM. This step is called **component mouting**.
 
 ## The End: Stuff inside onMount()
 
@@ -99,7 +99,7 @@ Ruben Leija made an [awesome graph](https://linguinecode.com/post/3-methods-to-r
 
 To put it in my words in this case:
 
-When I change those variables in <script>, they are changed in <script>. Once Svelte is about to compile the code to `.js` to update the DOM, this very action is batched! 
+When I change those variables in `<script>`, they are changed in `<script>`. Once Svelte is about to compile the code to `.js` to update the DOM, this very action is batched! 
 
 Svelte is kind of saying: *Hey, you sync task go first, I will keep collecting those pending changes to be made in the DOM*. Once those tasks are done, aka before the next micro task, DOM then gets updated.
 
