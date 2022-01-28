@@ -15,7 +15,7 @@
   width: 100vw;
   height: 100vh;
   margin: 0;
-  background: #151830;
+  background: #241d39;
   overflow: hidden;
   position: relative;
 }
@@ -33,9 +33,14 @@
 //   color:white;
 
 // }
+.big-title{
+  font-size: 1.5rem;
+  font-family: 'Special Elite', cursive;
+  letter-spacing: 0.2em;
+}
 .my-sub-title{
-  display:inline;
-  font-size: 1.1rem;
+  display: block;
+  font-size: 1.25rem;
   font-family: 'Special Elite', cursive;
   letter-spacing: 0.2em;
 }
@@ -45,23 +50,18 @@
 }
 
 //* typewriter effect
-.Typewriter__wrapper{
-  font-size: 2rem;
-  font-weight: regular;
-  color: white;
-
-}
-
-/* Removing the cursor */
 #app{
   justify-content: center;
 }
-.Typewriter__cursor{
+// .Typewriter__cursor{
+//   display: inline-block;
+//   color: white;
+//   font-size: 2em
+// }
+#cursor {
+  margin: 0;
   display: inline-block;
-  color: white;
-  font-size: 2em
 }
-
 a, h3.article-title a:hover {
   color:lightgray
 }
@@ -112,7 +112,7 @@ a, h3.article-title a:hover {
   // background-color: #0b0c26;
   // height: 100vh;
   margin: 0;
-  background: #151830;
+  background: #2d2447;
   overflow: hidden;
   position: relative;
   z-index:3
@@ -168,8 +168,9 @@ a, h3.article-title a:hover {
   max-width: 1200px;
 }
 ////////////////////////////////* Post Article Section ////////////////////////////////
+//! card color
 .dark .card {
-  background:black;
+  background:#2d2447;
   
 }
 

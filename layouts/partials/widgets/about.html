@@ -28,24 +28,11 @@
   <!-- 0.4s * grid numbers 50 = scale-up决定了20s无限循环 -->
   <!-- 80s 越大越慢，但是看得也越靠后，需要配合perspective -->
   
-  
-  
 <!-- About widget -->
   <div id = "title">
     <div id = "app">
 
     </div>
-    <!-- <div class="big-title">
-      <h1>
-        Hi, I'm Gordon Tu,涂钰坤
-      </h1>
-    </div> -->
-<!-- 
-    <div class = 'sub-title'>
-      <h2>
-        A data visualization enthusiast and practitioner
-      </h2>
-    </div> -->
 
     <div class= "skill-list">
 
@@ -247,14 +234,6 @@
     </css-doodle>
     </div>
     <script>
-      // github etc.. icon
-      // gsap.from(
-      //   'ul li',
-      //   {
-      //     y: 100,
-      //     duration: 3
-      //   }.big-icon
-      // )
       gsap.fromTo(
       "svg, .big-icon",
       {
@@ -274,22 +253,10 @@
           cursor: "_"
       });
 
-      typewriter.typeString("Hi, I'm  <strong>Gordon Tu</strong>, 涂钰坤")
+      typewriter.typeString("<span class = 'big-title'>Hi, I'm  <strong>Gordon Tu</strong>, 涂钰坤</span>")
                 .pauseFor(500)
                 .deleteChars(4)
-                .typeString('<br><div class="my-sub-title">   A Data Visualization Practitioner!</div>')
+                .typeString('<br><span class="my-sub-title">   A Data Visualization Practitioner!</span>')
                 .pauseFor(500)
-                // .deleteAll()
-                // .pauseFor(500)
-                // .typeString('<br><div class="my-toolbox">My Primary Data Viz Toolbox:</div>')
-                // .pauseFor(1000)
                 .start();
-
     </script>
-
-
-
-
-
-  
-

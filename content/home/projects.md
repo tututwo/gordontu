@@ -26,7 +26,7 @@ content:
   # To remove the toolbar, delete the entire `filter_button` block.
   filter_button:
   - name: All
-    tag: '*'
+    tag: All
   - name: Chart
     tag: Chart
   - name: Map
@@ -35,8 +35,8 @@ content:
     tag: Svelte Project
   - name: Practice
     tag: Practice
-  - name: Creative Art
-    tag: Creative Art
+  - name: Creative Coding
+    tag: Creative Coding
 design:
 
   # Choose how many columns the section has. Valid values: '1' or '2'.

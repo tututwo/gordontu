@@ -7,5 +7,6 @@ image:
 summary: Traditional Chinese Patterns Recreated in CSS-Doodle
 tags:
 - Creative Art
+- All
 title: Traditional Chinese Patterns-中国传统纹样
 ---

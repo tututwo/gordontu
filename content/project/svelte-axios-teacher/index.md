@@ -6,6 +6,7 @@ image:
   focal_point: Smart
 summary: Recreating animated scatter plot in svelte.js, d3.js and GSAP.
 tags:
-- Practice
+- Svelte Project
+- All
 title: Recreated in Svelte.js-Why teachers are walking out of the classroom by Andrew Witherspoon
 ---

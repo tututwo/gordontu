@@ -6,5 +6,6 @@ image:
 summary: Geofacetted stack bar chart that compares the beer production and beer consumption in each statevisuals.
 tags:
 - Chart
+- All
 title: "How dry would each state be if Americans only consumed local state-produced beer?"
 ---
