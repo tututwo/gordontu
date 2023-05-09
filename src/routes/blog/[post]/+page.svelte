@@ -23,8 +23,8 @@
         <!--! Material Design https://m3.material.io/styles/typography/applying-type -->
 
         <div class="content leading-1.6 md:leading-5 lg:leading-[1.21rem]">
-            <BlogHeading />
-            <svelte:component this={data.content} />
+            <!-- <BlogHeading />
+            <svelte:component this={data.content} /> -->
         </div>
     </article>
 </main>
