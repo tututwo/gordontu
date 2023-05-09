@@ -8,7 +8,7 @@ import { ScrollTrigger } from 'gsap/dist/ScrollTrigger.js';
 
 if (typeof window !== "undefined") {
   // gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
-  gsap.registerPlugin(Draggable,, ScrollTrigger)
+  gsap.registerPlugin(Draggable,ScrollTrigger)
 }
 
 export * from "gsap";

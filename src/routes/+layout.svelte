@@ -1,7 +1,7 @@
 <script>
     // export const prerender = true
     import "../app.css";
-    // import 'css-doodle';
+    import 'css-doodle';
     import Analytics from "$lib/Analytics.svelte";
     import Header from "$lib/landingPage/Header.svelte";
 
@@ -14,7 +14,7 @@
     class="absolute h-full w-full flex items-start justify-center overflow-hidden z-[-1] pointer-events-none"
     
 >
-    <!-- <css-doodle >
+    <css-doodle >
         {`
           :doodle {
           @grid: 16 / 100vmin 80vmin;
@@ -90,14 +90,14 @@
           }
           }
           `}
-    </css-doodle> -->
+    </css-doodle>
 </div>
-<!-- <svelte:head>
+<svelte:head>
     <script
         defer
         src="https://unpkg.com/css-doodle@0.30.8/css-doodle.js"
     ></script>
-</svelte:head> -->
+</svelte:head>
 
 {#key data.currentRoute}
     <div
