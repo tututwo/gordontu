@@ -5,7 +5,7 @@ export let projectCardInfo = writable([
     projectName:
       "Brain Pulse Animation - Recreate Blue Yard Studio's Brain Pulse Animation",
     projectDescription: "",
-    projectLink: "https://earthquake-landingpage.vercel.app/",
+    projectLink: "https://brain-impulse.vercel.app/",
     projectImgSource: "/projects/CreativeCoding/R3f-Brain.png",
     tools: ["Three.js, React.js"],
     titleTag: "code creatively",
