@@ -14,7 +14,7 @@
 {#if $windowWidth > 968}
   <div
     aria-hidden="true"
-    transition:fly={{ y: 50 }}
+    transition:fly|global={{ y: 50 }}
     class="circle {$menuExpanded ? 'invisible' : ''}"
     sveltekit:prefetch
     on:click={() => {
@@ -44,8 +44,8 @@
       {#key text}
         <text
           dy="-25"
-          in:fade={{ duration: 300, delay: 300 }}
-          out:fade={{ duration: 300 }}
+          in:fade|global={{ duration: 300, delay: 300 }}
+          out:fade|global={{ duration: 300 }}
         >
           <textPath xlink:href="#circle">
             {text}

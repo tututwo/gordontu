@@ -3,11 +3,21 @@ import { writable } from "svelte/store";
 export let projectCardInfo = writable([
   {
     projectName:
+      "Brain Pulse Animation - Recreate Blue Yard Studio's Brain Pulse Animation",
+    projectDescription: "",
+    projectLink: "https://brain-impulse.vercel.app/",
+    projectImgSource: "/projects/CreativeCoding/R3f-Brain.png",
+    tools: ["Three.js, React.js"],
+    titleTag: "code creatively",
+    date: "2023-11-01",
+  },
+  {
+    projectName:
       "Global Earthquakes - 3D Visualization with Three.js and Observable",
     projectDescription: "",
-    projectLink: "https://earthquake-r3f.vercel.app/",
+    projectLink: "https://earthquake-landingpage.vercel.app/",
     projectImgSource: "/projects/CreativeCoding/Earthquake.png",
-    tools: ["Three.js, React.js"],
+    tools: ["Three.js, Svelte.js"],
     titleTag: "code creatively",
     date: "2023-03-01",
   },
@@ -75,8 +85,8 @@ export let projectCardInfo = writable([
     projectDescription:
       "Geofacetted stack bar chart that compares the beer production and beer consumption in each statevisuals.",
     projectLink:
-      "https://twitter.com/tu_yukun/status/1281702418581827584/photo/1",
-    projectImgSource: "/projects/Charts/tt_Beer_Produciton.png",
+      "https://twitter.com/_tuyukun/status/1281702418581827584",
+    projectImgSource: "https://pbs.twimg.com/media/EcmEau_UMAAat7E?format=jpg&name=4096x4096",
     tools: ["R"],
     titleTag: "charts",
     date: "2020-12-10",
@@ -86,8 +96,8 @@ export let projectCardInfo = writable([
       "How much money did award-winning shows earn before the award date?",
     projectDescription:
       "Exploring the net gross and days before the awarding date of each musical that debutted after 1986",
-    projectLink: "https://twitter.com/tu_yukun/status/1297733577849765888/photo/1",
-    projectImgSource: "/projects/Charts/tt_Broadway.png",
+    projectLink: "https://twitter.com/_tuyukun/status/1297733577849765888/photo/1",
+    projectImgSource: "https://pbs.twimg.com/media/EgJ5z45UMAA1-dD?format=png&name=medium",
     tools: ["R"],
     titleTag: "charts",
     date: "2021-01-10",
