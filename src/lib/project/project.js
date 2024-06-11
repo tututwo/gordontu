@@ -1,10 +1,8 @@
 import { writable } from "svelte/store";
 
 export let projectCardInfo = writable([
-
   {
-    projectName:
-      "California Affordable Housing",
+    projectName: "California Affordable Housing",
     projectDescription: "",
     projectLink: "  https://traveling-particles.vercel.app/",
     projectImgSource: "/projects/CreativeCoding/three_us_road.png",
@@ -13,18 +11,17 @@ export let projectCardInfo = writable([
     date: "2024-11-01",
   },
   {
-    projectName:
-      "California Affordable Housing",
+    projectName: "California Affordable Housing",
     projectDescription: "",
-    projectLink: "https://ternercenter.berkeley.edu/affordability-for-whom.html",
+    projectLink:
+      "https://ternercenter.berkeley.edu/affordability-for-whom.html",
     projectImgSource: "/projects/Charts/svelte_california_housing.png",
     tools: ["Svelte", "D3"],
     titleTag: "code creatively",
     date: "2023-11-01",
   },
   {
-    projectName:
-      "Election Map - 3D Visualization with Three.js and GLSL",
+    projectName: "Election Map - 3D Visualization with Three.js and GLSL",
     projectDescription: "",
     projectLink: "https://vite-three-five.vercel.app/",
     projectImgSource: "/projects/Charts/three_election.png",
@@ -53,8 +50,7 @@ export let projectCardInfo = writable([
     date: "2023-03-01",
   },
   {
-    projectName:
-      "Stitching Heart, Blooming Flowers",
+    projectName: "Stitching Heart, Blooming Flowers",
     projectDescription: "",
     projectLink: "https://beating-heart-phi.vercel.app/",
     projectImgSource: "/projects/CreativeCoding/R3f-Heart.png",
@@ -63,8 +59,7 @@ export let projectCardInfo = writable([
     date: "2023-02-01",
   },
   {
-    projectName:
-      "Spike Planet",
+    projectName: "Spike Planet",
     projectDescription: "",
     projectLink: "https://spikey-planet.vercel.app/",
     projectImgSource: "/projects/CreativeCoding/R3f-spikey.png",
@@ -76,8 +71,10 @@ export let projectCardInfo = writable([
     projectName:
       "Number of Chinese Company Infrastructure in the US and Abroad.",
     projectDescription: "",
-    projectLink: "https://twitter.com/tu_yukun/status/1646917464767225862/photo/1",
-    projectImgSource: "https://pbs.twimg.com/media/FtcYkEzXoAAxtcw?format=png&name=medium",
+    projectLink:
+      "https://twitter.com/tu_yukun/status/1646917464767225862/photo/1",
+    projectImgSource:
+      "https://pbs.twimg.com/media/FtcYkEzXoAAxtcw?format=png&name=medium",
     tools: ["Observable"],
     titleTag: "charts",
     date: "2023-04-01",
@@ -115,9 +112,9 @@ export let projectCardInfo = writable([
       "How dry would each state be if Americans only consumed local state-produced beer?",
     projectDescription:
       "Geofacetted stack bar chart that compares the beer production and beer consumption in each statevisuals.",
-    projectLink:
-      "https://twitter.com/_tuyukun/status/1281702418581827584",
-    projectImgSource: "https://pbs.twimg.com/media/EcmEau_UMAAat7E?format=jpg&name=4096x4096",
+    projectLink: "https://twitter.com/_tuyukun/status/1281702418581827584",
+    projectImgSource:
+      "https://pbs.twimg.com/media/EcmEau_UMAAat7E?format=jpg&name=4096x4096",
     tools: ["R"],
     titleTag: "charts",
     date: "2020-12-10",
@@ -127,8 +124,10 @@ export let projectCardInfo = writable([
       "How much money did award-winning shows earn before the award date?",
     projectDescription:
       "Exploring the net gross and days before the awarding date of each musical that debutted after 1986",
-    projectLink: "https://twitter.com/_tuyukun/status/1297733577849765888/photo/1",
-    projectImgSource: "https://pbs.twimg.com/media/EgJ5z45UMAA1-dD?format=png&name=medium",
+    projectLink:
+      "https://twitter.com/_tuyukun/status/1297733577849765888/photo/1",
+    projectImgSource:
+      "https://pbs.twimg.com/media/EgJ5z45UMAA1-dD?format=png&name=medium",
     tools: ["R"],
     titleTag: "charts",
     date: "2021-01-10",
@@ -213,7 +212,8 @@ export let projectCardInfo = writable([
   {
     projectName: "Flow Field 2D",
     projectDescription: "",
-    projectLink: "https://observablehq.com/d/73794013ffa23a9c?collection=@tututwo/three-js-creative-coding-practice",
+    projectLink:
+      "https://observablehq.com/d/73794013ffa23a9c?collection=@tututwo/three-js-creative-coding-practice",
     projectImgSource: "/projects/CreativeCoding/Observable-flowfield.png",
     tools: ["Observable"],
     titleTag: "code creatively",
