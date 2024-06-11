@@ -1,6 +1,37 @@
 import { writable } from "svelte/store";
 
 export let projectCardInfo = writable([
+
+  {
+    projectName:
+      "California Affordable Housing",
+    projectDescription: "",
+    projectLink: "  https://traveling-particles.vercel.app/",
+    projectImgSource: "/projects/CreativeCoding/three_us_road.png",
+    tools: ["Three", "D3"],
+    titleTag: "code creatively",
+    date: "2024-11-01",
+  },
+  {
+    projectName:
+      "California Affordable Housing",
+    projectDescription: "",
+    projectLink: "https://ternercenter.berkeley.edu/affordability-for-whom.html",
+    projectImgSource: "/projects/Charts/svelte_california_housing.png",
+    tools: ["Svelte", "D3"],
+    titleTag: "code creatively",
+    date: "2023-11-01",
+  },
+  {
+    projectName:
+      "Election Map - 3D Visualization with Three.js and GLSL",
+    projectDescription: "",
+    projectLink: "https://vite-three-five.vercel.app/",
+    projectImgSource: "/projects/Charts/three_election.png",
+    tools: ["Three.js, React.js"],
+    titleTag: "code creatively",
+    date: "2023-11-01",
+  },
   {
     projectName:
       "Brain Pulse Animation - Recreate Blue Yard Studio's Brain Pulse Animation",
