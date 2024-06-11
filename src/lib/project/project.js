@@ -2,13 +2,13 @@ import { writable } from "svelte/store";
 
 export let projectCardInfo = writable([
   {
-    projectName: "California Affordable Housing",
+    projectName: "US Road System - 3D Visualization with Three.js and D3",
     projectDescription: "",
     projectLink: "  https://traveling-particles.vercel.app/",
     projectImgSource: "/projects/CreativeCoding/three_us_road.png",
     tools: ["Three", "D3"],
     titleTag: "code creatively",
-    date: "2024-11-01",
+    date: "2024-06-01",
   },
   {
     projectName: "California Affordable Housing",
@@ -18,7 +18,7 @@ export let projectCardInfo = writable([
     projectImgSource: "/projects/Charts/svelte_california_housing.png",
     tools: ["Svelte", "D3"],
     titleTag: "code creatively",
-    date: "2023-11-01",
+    date: "2024-05-01",
   },
   {
     projectName: "Election Map - 3D Visualization with Three.js and GLSL",
@@ -27,7 +27,7 @@ export let projectCardInfo = writable([
     projectImgSource: "/projects/Charts/three_election.png",
     tools: ["Three.js, React.js"],
     titleTag: "code creatively",
-    date: "2023-11-01",
+    date: "2024-05-10",
   },
   {
     projectName:
