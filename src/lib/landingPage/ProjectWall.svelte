@@ -246,8 +246,6 @@
 		dragStartX = event.clientX;
 		dragStartOffset = offset;
 		pointerHistory = [{ x: event.clientX, time: performance.now() }];
-		const target = /** @type {HTMLDivElement} */ (event.currentTarget);
-		target.setPointerCapture(event.pointerId);
 	}
 
 	/** @param {PointerEvent} event */
@@ -259,6 +257,10 @@
 
 		if (Math.abs(delta) > DRAG_THRESHOLD) {
 			suppressClick = true;
+			const target = /** @type {HTMLDivElement} */ (event.currentTarget);
+			if (!target.hasPointerCapture(event.pointerId)) {
+				target.setPointerCapture(event.pointerId);
+			}
 			event.preventDefault();
 		}
 

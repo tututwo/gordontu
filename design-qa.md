@@ -1,9 +1,9 @@
 # Landing page design QA
 
 - Source visual truth: `static/landing-page.png`
-- Browser-rendered implementation: `.design-qa/implementation-desktop-v4.png`
+- Browser-rendered implementation: `.design-qa/implementation-social-icons-v1.png`
 - Desktop viewport: 1672 × 941
-- Mobile implementation: `.design-qa/implementation-mobile-v5.png`
+- Mobile implementation: `.design-qa/implementation-mobile-social-icons-v1.png`
 - Mobile viewport: 390 × 844
 - State: landing route, `All` filter active, carousel settled on the default project
 
@@ -12,6 +12,8 @@
 - First-pass full-view comparison: `.design-qa/comparison-desktop-v4-baseline.jpg`
 - Final full-view comparison: `.design-qa/comparison-desktop-v4.jpg`
 - Final focused wall comparison: `.design-qa/comparison-focused-v4.jpg`
+- Social-icon refinement comparison: `.design-qa/comparison-social-icons-v1.jpg`
+- Focused Rough.js social marks: `.design-qa/social-icons-focused-v1.png`
 
 The focused comparison was required because the card tangent, overlap, doubled graphite outlines, image matting, and small caption treatment are not legible enough in the full-page pair.
 
@@ -51,6 +53,23 @@ Post-fix evidence:
 
 - The final focused comparison shows the added hand-drawn image edges without obscuring project imagery or captions: `.design-qa/comparison-focused-v4.jpg`.
 
+### Pass 3
+
+- [P1] A project-card tap was intercepted because the wall claimed pointer capture immediately on `pointerdown`, retargeting the eventual click away from the chosen anchor.
+- [P2] LinkedIn and GitHub had hand-drawn outer frames but retained crisp Iconify logos, which made the marks feel pasted into the sketch treatment.
+
+Fixes made:
+
+- Delayed wall pointer capture until movement exceeds the 8 px drag threshold. True clicks now remain native clicks on the exact project anchor, while real drags retain out-of-bounds capture, momentum, and click suppression.
+- Replaced both flat glyphs with deterministic Rough.js drawings: a sparse `in` mark and a simplified Octocat line drawing. The existing semantic links, labels, focus states, and destinations remain intact.
+- Kept both mobile social-link targets at 44 × 44 px and verified the 390 px layout has no horizontal overflow.
+
+Post-fix evidence:
+
+- Full desktop evidence: `.design-qa/implementation-social-icons-v1.png` and `.design-qa/comparison-social-icons-v1.jpg`.
+- Focused icon evidence: `.design-qa/social-icons-focused-v1.png`.
+- Mobile evidence: `.design-qa/implementation-mobile-social-icons-v1.png`.
+
 ## Required fidelity surfaces
 
 - Fonts and typography: passed. Newsreader preserves the reference's editorial display hierarchy, Shantell Sans carries the hand annotation/caption voice, and the system UI face remains readable at small sizes. Weight, line height, wrapping, and optical hierarchy remain stable at desktop and mobile.
@@ -58,16 +77,18 @@ Post-fix evidence:
 - Colors and visual tokens: passed. Warm paper, graphite, muted ink, and restrained portfolio accents preserve the source's paper-gallery balance. The portfolio palette is intentionally a little warmer than the source rather than being a literal brand copy.
 - Image quality and asset fidelity: passed. All cards use real optimized project assets, preserve sharpness, provide source-image fallbacks, and use consistent crops. No placeholder imagery was introduced.
 - Copy and content: passed. All visible copy is portfolio-specific and coherent; the reference's structure is adapted rather than copied verbatim.
-- Accessibility and responsiveness: passed. The carousel has pointer capture, click suppression, keyboard controls, a settled-state live announcement, reduced-motion behavior, visible focus treatment, and zero horizontal document overflow at 390, 820, and 1672 px.
+- Accessibility and responsiveness: passed. The carousel uses threshold-gated pointer capture, drag-only click suppression, keyboard controls, a settled-state live announcement, reduced-motion behavior, visible focus treatment, 44 px mobile social targets, and zero horizontal document overflow at 390, 820, and 1672 px.
 
 ## Interaction and runtime checks
 
 - Pointer flick: active project changed immediately, continued changing under inertia at 320 ms, and settled at 3.82 s with the final card at `rotateY(0deg)`.
 - Seamless wrap: the six-item Maps filter returned to the same logical project after six keyboard advances.
+- Post-fix pointer behavior: a true card click remains attached to the chosen native anchor; a 95 px browser-driven drag changed the active project and retained inertial motion.
+- Project destinations: the active card exposes the expected project-specific URL after drag/settle, including external project URLs and base-aware local image links.
 - Filter behavior: `aria-pressed` and the carousel dataset updated correctly, then returned to the default `All` state.
-- Mobile: 390 × 844 rendered with side-card slivers and zero horizontal page overflow.
+- Mobile: 390 × 844 rendered with side-card slivers, 44 px social-link targets, and zero horizontal page overflow.
 - Browser console errors and warnings after drag, wrap, filter, desktop, tablet, and mobile checks: 0.
-- Svelte autofixer issues in `ProjectWall.svelte` and `ProjectCard.svelte`: 0.
+- Svelte autofixer issues in `ProjectWall.svelte`, `ProjectCard.svelte`, and `PortfolioHeader.svelte`: 0.
 - Production build: passed. Existing accessibility warnings remain in the unrelated legacy `src/routes/project/+page.svelte` route.
 
 ## Findings
