@@ -1,26 +1,73 @@
-/* @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500;600;700;800&family=Karla:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap'); */
-@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+@import "@fontsource-variable/libre-franklin";
+@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/shantell-sans";
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
 @font-face {
-  font-family: "HanYiShouJinShuFan";
-  src: url(/fonts/HanYiShouJinShuFan/HanYiShouJinShuFan.ttf);
+	font-family: "HanYiShouJinShuFan";
+	src: url("/fonts/HanYiShouJinShuFan/HanYiShouJinShuFan.ttf") format("truetype");
+	font-display: swap;
 }
 
 @layer base {
-  html {
-    /* font-family: 'Inconsolata','Karla', monospace; */
-    font-family: "EB Garamond", serif;
-    font-family: "Montserrat", sans-serif;
-    font-size: 1rem;
-    font-variant-numeric: tabular-nums;
-  }
+	:root {
+		--paper: #f7f1e6;
+		--paper-elevated: #fffaf0;
+		--ink: #292923;
+		--muted-ink: #686459;
+		--accent: #d9593d;
+		--accent-pressed: #bd432d;
+		--accent-sun: #dca73b;
+		--accent-cool: #47747a;
+		--surface: rgb(255 250 240 / 0.78);
+		--surface-solid: #fffaf0;
+		--hairline: rgb(54 49 40 / 0.14);
+		--shadow-soft: rgb(87 65 38 / 0.12);
+		--sketch-ink: var(--ink);
+		--sketch-line: rgb(41 41 35 / 0.7);
+		--sketch-line-soft: rgb(41 41 35 / 0.38);
+		--font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
+			sans-serif;
+		--font-display: "Newsreader Variable", Georgia, serif;
+		--font-hand: "Shantell Sans Variable", cursive;
+		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+		--ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+		--shadow-material: 0 16px 42px rgb(87 65 38 / 0.075);
+		--press-in-duration: 100ms;
+		--press-out-duration: 160ms;
 
+		color: var(--ink);
+		font-family: var(--font-ui);
+		font-synthesis: none;
+		font-variant-numeric: tabular-nums;
+		text-rendering: optimizeLegibility;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	html {
+		min-width: 320px;
+		background: var(--paper);
+		color-scheme: light;
+	}
+
+	body {
+		min-width: 320px;
+		min-height: 100vh;
+		margin: 0;
+		background: var(--paper);
+		color: var(--ink);
+	}
+
+	button,
+	input,
+	textarea,
+	select {
+		font: inherit;
+	}
 }
 
-/** Practice Styling blog  */
-
 * {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
