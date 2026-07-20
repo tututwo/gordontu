@@ -28,7 +28,7 @@
 
   <div>
     <!--* Moving border  -->
-    <div />
+    <div></div>
     <!--* Side heading links  -->
     {#each titleSection as section}
       <!--TODO when the h2 element enters .5, the a element change the border  -->

@@ -136,12 +136,6 @@
           `}
   </css-doodle>
 </div>
-<svelte:head>
-  <script
-    defer
-    src="https://unpkg.com/css-doodle@0.30.8/css-doodle.js"
-  ></script>
-</svelte:head>
 <header
   class="relative top-[20vh] w-full lg:min-h-[50vh] flex flex-col items-center justify-center text-[1.2rem]"
 >

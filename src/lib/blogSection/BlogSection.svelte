@@ -17,7 +17,7 @@
                 class="option"
                 style="--optionBackground:url({blog.blogImgSource});"
             >
-                <div class="shadow" />
+                <div class="shadow"></div>
                 <div class="label">
                     <div class="icon">
                         <Icon icon='{blog.icon}' />
@@ -33,6 +33,8 @@
 </section>
 
 <style lang="scss">
+    @use "sass:list";
+
     $optionDefaultColours: #ed5565, #fc6e51, #ffce54, #2ecc71, #5d9cec, #ac92ec;
 
     section {
@@ -65,7 +67,7 @@
             height: 400px;
 
             @for $i from 1 through 4 {
-                @media screen and (max-width: 798px - $i*80) {
+                @media screen and (max-width: #{798px - $i * 80}) {
                     min-width: 600px - $i * 80;
                     .option:nth-child(#{6-$i}) {
                         display: none;
@@ -92,9 +94,9 @@
 
                 transition: 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95);
 
-                @for $i from 1 through length($optionDefaultColours) {
+                @for $i from 1 through list.length($optionDefaultColours) {
                     &:nth-child(#{$i}) {
-                        --defaultBackground: #{nth($optionDefaultColours, $i)};
+                        --defaultBackground: #{list.nth($optionDefaultColours, $i)};
                     }
                 }
                 &.active {

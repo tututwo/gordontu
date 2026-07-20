@@ -4,7 +4,7 @@ export let projectCardInfo = writable([
 
   {
     projectName:
-      "California Affordable Housing",
+      "Traveling Particles",
     projectDescription: "",
     projectLink: "  https://traveling-particles.vercel.app/",
     projectImgSource: "/projects/CreativeCoding/three_us_road.png",

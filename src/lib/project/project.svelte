@@ -81,7 +81,7 @@
     {@html projectText}
 </div> -->
     <div class="photo-by">Created By 涂钰坤, aka, Gordon Tu</div>
-    <div class="stamp" />
+    <div class="stamp"></div>
 </div>
 
 <style lang="scss">

@@ -15,7 +15,7 @@
           <div
             style="border-color: {color}"
             class="absolute inset-0 border-l-[.8em]"
-          />
+          ></div>
         {/if}`;
 
   export let markers = [[9, 10, 11], [15], [17, 18, 19, 20]];
@@ -79,7 +79,7 @@
           <div
             style="border-color: {color}"
             class="absolute inset-0 border-l-[.8em]"
-          />
+          ></div>
         {/if}
         <!-- Line number -->
         <div class="pt-1 flex-[0_0_3em]">
