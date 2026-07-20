@@ -331,6 +331,10 @@
 	/** @param {PointerEvent} event */
 	function handleLostPointerCapture(event) {
 		if (event.pointerId !== pointerId) return;
+		// Touch pointers are implicitly captured by the pointerdown target (a card), so
+		// promoting that capture to the stage fires a bubbled lostpointercapture from the
+		// card. Only a capture loss on the stage itself should abort the drag.
+		if (event.target !== event.currentTarget) return;
 		const wasDragging = isDragging;
 		cancelDragFrame();
 		isDragging = false;
@@ -463,6 +467,8 @@
 		cursor: grab;
 		outline: none;
 		touch-action: pan-y;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
 		user-select: none;
 	}
 
