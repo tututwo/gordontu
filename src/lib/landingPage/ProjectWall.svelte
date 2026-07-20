@@ -6,14 +6,12 @@
 	let { projects = [] } = $props();
 
 	const DECELERATION_RATE = 0.998;
-	const DECAY_CONSTANT = -1000 * Math.log(DECELERATION_RATE);
 	const DAMPING_RATIO = 0.88;
 	const RESPONSE = 0.5;
 	const ANGULAR_FREQUENCY = (Math.PI * 2) / RESPONSE;
 	const MAX_FRAME_DELTA = 1 / 30;
+	const MAX_ELAPSED_TIME = 0.1;
 	const MAX_RELEASE_SPEED = 8;
-	const SLOW_RELEASE_SPEED = 0.12;
-	const SETTLE_START_SPEED = 0.055;
 	const POINTER_HISTORY_WINDOW = 110;
 	const DRAG_THRESHOLD = 8;
 
@@ -26,10 +24,13 @@
 
 	let animationFrame = 0;
 	let previousFrameTime = 0;
-	/** @type {'idle' | 'inertia' | 'spring'} */
+	/** @type {'idle' | 'spring'} */
 	let motionMode = 'idle';
 	let motionTarget = 0;
 	let motionVelocity = 0;
+	let dragFrame = 0;
+	/** @type {number | undefined} */
+	let pendingDragOffset;
 
 	/** @type {number | undefined} */
 	let pointerId;
@@ -40,13 +41,14 @@
 	/** @type {number | undefined} */
 	let clickResetTimer;
 
+	let isMobile = $derived(stageWidth <= 720);
 	let cardWidth = $derived(
-		stageWidth < 720
-			? Math.min(stageWidth * 0.76, 304)
+		isMobile
+			? Math.min(stageWidth * 0.7, 280)
 			: Math.min(390, Math.max(320, stageWidth * 0.233))
 	);
-	let step = $derived(cardWidth * (stageWidth < 720 ? 0.9 : 1));
-	let visibleCount = $derived(stageWidth < 720 ? 7 : 9);
+	let step = $derived(cardWidth * (isMobile ? 1.08 : 1));
+	let visibleCount = $derived(isMobile ? 5 : 9);
 	let activeVirtualIndex = $derived(Math.round(-offset));
 	let activeProject = $derived(projects[mod(activeVirtualIndex, projects.length)]);
 	let visibleCards = $derived.by(() => {
@@ -55,10 +57,10 @@
 		const half = Math.floor(visibleCount / 2);
 		const center = Math.round(-offset);
 		const radius =
-			stageWidth < 720
+			isMobile
 				? Math.max(stageWidth * 1.25, step * 4.2)
 				: Math.max(stageWidth * 1.06, step * 4.25);
-		const maxTheta = stageWidth < 720 ? 0.78 : 0.86;
+		const maxTheta = isMobile ? 0.78 : 0.86;
 
 		return Array.from({ length: visibleCount }, (_, slot) => {
 			const virtualIndex = center + slot - half;
@@ -135,16 +137,6 @@
 		if (!animationFrame) animationFrame = requestAnimationFrame(updateMotion);
 	}
 
-	/** @param {number} initialVelocity */
-	function startInertia(initialVelocity) {
-		stopFrameDriver();
-		motionMode = 'inertia';
-		motionVelocity = clamp(initialVelocity, -MAX_RELEASE_SPEED, MAX_RELEASE_SPEED);
-		previousFrameTime = performance.now();
-		isMoving = true;
-		requestNextFrame();
-	}
-
 	/** @param {number} target @param {number} initialVelocity */
 	function startSpring(target, initialVelocity) {
 		stopFrameDriver();
@@ -159,39 +151,70 @@
 	/** @param {number} time */
 	function updateMotion(time) {
 		animationFrame = 0;
-		const deltaSeconds = Math.min(
+		let remainingSeconds = Math.min(
 			Math.max((time - previousFrameTime) / 1000, 0),
-			MAX_FRAME_DELTA
+			MAX_ELAPSED_TIME
 		);
 		previousFrameTime = time;
 
-		if (motionMode === 'inertia') {
-			const decay = Math.exp(-DECAY_CONSTANT * deltaSeconds);
-			offset += (motionVelocity / DECAY_CONSTANT) * (1 - decay);
-			motionVelocity *= decay;
+		if (motionMode !== 'spring') {
+			finishMotion();
+			return;
+		}
 
-			if (Math.abs(motionVelocity) <= SETTLE_START_SPEED) {
-				motionMode = 'spring';
-				motionTarget = nearestStep(offset);
-			}
-		} else if (motionMode === 'spring') {
+		while (remainingSeconds > 0) {
+			const deltaSeconds = Math.min(remainingSeconds, MAX_FRAME_DELTA);
 			const acceleration =
 				-(ANGULAR_FREQUENCY ** 2) * (offset - motionTarget) -
 				2 * DAMPING_RATIO * ANGULAR_FREQUENCY * motionVelocity;
 			motionVelocity += acceleration * deltaSeconds;
 			offset += motionVelocity * deltaSeconds;
+			remainingSeconds -= deltaSeconds;
 
 			if (Math.abs(offset - motionTarget) < 0.0015 && Math.abs(motionVelocity) < 0.008) {
 				offset = motionTarget;
 				finishMotion();
 				return;
 			}
-		} else {
-			finishMotion();
-			return;
 		}
 
 		requestNextFrame();
+	}
+
+	/** @param {number} velocityPerSecond */
+	function projectRelease(velocityPerSecond) {
+		return (velocityPerSecond / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE));
+	}
+
+	/** @param {number} velocityPerSecond */
+	function releaseTarget(velocityPerSecond) {
+		const maximumTravel = isMobile ? 2 : 4;
+		const projectedTravel = clamp(
+			projectRelease(velocityPerSecond),
+			-maximumTravel,
+			maximumTravel
+		);
+		return nearestStep(offset + projectedTravel);
+	}
+
+	/** @param {number} value */
+	function queueDragOffset(value) {
+		pendingDragOffset = value;
+		if (!dragFrame) dragFrame = requestAnimationFrame(flushDragOffset);
+	}
+
+	function flushDragOffset() {
+		if (dragFrame) cancelAnimationFrame(dragFrame);
+		dragFrame = 0;
+		if (pendingDragOffset === undefined) return;
+		offset = pendingDragOffset;
+		pendingDragOffset = undefined;
+	}
+
+	function cancelDragFrame() {
+		if (dragFrame) cancelAnimationFrame(dragFrame);
+		dragFrame = 0;
+		pendingDragOffset = undefined;
 	}
 
 	/** @param {number} value */
@@ -237,11 +260,10 @@
 
 	/** @param {PointerEvent} event */
 	function handlePointerDown(event) {
-		if (isDragging || event.button !== 0 || projects.length < 2) return;
+		if (pointerId !== undefined || event.button !== 0 || projects.length < 2) return;
 		finishMotion();
+		cancelDragFrame();
 		pointerId = event.pointerId;
-		isDragging = true;
-		isMoving = true;
 		suppressClick = false;
 		dragStartX = event.clientX;
 		dragStartOffset = offset;
@@ -250,59 +272,56 @@
 
 	/** @param {PointerEvent} event */
 	function handlePointerMove(event) {
-		if (!isDragging || event.pointerId !== pointerId) return;
+		if (event.pointerId !== pointerId) return;
 		const now = performance.now();
 		const delta = event.clientX - dragStartX;
 		recordPointerSample(event.clientX, now);
 
-		if (Math.abs(delta) > DRAG_THRESHOLD) {
+		if (!isDragging) {
+			if (Math.abs(delta) <= DRAG_THRESHOLD) return;
+			isDragging = true;
+			isMoving = true;
 			suppressClick = true;
 			const target = /** @type {HTMLDivElement} */ (event.currentTarget);
-			if (!target.hasPointerCapture(event.pointerId)) {
-				target.setPointerCapture(event.pointerId);
-			}
-			event.preventDefault();
+			target.setPointerCapture(event.pointerId);
 		}
 
-		offset = dragStartOffset + delta / step;
+		event.preventDefault();
+		queueDragOffset(dragStartOffset + delta / step);
 	}
 
 	/** @param {PointerEvent} event */
 	function handlePointerEnd(event) {
 		const activePointerId = pointerId;
-		if (!isDragging || activePointerId === undefined || event.pointerId !== activePointerId) return;
+		if (activePointerId === undefined || event.pointerId !== activePointerId) return;
+		const wasDragging = isDragging;
 		const wasCancelled = event.type === 'pointercancel';
+		const target = /** @type {HTMLDivElement} */ (event.currentTarget);
 
-		if (!wasCancelled) {
+		if (!wasCancelled && wasDragging) {
 			const finalDelta = event.clientX - dragStartX;
-			offset = dragStartOffset + finalDelta / step;
-			if (Math.abs(finalDelta) > DRAG_THRESHOLD) suppressClick = true;
+			pendingDragOffset = dragStartOffset + finalDelta / step;
+			flushDragOffset();
 			recordPointerSample(event.clientX, performance.now());
+		} else {
+			cancelDragFrame();
 		}
 
-		const releaseVelocity = wasCancelled ? 0 : getReleaseVelocity();
+		const releaseVelocity = clamp(getReleaseVelocity(), -MAX_RELEASE_SPEED, MAX_RELEASE_SPEED);
 		isDragging = false;
 		pointerId = undefined;
-		const target = /** @type {HTMLDivElement} */ (event.currentTarget);
 		if (target.hasPointerCapture(activePointerId)) target.releasePointerCapture(activePointerId);
 
 		if (wasCancelled) {
-			finishMotion();
-		} else if (suppressClick) {
+			setOffsetInstantly(wasDragging ? nearestStep(offset) : dragStartOffset);
+		} else if (wasDragging) {
 			if (prefersReducedMotion.current) {
 				setOffsetInstantly(nearestStep(offset));
 			} else {
-				const targetOffset = nearestStep(offset);
-				if (Math.abs(releaseVelocity) <= SLOW_RELEASE_SPEED) {
-					startSpring(targetOffset, releaseVelocity);
-				} else {
-					startInertia(releaseVelocity);
-				}
+				startSpring(releaseTarget(releaseVelocity), releaseVelocity);
 			}
-		} else if (offset !== dragStartOffset) {
-			setOffsetInstantly(dragStartOffset);
 		} else {
-			finishMotion();
+			setOffsetInstantly(dragStartOffset);
 		}
 
 		resetClickSuppression();
@@ -311,11 +330,13 @@
 
 	/** @param {PointerEvent} event */
 	function handleLostPointerCapture(event) {
-		if (!isDragging || event.pointerId !== pointerId) return;
+		if (event.pointerId !== pointerId) return;
+		const wasDragging = isDragging;
+		cancelDragFrame();
 		isDragging = false;
 		pointerId = undefined;
 		pointerHistory = [];
-		finishMotion();
+		setOffsetInstantly(wasDragging ? nearestStep(offset) : dragStartOffset);
 		resetClickSuppression();
 	}
 
@@ -346,7 +367,7 @@
 
 	/** @param {number} virtualIndex */
 	function focusCard(virtualIndex) {
-		if (isDragging) return;
+		if (pointerId !== undefined) return;
 		setOffsetInstantly(-virtualIndex);
 	}
 
@@ -360,6 +381,13 @@
 		node.addEventListener('keydown', handleKeydown);
 
 		return () => {
+			cancelDragFrame();
+			if (pointerId !== undefined) {
+				offset = isDragging ? nearestStep(offset) : dragStartOffset;
+				isDragging = false;
+				pointerId = undefined;
+				pointerHistory = [];
+			}
 			finishMotion();
 			if (clickResetTimer !== undefined) window.clearTimeout(clickResetTimer);
 			node.removeEventListener('pointerdown', handlePointerDown);
@@ -390,10 +418,10 @@
 		<div class="wall-scene">
 			{#each visibleCards as card (card.virtualIndex)}
 				<div
-					class="card-positioner"
+					class={['card-positioner', { active: card.active }]}
 					style:transform={card.transform}
 					style:opacity={card.opacity}
-					style:z-index={120 - Math.round(card.distance * 10)}
+					style:z-index={card.active ? 200 : 120 - Math.round(card.distance * 10)}
 				>
 					<ProjectCard
 						project={card.project}
@@ -522,8 +550,12 @@
 		}
 
 		.card-positioner {
-			width: min(76vw, 19rem);
-			height: min(19rem, 73vw);
+			width: min(70vw, 17.5rem);
+			height: min(17.5rem, 67vw);
+		}
+
+		.card-positioner:not(.active) {
+			pointer-events: none;
 		}
 	}
 
