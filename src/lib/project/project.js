@@ -1,6 +1,18 @@
 import { writable } from "svelte/store";
 
-export let projectCardInfo = writable([
+/**
+ * @typedef {Object} Project
+ * @property {string} projectName
+ * @property {string} projectDescription
+ * @property {string} projectLink
+ * @property {string} projectImgSource
+ * @property {string[]} tools
+ * @property {string} titleTag
+ * @property {string} date
+ */
+
+/** @type {Project[]} */
+export const projects = [
 
   {
     projectName:
@@ -301,4 +313,7 @@ export let projectCardInfo = writable([
     titleTag: "maps",
     date: "2020-11-27",
   },
-]);
+];
+
+// Kept for the legacy project views while the landing page consumes the plain data.
+export const projectCardInfo = writable(projects);

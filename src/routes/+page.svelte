@@ -1,274 +1,539 @@
 <script>
-  import Icon from "@iconify/svelte";
-  // import { annotate } from "svelte-rough-notation";
-  import { annotateAction, titleTagVisibility } from "$lib/utils/landingPage";
-  import Project from "$lib/project/project.svelte";
-  import BlogSection from "$lib/blogSection/BlogSection.svelte";
+	import PortfolioHeader from '$lib/landingPage/PortfolioHeader.svelte';
+	import ProjectWall from '$lib/landingPage/ProjectWall.svelte';
+	import RoughSvg from '$lib/landingPage/RoughSvg.svelte';
+	import { projects } from '$lib/project/project.js';
 
-  import { fade, fly } from "svelte/transition";
-  import { onMount, afterUpdate } from "svelte";
-  import { gsapOut, gsapIn } from "$lib/utils/tweens";
+	let activeCategory = $state('all');
 
-  let options = {};
+	const orderedProjects = [...projects].sort(
+		(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+	);
 
-  import { projectCardInfo } from "$lib/project/project";
+	let filteredProjects = $derived(
+		activeCategory === 'all'
+			? orderedProjects
+			: orderedProjects.filter((project) => project.titleTag === activeCategory)
+	);
 
-  /**
-   * Title
-   */
-  let headerWidth = 1000;
-  let titleTags = [
-    { tag: "charts", color: "#E4523E" },
-    { tag: "maps", color: "#81ABD9" },
-    { tag: "code creatively", color: "#0EAEC9" },
-  ];
-  let tagTextColor = "black";
+	const underlineShapes = [
+		{
+			type: 'curve',
+			points: [
+				[4, 9],
+				[52, 7],
+				[105, 10],
+				[160, 7],
+				[218, 11],
+				[274, 8]
+			],
+			options: { seed: 411, strokeWidth: 1.55, roughness: 1.55, bowing: 1.65 }
+		}
+	];
 
-  let tagNodes = [];
-  /*
-   * Project
-   */
+	const dragArrowShapes = [
+		{
+			type: 'curve',
+			points: [
+				[8, 58],
+				[18, 42],
+				[75, 38],
+				[145, 32],
+				[220, 24],
+				[266, 18]
+			],
+			options: { seed: 81, strokeWidth: 1.45, roughness: 1.4 }
+		},
+		{
+			type: 'linearPath',
+			points: [
+				[244, 7],
+				[268, 18],
+				[248, 34]
+			],
+			options: { seed: 82, strokeWidth: 1.45, roughness: 1.2 }
+		}
+	];
 
-  let currentProjectTitleTag = $projectCardInfo.sort((a, b) => {
-    return new Date(b.date) - new Date(a.date);
-  });
+	const starShapes = [
+		{
+			type: 'path',
+			d: 'M 25 2 L 30 18 L 47 17 L 34 27 L 40 44 L 25 34 L 10 44 L 16 27 L 3 17 L 20 18 Z',
+			options: { seed: 207, strokeWidth: 1.35, roughness: 1.45, bowing: 1.2 }
+		}
+	];
 
-  $: projectNodes = [];
+	const infinityShapes = [
+		{
+			type: 'path',
+			d: 'M 6 22 C 14 4, 27 5, 38 22 C 49 39, 62 39, 72 22 C 62 5, 49 5, 38 22 C 27 39, 14 40, 6 22',
+			options: { seed: 718, strokeWidth: 1.45, roughness: 1.25, bowing: 1.1 }
+		}
+	];
 
-  // afterUpdate(() => {
-  function filterProjectButton(event) {
-    currentProjectTitleTag = $projectCardInfo.filter(
-      // .textContent will not work
-      // https://stackoverflow.com/questions/24427621/innertext-vs-innerhtml-vs-label-vs-text-vs-textcontent-vs-outertext
-      (d) => d.titleTag == event.target.innerText
-    );
-    currentProjectTitleTag = currentProjectTitleTag.sort((a, b) => {
-      return new Date(b.date) - new Date(a.date);
-    });
-  }
+	const infiniteArrowShapes = [
+		{
+			type: 'curve',
+			points: [
+				[7, 34],
+				[52, 23],
+				[113, 25],
+				[174, 29],
+				[216, 22]
+			],
+			options: { seed: 910, strokeWidth: 1.45, roughness: 1.45 }
+		},
+		{
+			type: 'linearPath',
+			points: [
+				[196, 10],
+				[219, 22],
+				[199, 37]
+			],
+			options: { seed: 911, strokeWidth: 1.45, roughness: 1.25 }
+		}
+	];
 
-  /**
-   * Blog
-   */
-  function showBlogSelection() {
-    currentProjectTitleTag = [];
-  }
+	const features = [
+		{
+			title: 'Data made visible',
+			copy: 'Charts that turn complex systems into clear, memorable stories.',
+			shapes: [
+				{
+					type: 'rectangle',
+					x: 13,
+					y: 13,
+					width: 27,
+					height: 29,
+					options: { seed: 31, strokeWidth: 1.25 }
+				},
+				{
+					type: 'rectangle',
+					x: 18,
+					y: 9,
+					width: 27,
+					height: 29,
+					options: { seed: 32, strokeWidth: 1.25 }
+				},
+				{
+					type: 'rectangle',
+					x: 23,
+					y: 5,
+					width: 27,
+					height: 29,
+					options: { seed: 33, strokeWidth: 1.25 }
+				}
+			]
+		},
+		{
+			title: 'Maps with a point of view',
+			copy: 'Spatial stories shaped through data, terrain, and careful craft.',
+			shapes: [
+				...Array.from({ length: 8 }, (_, index) => {
+					const angle = (Math.PI * 2 * index) / 8;
+					return {
+						type: 'line',
+						x1: 30 + Math.cos(angle) * 12,
+						y1: 25 + Math.sin(angle) * 12,
+						x2: 30 + Math.cos(angle) * 22,
+						y2: 25 + Math.sin(angle) * 22,
+						options: { seed: 100 + index, strokeWidth: 1.25, roughness: 1.25 }
+					};
+				}),
+				{
+					type: 'ellipse',
+					x: 30,
+					y: 25,
+					width: 5,
+					height: 5,
+					options: { seed: 112, fill: '#30312d', fillStyle: 'solid', strokeWidth: 1 }
+				}
+			]
+		},
+		{
+			title: 'Creative code in motion',
+			copy: 'Interactive experiments built with Svelte, Three.js, D3, and GLSL.',
+			shapes: [
+				{
+					type: 'path',
+					d: 'M 12 30 C 4 20, 12 8, 24 13 C 27 2, 45 5, 43 18 C 56 19, 55 38, 42 38 C 38 51, 18 47, 20 37 C 15 38, 11 35, 12 30 Z',
+					options: { seed: 550, strokeWidth: 1.25, roughness: 1.45 }
+				},
+				{
+					type: 'curve',
+					points: [
+						[21, 27],
+						[27, 20],
+						[34, 28],
+						[40, 21]
+					],
+					options: { seed: 551, strokeWidth: 1.1 }
+				}
+			]
+		}
+	];
+
+	function selectCategory(/** @type {string} */ category) {
+		activeCategory = category;
+	}
 </script>
 
-<div
-  class="absolute h-full w-full flex items-start justify-center overflow-hidden z-[-1] pointer-events-none"
->
-  <css-doodle>
-    {`
-          :doodle {
-          @grid: 16 / 100vmin 80vmin;
-          perspective: 90vmin;
-          perspective-origin: 0% -140%;
-          transform: scale(1.8);
-          }
+<svelte:head>
+	<title>Gordon Tu — Maps, charts, and creative code</title>
+	<meta
+		name="description"
+		content="Selected data visualizations, maps, and interactive experiments by Gordon Tu."
+	/>
+</svelte:head>
 
-          :container {
-          transform-style: preserve-3d;
-          animation: camera 20s ease-in-out infinite;
-          animation-direction: alternate-reverse;
-          }
+<main class="landing-shell">
+	<svg class="paper-texture" aria-hidden="true" focusable="false">
+		<filter id="paper-noise" x="0" y="0" width="100%" height="100%">
+			<feTurbulence
+				type="fractalNoise"
+				baseFrequency="0.72"
+				numOctaves="4"
+				seed="18"
+				stitchTiles="stitch"
+				result="noise"
+			/>
+			<feColorMatrix
+				in="noise"
+				type="matrix"
+				values="0.38 0 0 0 0.50  0 0.35 0 0 0.46  0 0 0.28 0 0.38  0 0 0 0.2 0"
+			/>
+		</filter>
+		<rect width="100%" height="100%" filter="url(#paper-noise)"></rect>
+	</svg>
 
-          --ds: @r(4s, 12s, .1);
-          --size: @r(1, 9);
+	<PortfolioHeader {activeCategory} onselect={selectCategory} />
 
-          /* Thanks to mootari for the tip */
-          --z: calc(@i() * .0001px + var(--size) * .1px);
+	<section class="hero" aria-labelledby="landing-title">
+		<h1 id="landing-title">
+			I make maps, charts,<br />
+			and <span class="underlined">creative code.<RoughSvg width={280} height={18} shapes={underlineShapes} /></span>
+		</h1>
+		<p>
+			Selected data visualizations, maps, and interactive experiments<br />
+			by Gordon Tu.
+		</p>
+	</section>
 
-          animation:
-          move var(--ds) linear infinite,
-          opacity var(--ds) linear infinite;
+	<section class="project-wall-section" aria-label="Selected projects">
+		<div class="annotation drag-annotation" aria-hidden="true">
+			<span>Drag to explore</span>
+			<RoughSvg width={280} height={72} shapes={dragArrowShapes} />
+		</div>
 
-          animation-delay: 
-          calc((@row() - @size-row()) * var(--ds) / @size-row() - @r(@size()) * .1s);
+		<div class="annotation wall-annotation" aria-hidden="true">
+			<span>Project wall</span>
+			<RoughSvg class="star" width={50} height={48} shapes={starShapes} />
+		</div>
 
-          :after {
-          content: '';
-          @size: calc(var(--size) * 10%);
-          background: @p(#00b8a9, #f8f3d4, #f6416c, #ffde7d);
+		<div class="annotation infinite-annotation" aria-hidden="true">
+			<span>{filteredProjects.length} projects</span>
+			<RoughSvg class="infinity" width={78} height={45} shapes={infinityShapes} />
+			<RoughSvg class="infinite-arrow" width={225} height={48} shapes={infiniteArrowShapes} />
+		</div>
 
-          }
+		{#key activeCategory}
+			<ProjectWall projects={filteredProjects} />
+		{/key}
+	</section>
 
-          position: absolute;
-          left: calc(@col() * 100% / @size-row());
-          @size: calc(100% / @size-row());
+	<section class="features" aria-label="Portfolio disciplines">
+		{#each features as feature, index (feature.title)}
+			<article>
+				<RoughSvg class="feature-icon" width={60} height={52} shapes={feature.shapes} />
+				<div>
+					<h2>{feature.title}</h2>
+					<p>{feature.copy}</p>
+				</div>
+			</article>
+			{#if index < features.length - 1}<span class="feature-divider" aria-hidden="true"></span>{/if}
+		{/each}
+	</section>
+</main>
 
-          @keyframes move {
-          0% {
-            transform: 
-              translate3d(0, 0, calc(var(--z) - 15vmin)) 
-              rotateX(180deg) scaleY(.01);
-          }
-          10% {
-            transform: 
-              translate3d(0, calc(10% * @size-row()), var(--z)) 
-              rotateX(0) scaleY(.8);
-          }
-          90% {
-            transform: 
-              translate3d(0, calc(90% * @size-row()), var(--z)) 
-              scale(1);
-          }
-          100% {
-            transform: 
-              translate3d(0, calc(100% * @size-row()), calc(var(--z) + 5vmin)) 
-              scale(.5);
-          }
-          }
+<style>
+	:global(:root) {
+		--paper: #f8f4e9;
+		--ink: #30312d;
+		--muted-ink: #67675f;
+	}
 
-          @keyframes opacity {
-          0%, 100% { opacity: 0; }
-          10%, 90% { opacity: .9; }
-          }
+	:global(body) {
+		margin: 0;
+		background: var(--paper);
+	}
 
-          @keyframes camera {
-          from {
-            transform: rotateX(-45deg) rotate(140deg) translateY(-10%);
-          }
-          to {
-            transform: rotateX(-45deg) rotate(220deg) translateY(-10%);
-          }
-          }
-          `}
-  </css-doodle>
-</div>
-<header
-  class="relative top-[20vh] w-full lg:min-h-[50vh] flex flex-col items-center justify-center text-[1.2rem]"
->
-  <div class="lg:px-[300px] lg:min-w-[40vw]">
-    <div class="flex items-center">
-      <!--* Project Tags -->
-      <span class="clearText">
-        <p class="actualClearText">Hi, I'm Gordon Tu. I make</p>
-      </span>
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      {#each titleTags as { tag, color }, index}
-        <span
-          class="z-[1000] font-heading font-black cursor-pointer mx-2 px-2 flex items-center justify-center text-[2rem]"
-          style="color: {'white'}"
-          bind:this={tagNodes[index]}
-          on:click={filterProjectButton}
-          use:annotateAction={{
-            visible: true,
-            color: color,
-            type: "highlight",
-            animationDuration: 1000,
-            padding: 10,
-          }}
-        >
-          {tag}
-        </span>
-      {/each}
-      <div>on the web,</div>
-    </div>
-    <!--* Blog Tag -->
-    <div class="clearText">
-      <div class="actualClearText">
-        and I also write
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <span
-          use:annotateAction={{
-            visible: true,
-            color: "#33BFB1",
-            type: "underline",
-            animationDuration: 1000,
-            strokeWidth: 6,
-          }}
-          class="cursor-pointer font-bold font-heading text-[2rem]"
-          on:click={showBlogSelection}>blog posts</span
-        >
-        <button on:click={showBlogSelection}>
-          <Icon icon="ph:cursor-fill" /></button
-        >
-      </div>
-    </div>
-    <!--* Icon -->
-    <div class="flex mt-2">
-      <a href="https://twitter.com/tu_yukun" class="mr-2"
-        ><Icon class="hover:color-[grey]" icon="akar-icons:twitter-fill" /></a
-      >
-      <a href="https://github.com/tututwo" class="mx-2"
-        ><Icon icon="akar-icons:github-fill" /></a
-      >
-      <a href="https://observablehq.com/@tututwo?tab=profile" class="mx-2"
-        ><Icon icon="simple-icons:observable" /></a
-      >
-      <a
-        href="https://www.linkedin.com/in/gordon-tu-675a43255/"
-        class="mx-2 scale-125"><Icon icon="mdi:linkedin" /></a
-      >
-    </div>
-  </div>
+	.landing-shell {
+		position: relative;
+		min-height: 100svh;
+		overflow-x: clip;
+		color: var(--ink);
+		background: var(--paper);
+		isolation: isolate;
+	}
 
-  <div class="mt-10 h-full lg:min-h-[2000px] w-full flex justify-center">
-    <!--* Project  -->
-    {#if currentProjectTitleTag.length > 0}
-      {#key currentProjectTitleTag}
-        <section
-          class="h-full w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ml-10"
-        >
-          {#each currentProjectTitleTag as individualProject, i (individualProject.projectName)}
-            <div
-              id={individualProject.projectName}
-              class="postcard hover lg:w-[90%] gap-[10rem] h-[20vh] lg:h-[400px] mb-10 relative flex justify-center items-center"
-              bind:this={projectNodes[i]}
-            >
-              <!--                                 projectOffsetLeft={projectNodes[i].offsetLeft}
-                                projectOffsetHeight={projectNodes[i].offsetHeight} -->
-              <Project {individualProject} projectNode={projectNodes[i]} />
-            </div>
-          {/each}
-        </section>
-      {/key}
-    {/if}
-    <!--* Blog -->
-    {#if currentProjectTitleTag.length == 0}
-      <BlogSection />
-    {/if}
-  </div>
-</header>
+	.paper-texture {
+		position: fixed;
+		z-index: -1;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0.17;
+		pointer-events: none;
+		mix-blend-mode: multiply;
+	}
 
-<!-- in:gsapIn|global
-out:gsapOut|global={{
-    currentProjectTitleTagLength:
-        currentProjectTitleTag.length,
-}} -->
-<style lang="scss">
-  :global(.rough-annotation) {
-    z-index: 999;
-  }
-  :global(.rough-annotation:hover) {
-    opacity: 0.4;
-  }
-  .clearText {
-    position: relative;
-    width: fit-content;
-  }
+	.hero {
+		position: relative;
+		z-index: 20;
+		display: grid;
+		justify-items: center;
+		padding: clamp(2rem, 4.6vh, 2.75rem) 1.25rem 0;
+		text-align: center;
+	}
 
-  .clearText::before {
-    content: "";
-    background-color: white;
-    background-size: cover;
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    left: 0px;
-    opacity: 0.85;
-    border-radius: 0.21rem;
-  }
+	h1 {
+		max-width: 47rem;
+		margin: 0;
+		font-family: 'Newsreader Variable', Georgia, serif;
+		font-size: clamp(3rem, 3.45vw, 3.7rem);
+		font-optical-sizing: auto;
+		font-weight: 440;
+		letter-spacing: -0.035em;
+		line-height: 0.99;
+	}
 
-  .actualClearText {
-    position: relative;
-    line-height: 0.9;
-    z-index: 1000;
-  }
+	.underlined {
+		position: relative;
+		display: inline-block;
+		white-space: nowrap;
+	}
 
-  .postcard {
-    perspective: 1000px;
-  }
+	.underlined :global(svg) {
+		position: absolute;
+		left: 0;
+		bottom: -0.13em;
+		width: 100%;
+		height: 0.32em;
+		pointer-events: none;
+	}
+
+	.hero > p {
+		margin: clamp(1.25rem, 2.7vh, 1.65rem) 0 0;
+		color: var(--muted-ink);
+		font-family: 'Libre Franklin Variable', sans-serif;
+		font-size: clamp(0.94rem, 1.08vw, 1.08rem);
+		font-weight: 390;
+		letter-spacing: -0.018em;
+		line-height: 1.42;
+	}
+
+	.project-wall-section {
+		position: relative;
+		z-index: 10;
+		margin-top: clamp(1rem, 2.5vh, 1.55rem);
+	}
+
+	.annotation {
+		position: absolute;
+		z-index: 140;
+		color: #3d3e39;
+		font-family: 'Shantell Sans Variable', cursive;
+		font-size: clamp(0.86rem, 1.06vw, 1.02rem);
+		font-variation-settings: 'INFM' 70;
+		font-weight: 440;
+		letter-spacing: 0.015em;
+		line-height: 1.1;
+		pointer-events: none;
+	}
+
+	.drag-annotation {
+		top: -2.3rem;
+		left: clamp(3rem, 10vw, 10.5rem);
+		width: 17.5rem;
+		transform: rotate(-3deg);
+	}
+
+	.drag-annotation span {
+		display: block;
+		margin-left: 1.8rem;
+	}
+
+	.drag-annotation :global(svg) {
+		display: block;
+		width: 100%;
+		height: 4.5rem;
+	}
+
+	.wall-annotation {
+		top: 0.15rem;
+		left: 50%;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		transform: translateX(-50%) rotate(1deg);
+	}
+
+	.wall-annotation::before,
+	.wall-annotation::after {
+		display: block;
+		width: clamp(3rem, 9vw, 9.5rem);
+		height: 1px;
+		margin: 0 0.35rem;
+		background: rgb(48 49 45 / 0.68);
+		content: '';
+	}
+
+	.wall-annotation :global(.star) {
+		width: 2.25rem;
+		height: 2.15rem;
+	}
+
+	.infinite-annotation {
+		top: -2.9rem;
+		right: clamp(4rem, 12vw, 12.5rem);
+		display: grid;
+		width: 14rem;
+		justify-items: center;
+		transform: rotate(2deg);
+	}
+
+	.infinite-annotation :global(.infinity) {
+		width: 4.1rem;
+		height: 2.2rem;
+		margin-top: 1.1rem;
+	}
+
+	.infinite-annotation :global(.infinite-arrow) {
+		width: 13.5rem;
+		height: 2.8rem;
+		margin-top: -0.35rem;
+	}
+
+	.features {
+		position: relative;
+		z-index: 30;
+		display: grid;
+		max-width: 72rem;
+		grid-template-columns: 1fr auto 1fr auto 1fr;
+		align-items: center;
+		gap: clamp(1.4rem, 3.6vw, 3.2rem);
+		margin: clamp(3.25rem, 6vh, 3.8rem) auto 0;
+		padding: 0 1.5rem clamp(1.35rem, 3vh, 2rem);
+	}
+
+	.features article {
+		display: grid;
+		grid-template-columns: 3.2rem 1fr;
+		align-items: start;
+		gap: 0.85rem;
+	}
+
+	.features :global(.feature-icon) {
+		width: 3.1rem;
+		height: 2.75rem;
+		margin-top: 0.05rem;
+	}
+
+	.features h2 {
+		margin: 0;
+		font-family: 'Newsreader Variable', Georgia, serif;
+		font-size: 1.05rem;
+		font-weight: 520;
+		line-height: 1.15;
+	}
+
+	.features p {
+		max-width: 17rem;
+		margin: 0.48rem 0 0;
+		color: var(--muted-ink);
+		font-family: 'Libre Franklin Variable', sans-serif;
+		font-size: 0.76rem;
+		font-weight: 390;
+		line-height: 1.55;
+	}
+
+	.feature-divider {
+		width: 1px;
+		height: 4.15rem;
+		background: rgb(48 49 45 / 0.38);
+	}
+
+	@media (max-width: 980px) {
+		.hero {
+			padding-top: 1.6rem;
+		}
+
+		.drag-annotation {
+			left: 2rem;
+		}
+
+		.infinite-annotation {
+			right: 2rem;
+		}
+
+		.features {
+			grid-template-columns: 1fr;
+			gap: 1.35rem;
+			max-width: 36rem;
+			margin-top: 1.2rem;
+		}
+
+		.feature-divider {
+			display: none;
+		}
+	}
+
+	@media (max-width: 720px) {
+		.hero {
+			padding: 1.45rem 1rem 0;
+		}
+
+		h1 {
+			font-size: clamp(2.45rem, 11vw, 3.1rem);
+			line-height: 1;
+		}
+
+		.hero > p {
+			max-width: 24rem;
+			font-size: 0.86rem;
+		}
+
+		.hero > p br {
+			display: none;
+		}
+
+		.project-wall-section {
+			margin-top: 2.2rem;
+		}
+
+		.wall-annotation {
+			top: -1.25rem;
+		}
+
+		.wall-annotation::before,
+		.wall-annotation::after {
+			width: 2.4rem;
+		}
+
+		.drag-annotation,
+		.infinite-annotation {
+			display: none;
+		}
+
+		.features {
+			margin-top: 2.8rem;
+			padding-inline: 1.25rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		* {
+			scroll-behavior: auto !important;
+		}
+	}
 </style>
