@@ -277,13 +277,36 @@
 		isolation: isolate;
 	}
 
+	.landing-shell::before,
+	.landing-shell::after {
+		position: fixed;
+		inset: -18vmax;
+		content: '';
+		pointer-events: none;
+		will-change: transform;
+	}
+
+	.landing-shell::before {
+		z-index: -3;
+		background:
+			radial-gradient(circle at 16% 18%, var(--wash-blush), transparent 25rem),
+			radial-gradient(circle at 84% 17%, var(--wash-sky), transparent 28rem);
+		animation: ambient-drift-primary 26s var(--ease-in-out) -8s infinite;
+	}
+
+	.landing-shell::after {
+		z-index: -2;
+		background: radial-gradient(circle at 50% 82%, var(--wash-mint), transparent 34rem);
+		animation: ambient-drift-secondary 34s var(--ease-in-out) -19s infinite;
+	}
+
 	.paper-texture {
 		position: fixed;
 		z-index: -1;
 		inset: 0;
 		width: 100%;
 		height: 100%;
-		opacity: 0.12;
+		opacity: 0.075;
 		pointer-events: none;
 		mix-blend-mode: multiply;
 	}
@@ -530,6 +553,32 @@
 		}
 	}
 
+	@keyframes ambient-drift-primary {
+		0%,
+		100% {
+			transform: translate3d(-2.5%, -1.5%, 0) scale(1.02) rotate(-0.6deg);
+		}
+
+		48% {
+			transform: translate3d(2.5%, 2%, 0) scale(1.07) rotate(0.8deg);
+		}
+	}
+
+	@keyframes ambient-drift-secondary {
+		0%,
+		100% {
+			transform: translate3d(1.5%, 2.25%, 0) scale(1.04) rotate(0.5deg);
+		}
+
+		40% {
+			transform: translate3d(-2.25%, -1.75%, 0) scale(1.08) rotate(-0.7deg);
+		}
+
+		72% {
+			transform: translate3d(0.5%, -3%, 0) scale(1.02) rotate(0.25deg);
+		}
+	}
+
 	@media (max-width: 980px) {
 		.hero {
 			padding-top: 1.6rem;
@@ -607,6 +656,13 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
+		.landing-shell::before,
+		.landing-shell::after {
+			animation: none;
+			transform: none;
+			will-change: auto;
+		}
+
 		.drag-annotation {
 			transform: rotate(-3deg);
 			animation: drag-cue-opacity 200ms var(--ease-out) 350ms both;

@@ -445,7 +445,7 @@
 		left: 50%;
 		width: min(76vw, 70rem);
 		height: 2.25rem;
-		background: radial-gradient(ellipse, rgb(82 62 40 / 0.14), transparent 68%);
+		background: radial-gradient(ellipse, var(--wall-shadow), transparent 68%);
 		content: '';
 		opacity: 0.6;
 		transform: translateX(-50%);

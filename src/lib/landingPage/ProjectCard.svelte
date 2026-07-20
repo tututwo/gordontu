@@ -263,7 +263,7 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		filter: saturate(0.92) contrast(0.975) sepia(0.045);
+		filter: saturate(1.06) contrast(0.99);
 		opacity: 0;
 		transform: scale(1);
 		transition: opacity 180ms ease;
