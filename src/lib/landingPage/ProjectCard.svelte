@@ -32,6 +32,7 @@
 	let formattedDate = $derived(formatDate(project.date));
 	let category = $derived(categoryNames[project.titleTag] ?? project.titleTag);
 	let frameShapes = $derived(createFrameShapes(project.projectName));
+	let imageLoaded = $state(false);
 
 	/** @param {string} source */
 	function toOptimizedImage(source) {
@@ -80,7 +81,7 @@
 					roughness: 1.55,
 					bowing: 1.1,
 					strokeWidth: 0.72,
-					stroke: '#696a62'
+					stroke: 'var(--sketch-line, rgb(29 29 31 / 0.68))'
 				}
 			}
 		];
@@ -94,8 +95,13 @@
 	/** @param {Event} event */
 	function handleImageError(event) {
 		const image = /** @type {HTMLImageElement} */ (event.currentTarget);
+		imageLoaded = false;
 		if (image.src.endsWith(project.projectImgSource)) return;
 		image.src = project.projectImgSource;
+	}
+
+	function handleImageLoad() {
+		imageLoaded = true;
 	}
 </script>
 
@@ -114,12 +120,14 @@
 
 	<div class="image-wrap">
 		<img
+			class={['project-image', { loaded: imageLoaded }]}
 			src={optimizedImage}
 			alt={`${project.projectName} project preview`}
 			width="960"
 			height="720"
 			loading={active ? 'eager' : 'lazy'}
 			fetchpriority={active ? 'high' : 'auto'}
+			onload={handleImageLoad}
 			onerror={handleImageError}
 		/>
 		<div class="image-wash" aria-hidden="true"></div>
@@ -143,22 +151,27 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		padding: 0.85rem 0.9rem 0.7rem;
-		color: var(--ink, #30312d);
+		color: var(--ink, #1d1d1f);
 		text-decoration: none;
-		background: color-mix(in srgb, var(--paper, #f8f4e9) 94%, white);
-		filter: drop-shadow(0 18px 22px rgb(50 46 38 / 0.08));
-		transition: filter 180ms ease;
+		background: var(--paper-elevated, #fbfbfd);
+		box-shadow: var(--shadow-material, 0 12px 36px rgb(0 0 0 / 0.055));
 		isolation: isolate;
 	}
 
-	.project-card:hover,
-	.project-card:focus-visible,
-	.project-card.active {
-		filter: drop-shadow(0 22px 30px rgb(50 46 38 / 0.15));
+	.project-card::before {
+		position: absolute;
+		z-index: -1;
+		inset: 0;
+		background: var(--paper-elevated, #fbfbfd);
+		box-shadow: 0 24px 36px var(--shadow-soft, rgb(0 0 0 / 0.1));
+		content: '';
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 180ms ease;
 	}
 
 	.project-card:focus-visible {
-		outline: 2px solid #2f312d;
+		outline: 2px solid var(--accent, #0071e3);
 		outline-offset: 7px;
 	}
 
@@ -176,31 +189,36 @@
 		min-height: 0;
 		flex: 1;
 		overflow: hidden;
-		background: #dedbd1;
+		background: color-mix(
+			in srgb,
+			var(--muted-ink, #6e6e73) 16%,
+			var(--paper-elevated, #fbfbfd)
+		);
 	}
 
-	img {
+	.project-image {
 		display: block;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		filter: saturate(0.64) contrast(0.92) sepia(0.1);
-		transition: filter 240ms ease, transform 420ms cubic-bezier(0.2, 0.75, 0.25, 1);
+		filter: saturate(0.88) contrast(0.97) sepia(0.04);
+		opacity: 0;
+		transform: scale(1);
+		transition: opacity 180ms ease;
 	}
 
-	.project-card:hover img,
-	.project-card:focus-visible img,
-	.project-card.active img {
-		filter: saturate(0.92) contrast(0.98) sepia(0.03);
-		transform: scale(1.012);
+	.project-image.loaded {
+		opacity: 1;
 	}
 
 	.image-wash {
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
-		background: rgb(255 251 238 / 0.1);
+		background: var(--paper-elevated, #fbfbfd);
 		mix-blend-mode: soft-light;
+		opacity: 0.16;
+		transition: opacity 180ms ease;
 	}
 
 	.caption {
@@ -210,7 +228,7 @@
 		justify-content: space-between;
 		gap: 0.8rem;
 		padding: 0.05rem 0.15rem 0;
-		font-family: 'Shantell Sans Variable', 'Comic Sans MS', cursive;
+		font-family: var(--font-hand, 'Shantell Sans Variable', 'Comic Sans MS', cursive);
 	}
 
 	.caption-copy {
@@ -232,8 +250,8 @@
 
 	.caption span {
 		overflow: hidden;
-		color: #67675f;
-		font-family: 'Libre Franklin Variable', sans-serif;
+		color: var(--muted-ink, #6e6e73);
+		font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
 		font-size: 0.62rem;
 		font-weight: 430;
 		letter-spacing: 0.015em;
@@ -246,6 +264,59 @@
 		flex: 0 0 auto;
 		font-size: 0.8rem;
 		font-variation-settings: 'INFM' 60;
+	}
+
+	@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+		.project-image {
+			transition:
+				opacity 180ms ease,
+				transform 180ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+		}
+
+		.project-card:hover .project-image {
+			transform: scale(1.012);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.project-card {
+			transform: scale(1);
+			transition: transform var(--press-out-duration, 160ms)
+				var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+		}
+
+		.project-card:active:not(:focus-visible) {
+			transform: scale(0.992);
+			transition-duration: var(--press-in-duration, 100ms);
+		}
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.project-card:hover::before {
+			opacity: 1;
+		}
+
+		.project-card:hover .image-wash {
+			opacity: 0.04;
+		}
+	}
+
+	@media (hover: none), (pointer: coarse) {
+		.project-image {
+			transform: none;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.project-card::before,
+		.project-image,
+		.image-wash {
+			transition: opacity 200ms ease;
+		}
+
+		.project-image {
+			transform: none;
+		}
 	}
 
 	@media (max-width: 720px) {

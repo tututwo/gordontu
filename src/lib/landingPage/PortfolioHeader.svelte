@@ -34,9 +34,8 @@
 			height: 42,
 			options: {
 				seed: 912,
-				stroke: '#292a27',
 				strokeWidth: 1.4,
-				fill: '#292a27',
+				fill: 'var(--rough-button-color, #0071e3)',
 				fillStyle: 'solid',
 				roughness: 1.45,
 				bowing: 1
@@ -90,7 +89,12 @@
 		align-items: center;
 		gap: 2rem;
 		padding: 1.45rem clamp(1.25rem, 3.5vw, 3.7rem) 0.75rem;
-		font-family: 'Libre Franklin Variable', sans-serif;
+		border-bottom: 1px solid var(--hairline);
+		background: var(--surface);
+		box-shadow: var(--shadow-material);
+		font-family: var(--font-ui);
+		-webkit-backdrop-filter: blur(24px) saturate(160%);
+		backdrop-filter: blur(24px) saturate(160%);
 	}
 
 	.brand {
@@ -98,8 +102,8 @@
 		width: fit-content;
 		align-items: center;
 		gap: 0.72rem;
-		color: var(--ink, #30312d);
-		font-family: 'Shantell Sans Variable', cursive;
+		color: var(--ink);
+		font-family: var(--font-hand);
 		font-size: 1.17rem;
 		font-variation-settings: 'INFM' 60;
 		font-weight: 520;
@@ -135,7 +139,7 @@
 		position: relative;
 		padding: 0.55rem 0;
 		border: 0;
-		color: var(--ink, #30312d);
+		color: var(--ink);
 		background: transparent;
 		font: inherit;
 		font-size: 0.72rem;
@@ -147,25 +151,43 @@
 		cursor: pointer;
 	}
 
-	.category-nav button {
-		opacity: 0.66;
-		transition: opacity 150ms ease;
+	.brand,
+	.category-nav button,
+	.outbound-links a {
+		transform: scale(1);
+		transform-origin: center;
+		transition: transform var(--press-out-duration) var(--ease-out);
+		-webkit-tap-highlight-color: transparent;
+		touch-action: manipulation;
 	}
 
-	.category-nav button:hover,
+	.category-nav button {
+		opacity: 0.66;
+		transition: transform var(--press-out-duration) var(--ease-out);
+	}
+
 	.category-nav button:focus-visible,
 	.category-nav button.active {
 		opacity: 1;
 	}
 
+	.brand:active:not(:focus-visible),
+	.category-nav button:active:not(:focus-visible),
+	.outbound-links a:active:not(:focus-visible) {
+		transform: scale(0.97);
+		transition-duration: var(--press-in-duration);
+	}
+
 	.category-nav button:focus-visible,
 	.outbound-links a:focus-visible,
 	.brand:focus-visible {
-		outline: 2px solid #30312d;
+		outline: 2px solid var(--accent);
 		outline-offset: 5px;
 	}
 
 	.category-nav :global(.active-line) {
+		--sketch-ink: var(--accent);
+
 		position: absolute;
 		left: 50%;
 		bottom: -0.18rem;
@@ -183,11 +205,18 @@
 	}
 
 	.github-link {
+		--rough-button-color: var(--accent);
+		--sketch-ink: var(--rough-button-color);
+
 		display: grid;
 		min-width: 8.8rem;
 		height: 2.8rem;
 		place-items: center;
-		color: #f8f4e9 !important;
+		color: var(--paper-elevated) !important;
+	}
+
+	.github-link:active {
+		--rough-button-color: var(--accent-pressed);
 	}
 
 	.github-link :global(.button-shape) {
@@ -201,6 +230,12 @@
 	.github-link span {
 		position: relative;
 		z-index: 1;
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.category-nav button:hover {
+			opacity: 1;
+		}
 	}
 
 	@media (max-width: 980px) {
@@ -262,6 +297,53 @@
 		.github-link {
 			min-width: 5.9rem;
 			height: 2.35rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.brand,
+		.category-nav button,
+		.outbound-links a,
+		.brand:active,
+		.category-nav button:active,
+		.outbound-links a:active {
+			transform: none;
+		}
+
+		.brand,
+		.outbound-links a {
+			transition: none;
+		}
+
+		.category-nav button {
+			transition: none;
+		}
+	}
+
+	@media (prefers-reduced-transparency: reduce) {
+		.site-header {
+			background: var(--surface-solid);
+			box-shadow: none;
+			-webkit-backdrop-filter: none;
+			backdrop-filter: none;
+		}
+	}
+
+	@media (prefers-contrast: more) {
+		.site-header {
+			border-bottom-color: var(--ink);
+			background: var(--surface-solid);
+			box-shadow: none;
+		}
+
+		.category-nav button {
+			opacity: 0.82;
+		}
+
+		.category-nav button:focus-visible,
+		.outbound-links a:focus-visible,
+		.brand:focus-visible {
+			outline-width: 3px;
 		}
 	}
 </style>

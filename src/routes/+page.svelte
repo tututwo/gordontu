@@ -146,7 +146,12 @@
 					y: 25,
 					width: 5,
 					height: 5,
-					options: { seed: 112, fill: '#30312d', fillStyle: 'solid', strokeWidth: 1 }
+					options: {
+						seed: 112,
+						fill: 'var(--sketch-ink, var(--ink, #1d1d1f))',
+						fillStyle: 'solid',
+						strokeWidth: 1
+					}
 				}
 			]
 		},
@@ -256,12 +261,6 @@
 </main>
 
 <style>
-	:global(:root) {
-		--paper: #f8f4e9;
-		--ink: #30312d;
-		--muted-ink: #67675f;
-	}
-
 	:global(body) {
 		margin: 0;
 		background: var(--paper);
@@ -273,6 +272,7 @@
 		overflow-x: clip;
 		color: var(--ink);
 		background: var(--paper);
+		font-family: var(--font-ui);
 		isolation: isolate;
 	}
 
@@ -282,7 +282,7 @@
 		inset: 0;
 		width: 100%;
 		height: 100%;
-		opacity: 0.17;
+		opacity: 0.08;
 		pointer-events: none;
 		mix-blend-mode: multiply;
 	}
@@ -299,7 +299,7 @@
 	h1 {
 		max-width: 47rem;
 		margin: 0;
-		font-family: 'Newsreader Variable', Georgia, serif;
+		font-family: var(--font-display);
 		font-size: clamp(3rem, 3.45vw, 3.7rem);
 		font-optical-sizing: auto;
 		font-weight: 440;
@@ -325,7 +325,7 @@
 	.hero > p {
 		margin: clamp(1.25rem, 2.7vh, 1.65rem) 0 0;
 		color: var(--muted-ink);
-		font-family: 'Libre Franklin Variable', sans-serif;
+		font-family: var(--font-ui);
 		font-size: clamp(0.94rem, 1.08vw, 1.08rem);
 		font-weight: 390;
 		letter-spacing: -0.018em;
@@ -341,8 +341,8 @@
 	.annotation {
 		position: absolute;
 		z-index: 140;
-		color: #3d3e39;
-		font-family: 'Shantell Sans Variable', cursive;
+		color: var(--ink);
+		font-family: var(--font-hand);
 		font-size: clamp(0.86rem, 1.06vw, 1.02rem);
 		font-variation-settings: 'INFM' 70;
 		font-weight: 440;
@@ -355,7 +355,9 @@
 		top: -2.3rem;
 		left: clamp(3rem, 10vw, 10.5rem);
 		width: 17.5rem;
-		transform: rotate(-3deg);
+		opacity: 0;
+		transform: translateX(-10px) rotate(-3deg);
+		animation: drag-cue-reveal 400ms var(--ease-out) 350ms both;
 	}
 
 	.drag-annotation span {
@@ -384,7 +386,7 @@
 		width: clamp(3rem, 9vw, 9.5rem);
 		height: 1px;
 		margin: 0 0.35rem;
-		background: rgb(48 49 45 / 0.68);
+		background: var(--sketch-line);
 		content: '';
 	}
 
@@ -441,7 +443,7 @@
 
 	.features h2 {
 		margin: 0;
-		font-family: 'Newsreader Variable', Georgia, serif;
+		font-family: var(--font-display);
 		font-size: 1.05rem;
 		font-weight: 520;
 		line-height: 1.15;
@@ -451,7 +453,7 @@
 		max-width: 17rem;
 		margin: 0.48rem 0 0;
 		color: var(--muted-ink);
-		font-family: 'Libre Franklin Variable', sans-serif;
+		font-family: var(--font-ui);
 		font-size: 0.76rem;
 		font-weight: 390;
 		line-height: 1.55;
@@ -460,7 +462,29 @@
 	.feature-divider {
 		width: 1px;
 		height: 4.15rem;
-		background: rgb(48 49 45 / 0.38);
+		background: var(--sketch-line-soft);
+	}
+
+	@keyframes drag-cue-reveal {
+		from {
+			opacity: 0;
+			transform: translateX(-10px) rotate(-3deg);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateX(0) rotate(-3deg);
+		}
+	}
+
+	@keyframes drag-cue-opacity {
+		from {
+			opacity: 0;
+		}
+
+		to {
+			opacity: 1;
+		}
 	}
 
 	@media (max-width: 980px) {
@@ -532,6 +556,11 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
+		.drag-annotation {
+			transform: rotate(-3deg);
+			animation: drag-cue-opacity 200ms var(--ease-out) 350ms both;
+		}
+
 		* {
 			scroll-behavior: auto !important;
 		}

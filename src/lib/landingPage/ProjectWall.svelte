@@ -1,15 +1,20 @@
 <script>
-	import { Spring, prefersReducedMotion } from 'svelte/motion';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import ProjectCard from './ProjectCard.svelte';
 
 	/** @type {{ projects?: import('$lib/project/project.js').Project[] }} */
 	let { projects = [] } = $props();
 
-	const position = new Spring(0, {
-		stiffness: 0.16,
-		damping: 0.82,
-		precision: 0.05
-	});
+	const AUTOPLAY_DELAY = 1100;
+	const AUTOPLAY_SPEED = 18;
+	const DAMPING_RATIO = 0.82;
+	const RESPONSE = 0.4;
+	const ANGULAR_FREQUENCY = (Math.PI * 2) / RESPONSE;
+	const MAX_FRAME_DELTA = 1 / 30;
+	const POINTER_HISTORY_WINDOW = 100;
+	const DRAG_THRESHOLD = 8;
+
+	let position = $state(0);
 
 	let stageWidth = $state(1200);
 	let isDragging = $state(false);
@@ -18,13 +23,22 @@
 	let isPausedByUser = $state(false);
 	let suppressClick = $state(false);
 
+	let animationFrame = 0;
+	let previousFrameTime = 0;
+	/** @type {'idle' | 'spring' | 'autoplay'} */
+	let motionMode = 'idle';
+	let motionTarget = 0;
+	let motionVelocity = 0;
+	let autoplayReady = false;
+	/** @type {number | undefined} */
+	let autoplayStartTimer;
+
 	/** @type {number | undefined} */
 	let pointerId;
 	let dragStartX = 0;
 	let dragStartPosition = 0;
-	let lastPointerX = 0;
-	let lastPointerTime = 0;
-	let velocity = 0;
+	/** @type {{ x: number; time: number }[]} */
+	let pointerHistory = [];
 	/** @type {number | undefined} */
 	let clickResetTimer;
 
@@ -34,7 +48,7 @@
 			: Math.min(414, Math.max(350, stageWidth * 0.255))
 	);
 	let visibleCount = $derived(stageWidth < 720 ? 5 : 9);
-	let activeVirtualIndex = $derived(Math.round(-position.current / step));
+	let activeVirtualIndex = $derived(Math.round(-position / step));
 	let activeProject = $derived(projects[mod(activeVirtualIndex, projects.length)]);
 	let isAutoPlaying = $derived(
 		stageWidth >= 720 &&
@@ -49,27 +63,24 @@
 		if (projects.length === 0) return [];
 
 		const half = Math.floor(visibleCount / 2);
-		const center = Math.round(-position.current / step);
+		const center = Math.round(-position / step);
 		return Array.from({ length: visibleCount }, (_, slot) => {
 			const virtualIndex = center + slot - half;
 			const projectIndex = mod(virtualIndex, projects.length);
-			const x = virtualIndex * step + position.current;
+			const x = virtualIndex * step + position;
 			const distance = Math.abs(x) / step;
 			const direction = Math.sign(x);
 			const scale = Math.max(0.69, 1.09 - distance * 0.125);
 			const translateZ = 74 - Math.min(distance * 86, 245);
 			const rotateY = clamp((-x / Math.max(stageWidth, 1)) * 66, -29, 29);
 			const naturalTilt = (((projectIndex * 17) % 11) - 5) * 0.34;
+			const rotateZ = naturalTilt + direction * Math.min(distance * 0.55, 1.6);
 
 			return {
 				virtualIndex,
 				project: projects[projectIndex],
-				x,
 				distance,
-				scale,
-				translateZ,
-				rotateY,
-				rotateZ: naturalTilt + direction * Math.min(distance * 0.55, 1.6),
+				transform: `translate3d(calc(-50% + ${x}px), -50%, ${translateZ}px) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg) scale(${scale})`,
 				opacity: clamp(1.12 - distance * 0.17, 0.24, 1),
 				active: virtualIndex === activeVirtualIndex
 			};
@@ -77,25 +88,28 @@
 	});
 
 	$effect(() => {
-		if (!isAutoPlaying) return;
+		const shouldAutoplay = isAutoPlaying;
+		const shouldReduceMotion = prefersReducedMotion.current;
+		autoplayReady = false;
+		clearAutoplayDelay();
 
-		let animationFrame = 0;
-		let previousTime = performance.now();
-		const startTimer = window.setTimeout(() => {
-			/** @param {number} time */
-			const move = (time) => {
-				const elapsed = Math.min(time - previousTime, 32);
-				previousTime = time;
-				position.set(position.target - elapsed * 0.018);
-				animationFrame = requestAnimationFrame(move);
-			};
+		if (!shouldAutoplay) {
+			if (motionMode === 'autoplay' || (shouldReduceMotion && motionMode === 'spring')) {
+				cancelMotion();
+			}
+			return;
+		}
 
-			animationFrame = requestAnimationFrame(move);
-		}, 1100);
+		autoplayStartTimer = window.setTimeout(() => {
+			autoplayStartTimer = undefined;
+			autoplayReady = true;
+			startAutoplay();
+		}, AUTOPLAY_DELAY);
 
 		return () => {
-			window.clearTimeout(startTimer);
-			if (animationFrame) cancelAnimationFrame(animationFrame);
+			clearAutoplayDelay();
+			autoplayReady = false;
+			if (motionMode === 'autoplay') cancelMotion();
 		};
 	});
 
@@ -110,69 +124,191 @@
 		return Math.min(Math.max(value, minimum), maximum);
 	}
 
+	/** @param {number} initialVelocity @param {number} [decelerationRate] */
+	function project(initialVelocity, decelerationRate = 0.998) {
+		return (initialVelocity / 1000) * (decelerationRate / (1 - decelerationRate));
+	}
+
+	/** @param {number} value */
+	function nearestStep(value) {
+		return Math.round(value / step) * step;
+	}
+
+	function clearAutoplayDelay() {
+		if (autoplayStartTimer === undefined) return;
+		window.clearTimeout(autoplayStartTimer);
+		autoplayStartTimer = undefined;
+	}
+
+	function stopFrameDriver() {
+		if (animationFrame) cancelAnimationFrame(animationFrame);
+		animationFrame = 0;
+		previousFrameTime = 0;
+	}
+
+	function cancelMotion() {
+		stopFrameDriver();
+		motionMode = 'idle';
+		motionVelocity = 0;
+	}
+
+	function requestNextFrame() {
+		if (!animationFrame) animationFrame = requestAnimationFrame(updateMotion);
+	}
+
+	function startAutoplay() {
+		if (!autoplayReady || !isAutoPlaying || motionMode !== 'idle') return;
+		motionMode = 'autoplay';
+		motionVelocity = -AUTOPLAY_SPEED;
+		previousFrameTime = performance.now();
+		requestNextFrame();
+	}
+
+	/** @param {number} target @param {number} initialVelocity */
+	function startSpring(target, initialVelocity) {
+		stopFrameDriver();
+		motionMode = 'spring';
+		motionTarget = target;
+		motionVelocity = initialVelocity;
+		previousFrameTime = performance.now();
+		requestNextFrame();
+	}
+
+	/** @param {number} time */
+	function updateMotion(time) {
+		animationFrame = 0;
+		const deltaSeconds = Math.min(
+			Math.max((time - previousFrameTime) / 1000, 0),
+			MAX_FRAME_DELTA
+		);
+		previousFrameTime = time;
+
+		if (motionMode === 'spring') {
+			const acceleration =
+				-(ANGULAR_FREQUENCY ** 2) * (position - motionTarget) -
+				2 * DAMPING_RATIO * ANGULAR_FREQUENCY * motionVelocity;
+			motionVelocity += acceleration * deltaSeconds;
+			position += motionVelocity * deltaSeconds;
+
+			if (Math.abs(position - motionTarget) < 0.5 && Math.abs(motionVelocity) < 2) {
+				position = motionTarget;
+				motionVelocity = 0;
+				motionMode = 'idle';
+				startAutoplay();
+			}
+		} else if (motionMode === 'autoplay' && isAutoPlaying) {
+			motionVelocity = -AUTOPLAY_SPEED;
+			position += motionVelocity * deltaSeconds;
+		} else {
+			motionMode = 'idle';
+			motionVelocity = 0;
+		}
+
+		if (motionMode !== 'idle') requestNextFrame();
+	}
+
 	function pauseAtCurrentPosition() {
-		position.set(position.current, { instant: true });
+		autoplayReady = false;
+		clearAutoplayDelay();
+		cancelMotion();
+	}
+
+	/** @param {number} value */
+	function setPositionInstantly(value) {
+		pauseAtCurrentPosition();
+		position = value;
+	}
+
+	/** @param {number} x @param {number} time */
+	function recordPointerSample(x, time) {
+		pointerHistory.push({ x, time });
+		const cutoff = time - POINTER_HISTORY_WINDOW;
+
+		while (pointerHistory.length > 2 && pointerHistory[1].time < cutoff) {
+			pointerHistory.shift();
+		}
+		while (pointerHistory.length > 8) pointerHistory.shift();
+	}
+
+	function getReleaseVelocity() {
+		if (pointerHistory.length < 2) return 0;
+		const first = pointerHistory[0];
+		const last = pointerHistory[pointerHistory.length - 1];
+		const elapsedSeconds = (last.time - first.time) / 1000;
+		return elapsedSeconds > 0 ? (last.x - first.x) / elapsedSeconds : 0;
 	}
 
 	/** @param {PointerEvent} event */
 	function handlePointerDown(event) {
-		if (event.button !== 0 || projects.length < 2) return;
+		if (isDragging || event.button !== 0 || projects.length < 2) return;
+		pauseAtCurrentPosition();
 		pointerId = event.pointerId;
 		isDragging = true;
 		suppressClick = false;
 		dragStartX = event.clientX;
-		dragStartPosition = position.current;
-		lastPointerX = event.clientX;
-		lastPointerTime = performance.now();
-		velocity = 0;
-		pauseAtCurrentPosition();
+		dragStartPosition = position;
+		pointerHistory = [{ x: event.clientX, time: performance.now() }];
 		const target = /** @type {HTMLDivElement} */ (event.currentTarget);
-		target.setPointerCapture(pointerId);
+		target.setPointerCapture(event.pointerId);
 	}
 
 	/** @param {PointerEvent} event */
 	function handlePointerMove(event) {
 		if (!isDragging || event.pointerId !== pointerId) return;
 		const now = performance.now();
-		const elapsed = Math.max(now - lastPointerTime, 1);
 		const delta = event.clientX - dragStartX;
-		const frameVelocity = (event.clientX - lastPointerX) / elapsed;
-		velocity = velocity * 0.68 + frameVelocity * 0.32;
-		lastPointerX = event.clientX;
-		lastPointerTime = now;
+		recordPointerSample(event.clientX, now);
 
-		if (Math.abs(delta) > 6) {
+		if (Math.abs(delta) > DRAG_THRESHOLD) {
 			suppressClick = true;
 			event.preventDefault();
 		}
 
-		position.set(dragStartPosition + delta, { instant: true });
+		position = dragStartPosition + delta;
 	}
 
 	/** @param {PointerEvent} event */
 	function handlePointerEnd(event) {
 		const activePointerId = pointerId;
 		if (!isDragging || activePointerId === undefined || event.pointerId !== activePointerId) return;
+		const wasCancelled = event.type === 'pointercancel';
+		if (!wasCancelled) {
+			const finalDelta = event.clientX - dragStartX;
+			position = dragStartPosition + finalDelta;
+			if (Math.abs(finalDelta) > DRAG_THRESHOLD) suppressClick = true;
+			recordPointerSample(event.clientX, performance.now());
+		}
+		const releaseVelocity = wasCancelled ? 0 : getReleaseVelocity();
 		isDragging = false;
 		const target = /** @type {HTMLDivElement} */ (event.currentTarget);
 		if (target.hasPointerCapture(activePointerId)) {
 			target.releasePointerCapture(activePointerId);
 		}
 
-		if (suppressClick && !prefersReducedMotion.current) {
-			position.set(position.current + velocity * 245, { preserveMomentum: 320 });
+		if (suppressClick) {
+			const projectedPosition = position + project(releaseVelocity);
+			const targetPosition = nearestStep(
+				prefersReducedMotion.current ? position : projectedPosition
+			);
+
+			if (prefersReducedMotion.current) {
+				setPositionInstantly(targetPosition);
+			} else {
+				startSpring(targetPosition, releaseVelocity);
+			}
+		} else if (position !== dragStartPosition) {
+			setPositionInstantly(dragStartPosition);
 		}
 
-		window.clearTimeout(clickResetTimer);
+		if (clickResetTimer !== undefined) window.clearTimeout(clickResetTimer);
 		clickResetTimer = window.setTimeout(() => (suppressClick = false), 0);
+		pointerHistory = [];
 		pointerId = undefined;
 	}
 
 	/** @param {number} direction */
 	function moveBy(direction) {
-		position.set(position.target + direction * step, {
-			preserveMomentum: prefersReducedMotion.current ? 0 : 180
-		});
+		setPositionInstantly(nearestStep(position) + direction * step);
 	}
 
 	/** @param {KeyboardEvent} event */
@@ -189,7 +325,7 @@
 		} else if (event.key === 'Home') {
 			event.preventDefault();
 			wall.focus({ preventScroll: true });
-			position.set(0);
+			setPositionInstantly(0);
 		}
 	}
 
@@ -226,9 +362,8 @@
 
 	/** @param {number} virtualIndex */
 	function focusCard(virtualIndex) {
-		position.set(-virtualIndex * step, {
-			preserveMomentum: prefersReducedMotion.current ? 0 : 140
-		});
+		if (isDragging) return;
+		setPositionInstantly(-virtualIndex * step);
 	}
 
 	/** @param {HTMLDivElement} node */
@@ -244,6 +379,9 @@
 		node.addEventListener('keydown', handleKeydown);
 
 		return () => {
+			clearAutoplayDelay();
+			cancelMotion();
+			if (clickResetTimer !== undefined) window.clearTimeout(clickResetTimer);
 			node.removeEventListener('pointerdown', handlePointerDown);
 			node.removeEventListener('pointermove', handlePointerMove);
 			node.removeEventListener('pointerup', handlePointerEnd);
@@ -276,12 +414,8 @@
 			{#each visibleCards as card (card.virtualIndex)}
 				<div
 					class="card-positioner"
-					style:--x={`${card.x}px`}
-					style:--z={`${card.translateZ}px`}
-					style:--rotate-y={`${card.rotateY}deg`}
-					style:--rotate-z={`${card.rotateZ}deg`}
-					style:--card-scale={card.scale}
-					style:--card-opacity={card.opacity}
+					style:transform={card.transform}
+					style:opacity={card.opacity}
 					style:z-index={100 - Math.round(card.distance * 10)}
 				>
 					<ProjectCard
@@ -317,6 +451,14 @@
 <style>
 	.wall-wrap {
 		position: relative;
+		opacity: 1;
+		transition: opacity 180ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+	}
+
+	@starting-style {
+		.wall-wrap {
+			opacity: 0;
+		}
 	}
 
 	.wall-stage {
@@ -337,12 +479,14 @@
 		right: 1.4rem;
 		bottom: 0.2rem;
 		padding: 0.32rem 0.55rem;
-		border: 1px solid rgb(48 49 45 / 0.58);
+		border: 1px solid var(--hairline, rgb(29 29 31 / 0.1));
 		border-radius: 999px;
-		color: #30312d;
-		background: rgb(248 244 233 / 0.92);
+		box-shadow: 0 0.35rem 1rem var(--shadow-soft, rgb(0 0 0 / 0.1));
+		color: var(--ink, #1d1d1f);
+		background: var(--surface, rgb(255 255 255 / 0.72));
+		backdrop-filter: blur(16px) saturate(160%);
 		content: '←  drag or use arrow keys  →';
-		font-family: 'Shantell Sans Variable', cursive;
+		font-family: var(--font-hand, 'Shantell Sans Variable', cursive);
 		font-size: 0.72rem;
 	}
 
@@ -357,21 +501,43 @@
 		bottom: -0.15rem;
 		padding: 0.35rem 0.5rem;
 		border: 0;
-		border-bottom: 1px solid rgb(48 49 45 / 0.58);
-		color: #4c4d47;
-		background: rgb(248 244 233 / 0.88);
-		font-family: 'Shantell Sans Variable', cursive;
+		border-bottom: 1px solid var(--hairline, rgb(29 29 31 / 0.1));
+		color: var(--muted-ink, #6e6e73);
+		background: var(--surface, rgb(255 255 255 / 0.72));
+		backdrop-filter: blur(16px) saturate(160%);
+		font-family: var(
+			--font-ui,
+			-apple-system,
+			BlinkMacSystemFont,
+			'SF Pro Text',
+			'Helvetica Neue',
+			Arial,
+			sans-serif
+		);
 		font-size: 0.68rem;
 		letter-spacing: 0.025em;
 		cursor: pointer;
+		transition: transform var(--press-out-duration, 160ms)
+			var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 	}
 
-	.motion-toggle:hover,
 	.motion-toggle:focus-visible {
-		color: #20211e;
-		border-bottom-color: #20211e;
-		outline: 1px solid #30312d;
+		color: var(--ink, #1d1d1f);
+		border-bottom-color: var(--accent, #0071e3);
+		outline: 2px solid var(--accent, #0071e3);
 		outline-offset: 4px;
+	}
+
+	.motion-toggle:active:not(:focus-visible) {
+		transform: scale(0.97);
+		transition-duration: var(--press-in-duration, 100ms);
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.motion-toggle:hover {
+			color: var(--ink, #1d1d1f);
+			border-bottom-color: var(--ink, #1d1d1f);
+		}
 	}
 
 	.wall-scene {
@@ -386,13 +552,10 @@
 		left: 50%;
 		width: clamp(18.75rem, 22.2vw, 23.2rem);
 		height: clamp(19.5rem, 21.2vw, 22rem);
-		opacity: var(--card-opacity);
-		transform: translate3d(calc(-50% + var(--x)), -50%, var(--z)) rotateY(var(--rotate-y))
-			rotateZ(var(--rotate-z)) scale(var(--card-scale));
 		transform-origin: center;
 		transform-style: preserve-3d;
 		backface-visibility: hidden;
-		will-change: transform;
+		will-change: transform, opacity;
 	}
 
 	.sr-only {
@@ -420,8 +583,36 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
+		.wall-wrap {
+			transition-duration: 120ms;
+		}
+
+		.motion-toggle {
+			transition: none;
+		}
+
+		.motion-toggle,
+		.motion-toggle:active {
+			transform: none;
+		}
+
 		.card-positioner {
 			will-change: auto;
+		}
+	}
+
+	@media (prefers-reduced-transparency: reduce) {
+		.wall-stage:focus-visible::after,
+		.motion-toggle {
+			background: var(--surface-solid, #fbfbfd);
+			backdrop-filter: none;
+		}
+	}
+
+	@media (prefers-contrast: more) {
+		.wall-stage:focus-visible::after,
+		.motion-toggle {
+			border: 1px solid var(--ink, #1d1d1f);
 		}
 	}
 </style>

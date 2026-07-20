@@ -19,7 +19,7 @@
 
 			for (const shape of shapeList) {
 				const options = {
-					stroke: '#30312d',
+					stroke: 'var(--sketch-ink, var(--ink, #1d1d1f))',
 					strokeWidth: 1.7,
 					roughness: 1.25,
 					bowing: 1.1,
