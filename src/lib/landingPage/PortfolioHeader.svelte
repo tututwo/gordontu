@@ -1,5 +1,6 @@
 <script>
 	import { resolve } from '$app/paths';
+	import Icon from '@iconify/svelte';
 	import RoughSvg from './RoughSvg.svelte';
 
 	let { activeCategory = 'all', onselect = () => {} } = $props();
@@ -25,21 +26,58 @@
 		}
 	];
 
-	const buttonShape = [
-		{
-			type: 'rectangle',
-			x: 3,
-			y: 5,
-			width: 154,
-			height: 42,
-			options: {
-				seed: 912,
-				strokeWidth: 1.4,
-				fill: 'var(--rough-button-color, #0071e3)',
-				fillStyle: 'solid',
-				roughness: 1.45,
-				bowing: 1
+	const socialFrames = {
+		linkedin: [
+			{
+				type: 'rectangle',
+				x: 6,
+				y: 6,
+				width: 40,
+				height: 40,
+				options: { seed: 1304, strokeWidth: 1.35, roughness: 1.55, bowing: 1.35 }
+			},
+			{
+				type: 'rectangle',
+				x: 4,
+				y: 8,
+				width: 43,
+				height: 37,
+				options: { seed: 1305, strokeWidth: 0.7, roughness: 1.8, bowing: 1.2 }
 			}
+		],
+		github: [
+			{
+				type: 'ellipse',
+				x: 26,
+				y: 26,
+				width: 43,
+				height: 41,
+				options: { seed: 2711, strokeWidth: 1.35, roughness: 1.55, bowing: 1.2 }
+			},
+			{
+				type: 'ellipse',
+				x: 25,
+				y: 27,
+				width: 39,
+				height: 43,
+				options: { seed: 2712, strokeWidth: 0.7, roughness: 1.75, bowing: 1.35 }
+			}
+		]
+	};
+
+	const headerDivider = [
+		{
+			type: 'curve',
+			points: [
+				[0, 6],
+				[260, 7],
+				[535, 5],
+				[810, 7],
+				[1085, 5],
+				[1360, 7],
+				[1600, 6]
+			],
+			options: { seed: 404, strokeWidth: 0.8, roughness: 1.3, bowing: 0.7 }
 		}
 	];
 </script>
@@ -69,14 +107,31 @@
 	</nav>
 
 	<div class="outbound-links">
-		<a href="https://www.linkedin.com/in/gordon-tu-675a43255/" target="_blank" rel="noreferrer">
-			LinkedIn
+		<a
+			class="social-link linkedin-link"
+			href="https://www.linkedin.com/in/gordon-tu-675a43255/"
+			target="_blank"
+			rel="noreferrer"
+			aria-label="Gordon Tu on LinkedIn"
+			title="LinkedIn"
+		>
+			<RoughSvg class="social-frame" width={52} height={52} shapes={socialFrames.linkedin} />
+			<Icon class="social-logo" icon="simple-icons:linkedin" width="18" height="18" aria-hidden="true" />
 		</a>
-		<a class="github-link" href="https://github.com/tututwo" target="_blank" rel="noreferrer">
-			<RoughSvg class="button-shape" width={160} height={52} shapes={buttonShape} />
-			<span>GitHub</span>
+		<a
+			class="social-link github-link"
+			href="https://github.com/tututwo"
+			target="_blank"
+			rel="noreferrer"
+			aria-label="Gordon Tu on GitHub"
+			title="GitHub"
+		>
+			<RoughSvg class="social-frame" width={52} height={52} shapes={socialFrames.github} />
+			<Icon class="social-logo" icon="simple-icons:github" width="20" height="20" aria-hidden="true" />
 		</a>
 	</div>
+
+	<RoughSvg class="header-divider" width={1600} height={12} shapes={headerDivider} />
 </header>
 
 <style>
@@ -88,13 +143,21 @@
 		grid-template-columns: minmax(12rem, 1fr) auto minmax(12rem, 1fr);
 		align-items: center;
 		gap: 2rem;
-		padding: 1.45rem clamp(1.25rem, 3.5vw, 3.7rem) 0.75rem;
-		border-bottom: 1px solid var(--hairline);
-		background: var(--surface);
-		box-shadow: var(--shadow-material);
+		padding: 1.3rem clamp(1.25rem, 3.5vw, 3.7rem) 0.9rem;
+		border-bottom: 0;
+		background: color-mix(in srgb, var(--paper) 92%, transparent);
 		font-family: var(--font-ui);
-		-webkit-backdrop-filter: blur(24px) saturate(160%);
-		backdrop-filter: blur(24px) saturate(160%);
+	}
+
+	.site-header :global(.header-divider) {
+		--sketch-ink: var(--sketch-line-soft);
+
+		position: absolute;
+		left: 0;
+		bottom: -0.3rem;
+		width: 100%;
+		height: 0.65rem;
+		pointer-events: none;
 	}
 
 	.brand {
@@ -163,6 +226,9 @@
 
 	.category-nav button {
 		opacity: 0.66;
+		font-family: var(--font-hand);
+		font-variation-settings: 'INFM' 58;
+		letter-spacing: 0.075em;
 		transition: transform var(--press-out-duration) var(--ease-out);
 	}
 
@@ -201,33 +267,36 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		gap: clamp(1.3rem, 2.2vw, 2.4rem);
+		gap: 0.55rem;
 	}
 
-	.github-link {
-		--rough-button-color: var(--accent);
-		--sketch-ink: var(--rough-button-color);
+	.outbound-links .social-link {
+		--sketch-ink: var(--sketch-line);
 
+		position: relative;
 		display: grid;
-		min-width: 8.8rem;
+		width: 2.8rem;
 		height: 2.8rem;
+		padding: 0;
 		place-items: center;
-		color: var(--paper-elevated) !important;
+		color: var(--ink);
+		border-radius: 48% 52% 46% 54%;
+		background: color-mix(in srgb, var(--paper-elevated) 72%, transparent);
 	}
 
-	.github-link:active {
-		--rough-button-color: var(--accent-pressed);
+	.linkedin-link {
+		color: var(--accent-cool) !important;
 	}
 
-	.github-link :global(.button-shape) {
+	.social-link :global(.social-frame) {
 		position: absolute;
-		z-index: -1;
-		inset: -0.2rem -0.55rem;
-		width: calc(100% + 1.1rem);
+		inset: -0.2rem;
+		width: calc(100% + 0.4rem);
 		height: calc(100% + 0.4rem);
+		pointer-events: none;
 	}
 
-	.github-link span {
+	.social-link :global(.social-logo) {
 		position: relative;
 		z-index: 1;
 	}
@@ -235,6 +304,16 @@
 	@media (hover: hover) and (pointer: fine) {
 		.category-nav button:hover {
 			opacity: 1;
+		}
+
+		.outbound-links .social-link:hover {
+			--sketch-ink: var(--accent);
+
+			transform: translateY(-1px) rotate(-2deg) scale(1.035);
+		}
+
+		.outbound-links .github-link:hover {
+			transform: translateY(-1px) rotate(2deg) scale(1.035);
 		}
 	}
 
@@ -285,17 +364,12 @@
 			display: none;
 		}
 
-		.category-nav button,
-		.outbound-links a {
+		.category-nav button {
 			font-size: 0.62rem;
 		}
 
-		.outbound-links > a:first-child {
-			display: none;
-		}
-
-		.github-link {
-			min-width: 5.9rem;
+		.outbound-links .social-link {
+			width: 2.35rem;
 			height: 2.35rem;
 		}
 	}
@@ -323,17 +397,16 @@
 	@media (prefers-reduced-transparency: reduce) {
 		.site-header {
 			background: var(--surface-solid);
-			box-shadow: none;
-			-webkit-backdrop-filter: none;
-			backdrop-filter: none;
 		}
 	}
 
 	@media (prefers-contrast: more) {
 		.site-header {
-			border-bottom-color: var(--ink);
 			background: var(--surface-solid);
-			box-shadow: none;
+		}
+
+		.site-header :global(.header-divider) {
+			--sketch-ink: var(--ink);
 		}
 
 		.category-nav button {

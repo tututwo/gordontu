@@ -184,10 +184,10 @@
 </script>
 
 <svelte:head>
-	<title>Gordon Tu — Maps, charts, and creative code</title>
+	<title>Gordon Tu — Maps, charts, and code creatively</title>
 	<meta
 		name="description"
-		content="Selected data visualizations, maps, and interactive experiments by Gordon Tu."
+		content="Maps, charts, and creatively coded interactive experiments by Gordon Tu."
 	/>
 </svelte:head>
 
@@ -214,9 +214,10 @@
 	<PortfolioHeader {activeCategory} onselect={selectCategory} />
 
 	<section class="hero" aria-labelledby="landing-title">
+		<RoughSvg class="hero-spark" width={50} height={48} shapes={starShapes} />
 		<h1 id="landing-title">
 			I make maps, charts,<br />
-			and <span class="underlined">creative code.<RoughSvg width={280} height={18} shapes={underlineShapes} /></span>
+			and <span class="underlined">code creatively.<RoughSvg width={320} height={18} shapes={underlineShapes} /></span>
 		</h1>
 		<p>
 			Selected data visualizations, maps, and interactive experiments<br />
@@ -226,7 +227,7 @@
 
 	<section class="project-wall-section" aria-label="Selected projects">
 		<div class="annotation drag-annotation" aria-hidden="true">
-			<span>Drag to explore</span>
+			<span>Drag to unroll</span>
 			<RoughSvg width={280} height={72} shapes={dragArrowShapes} />
 		</div>
 
@@ -282,7 +283,7 @@
 		inset: 0;
 		width: 100%;
 		height: 100%;
-		opacity: 0.08;
+		opacity: 0.12;
 		pointer-events: none;
 		mix-blend-mode: multiply;
 	}
@@ -294,6 +295,18 @@
 		justify-items: center;
 		padding: clamp(2rem, 4.6vh, 2.75rem) 1.25rem 0;
 		text-align: center;
+	}
+
+	.hero :global(.hero-spark) {
+		--sketch-ink: var(--accent-sun);
+
+		position: absolute;
+		top: 1.25rem;
+		left: calc(50% + min(25vw, 22rem));
+		width: 2.4rem;
+		height: 2.3rem;
+		transform: rotate(9deg);
+		pointer-events: none;
 	}
 
 	h1 {
@@ -308,8 +321,11 @@
 	}
 
 	.underlined {
+		--sketch-ink: var(--accent);
+
 		position: relative;
 		display: inline-block;
+		color: color-mix(in srgb, var(--accent) 78%, var(--ink));
 		white-space: nowrap;
 	}
 
@@ -429,10 +445,26 @@
 	}
 
 	.features article {
+		--feature-ink: var(--accent);
+		--sketch-ink: var(--feature-ink);
+
 		display: grid;
 		grid-template-columns: 3.2rem 1fr;
 		align-items: start;
 		gap: 0.85rem;
+		transform: rotate(-0.25deg);
+	}
+
+	.features article:nth-of-type(2) {
+		--feature-ink: var(--accent-cool);
+
+		transform: translateY(0.18rem) rotate(0.3deg);
+	}
+
+	.features article:nth-of-type(3) {
+		--feature-ink: var(--accent-sun);
+
+		transform: translateY(-0.08rem) rotate(-0.18deg);
 	}
 
 	.features :global(.feature-icon) {
@@ -460,9 +492,20 @@
 	}
 
 	.feature-divider {
+		position: relative;
 		width: 1px;
 		height: 4.15rem;
 		background: var(--sketch-line-soft);
+		transform: rotate(0.8deg);
+	}
+
+	.feature-divider::after {
+		position: absolute;
+		inset: 0 0 0 2px;
+		width: 1px;
+		background: color-mix(in srgb, var(--sketch-line-soft) 48%, transparent);
+		content: '';
+		transform: rotate(-1.4deg);
 	}
 
 	@keyframes drag-cue-reveal {
@@ -520,6 +563,14 @@
 		h1 {
 			font-size: clamp(2.45rem, 11vw, 3.1rem);
 			line-height: 1;
+		}
+
+		.hero :global(.hero-spark) {
+			top: 0.7rem;
+			left: auto;
+			right: 0.7rem;
+			width: 1.85rem;
+			height: 1.8rem;
 		}
 
 		.hero > p {
