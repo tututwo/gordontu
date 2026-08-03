@@ -1,170 +1,12 @@
 <script>
 	import { resolve } from '$app/paths';
 	import RoughSvg from './RoughSvg.svelte';
+	import { categories } from '$lib/project/project.js';
+	import { navActiveLine, socialFrames, socialIcons, headerDivider } from './sketches.js';
 
 	let { activeCategory = 'all', onselect = () => {} } = $props();
 
-	const categories = [
-		{ value: 'all', label: 'All' },
-		{ value: 'charts', label: 'Charts' },
-		{ value: 'maps', label: 'Maps' },
-		{ value: 'code creatively', label: 'Creative code' }
-	];
-
-	const activeLine = [
-		{
-			type: 'curve',
-			points: [
-				[3, 9],
-				[28, 7],
-				[58, 10],
-				[88, 6],
-				[117, 8]
-			],
-			options: { seed: 142, strokeWidth: 1.35, roughness: 1.5, bowing: 1.4 }
-		}
-	];
-
-	const socialFrames = {
-		linkedin: [
-			{
-				type: 'rectangle',
-				x: 6,
-				y: 6,
-				width: 40,
-				height: 40,
-				options: { seed: 1304, strokeWidth: 1.35, roughness: 1.55, bowing: 1.35 }
-			},
-			{
-				type: 'rectangle',
-				x: 4,
-				y: 8,
-				width: 43,
-				height: 37,
-				options: { seed: 1305, strokeWidth: 0.7, roughness: 1.8, bowing: 1.2 }
-			}
-		],
-		github: [
-			{
-				type: 'ellipse',
-				x: 26,
-				y: 26,
-				width: 43,
-				height: 41,
-				options: { seed: 2711, strokeWidth: 1.35, roughness: 1.55, bowing: 1.2 }
-			},
-			{
-				type: 'ellipse',
-				x: 25,
-				y: 27,
-				width: 39,
-				height: 43,
-				options: { seed: 2712, strokeWidth: 0.7, roughness: 1.75, bowing: 1.35 }
-			}
-		]
-	};
-
-	const socialIcons = {
-		linkedin: [
-			{
-				type: 'ellipse',
-				x: 5.8,
-				y: 5.8,
-				width: 2.7,
-				height: 2.7,
-				options: {
-					seed: 6101,
-					fill: 'var(--sketch-ink)',
-					fillStyle: 'solid',
-					strokeWidth: 1,
-					roughness: 1.15
-				}
-			},
-			{
-				type: 'line',
-				x1: 7.1,
-				y1: 10.5,
-				x2: 7.1,
-				y2: 18.4,
-				options: { seed: 6102, strokeWidth: 2.15, roughness: 1.05, bowing: 0.7 }
-			},
-			{
-				type: 'line',
-				x1: 11,
-				y1: 10.7,
-				x2: 11,
-				y2: 18.4,
-				options: { seed: 6103, strokeWidth: 2.05, roughness: 1.05, bowing: 0.65 }
-			},
-			{
-				type: 'path',
-				d: 'M 11 14.2 C 11.7 11.7, 13.2 10.5, 15.2 10.5 C 17.6 10.5, 18.2 12.1, 18.2 14.4 L 18.2 18.4',
-				options: { seed: 6104, strokeWidth: 2.05, roughness: 1.05, bowing: 0.75 }
-			}
-		],
-		github: [
-			{
-				type: 'path',
-				d: 'M 7.1 9 C 6.2 6.8, 6.6 4.7, 7.7 3.2 C 9.6 3.5, 11 4.2, 12 5 C 13.6 4.6, 15.1 4.6, 16.5 5 C 17.8 4, 19.2 3.4, 20.5 3.4 C 21.2 5.6, 21.1 7.3, 20.2 9 C 21.5 10.2, 22.1 11.8, 22.1 13.5 C 22.1 18.1, 18.5 20.3, 13.6 20.3 C 8.3 20.3, 4.2 18.2, 4.2 13.5 C 4.2 11.7, 5.2 10.1, 7.1 9 Z',
-				options: { seed: 7201, strokeWidth: 1.55, roughness: 1.15, bowing: 0.8 }
-			},
-			{
-				type: 'curve',
-				points: [
-					[8.7, 19],
-					[6.9, 20.2],
-					[5.1, 18.6],
-					[4, 17.1],
-					[2.2, 17]
-				],
-				options: { seed: 7202, strokeWidth: 1.45, roughness: 1.25, bowing: 1 }
-			},
-			{
-				type: 'ellipse',
-				x: 10.4,
-				y: 13.6,
-				width: 1.15,
-				height: 1.45,
-				options: {
-					seed: 7203,
-					fill: 'var(--sketch-ink)',
-					fillStyle: 'solid',
-					strokeWidth: 0.75,
-					roughness: 0.9
-				}
-			},
-			{
-				type: 'ellipse',
-				x: 16.2,
-				y: 13.6,
-				width: 1.15,
-				height: 1.45,
-				options: {
-					seed: 7204,
-					fill: 'var(--sketch-ink)',
-					fillStyle: 'solid',
-					strokeWidth: 0.75,
-					roughness: 0.9
-				}
-			}
-		]
-	};
-
-	const headerDivider = [
-		{
-			type: 'curve',
-			points: [
-				[0, 6],
-				[260, 7],
-				[535, 5],
-				[810, 7],
-				[1085, 5],
-				[1360, 7],
-				[1600, 6]
-			],
-			options: { seed: 404, strokeWidth: 0.8, roughness: 1.3, bowing: 0.7 }
-		}
-	];
+	const filters = [{ value: 'all', label: 'All' }, ...categories];
 </script>
 
 <header class="site-header">
@@ -176,7 +18,7 @@
 	</a>
 
 	<nav class="category-nav" aria-label="Filter projects by category">
-		{#each categories as category (category.value)}
+		{#each filters as category (category.value)}
 			<button
 				type="button"
 				class={activeCategory === category.value ? 'active' : ''}
@@ -185,7 +27,7 @@
 			>
 				{category.label}
 				{#if activeCategory === category.value}
-					<RoughSvg class="active-line" width={120} height={16} shapes={activeLine} />
+					<RoughSvg class="active-line" width={120} height={16} shapes={navActiveLine} />
 				{/if}
 			</button>
 		{/each}

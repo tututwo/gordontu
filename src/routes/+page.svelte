@@ -3,178 +3,38 @@
 	import ProjectWall from '$lib/landingPage/ProjectWall.svelte';
 	import RoughSvg from '$lib/landingPage/RoughSvg.svelte';
 	import { projects } from '$lib/project/project.js';
+	import {
+		underline,
+		dragArrow,
+		star,
+		infinity,
+		infiniteArrow,
+		featureIcons
+	} from '$lib/landingPage/sketches.js';
 
 	let activeCategory = $state('all');
 
-	const orderedProjects = [...projects].sort(
-		(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-	);
-
 	let filteredProjects = $derived(
 		activeCategory === 'all'
-			? orderedProjects
-			: orderedProjects.filter((project) => project.titleTag === activeCategory)
+			? projects
+			: projects.filter((project) => project.category === activeCategory)
 	);
-
-	const underlineShapes = [
-		{
-			type: 'curve',
-			points: [
-				[4, 9],
-				[52, 7],
-				[105, 10],
-				[160, 7],
-				[218, 11],
-				[274, 8]
-			],
-			options: { seed: 411, strokeWidth: 1.55, roughness: 1.55, bowing: 1.65 }
-		}
-	];
-
-	const dragArrowShapes = [
-		{
-			type: 'curve',
-			points: [
-				[8, 58],
-				[18, 42],
-				[75, 38],
-				[145, 32],
-				[220, 24],
-				[266, 18]
-			],
-			options: { seed: 81, strokeWidth: 1.45, roughness: 1.4 }
-		},
-		{
-			type: 'linearPath',
-			points: [
-				[244, 7],
-				[268, 18],
-				[248, 34]
-			],
-			options: { seed: 82, strokeWidth: 1.45, roughness: 1.2 }
-		}
-	];
-
-	const starShapes = [
-		{
-			type: 'path',
-			d: 'M 25 2 L 30 18 L 47 17 L 34 27 L 40 44 L 25 34 L 10 44 L 16 27 L 3 17 L 20 18 Z',
-			options: { seed: 207, strokeWidth: 1.35, roughness: 1.45, bowing: 1.2 }
-		}
-	];
-
-	const infinityShapes = [
-		{
-			type: 'path',
-			d: 'M 6 22 C 14 4, 27 5, 38 22 C 49 39, 62 39, 72 22 C 62 5, 49 5, 38 22 C 27 39, 14 40, 6 22',
-			options: { seed: 718, strokeWidth: 1.45, roughness: 1.25, bowing: 1.1 }
-		}
-	];
-
-	const infiniteArrowShapes = [
-		{
-			type: 'curve',
-			points: [
-				[7, 34],
-				[52, 23],
-				[113, 25],
-				[174, 29],
-				[216, 22]
-			],
-			options: { seed: 910, strokeWidth: 1.45, roughness: 1.45 }
-		},
-		{
-			type: 'linearPath',
-			points: [
-				[196, 10],
-				[219, 22],
-				[199, 37]
-			],
-			options: { seed: 911, strokeWidth: 1.45, roughness: 1.25 }
-		}
-	];
 
 	const features = [
 		{
 			title: 'Data made visible',
 			copy: 'Charts that turn complex systems into clear, memorable stories.',
-			shapes: [
-				{
-					type: 'rectangle',
-					x: 13,
-					y: 13,
-					width: 27,
-					height: 29,
-					options: { seed: 31, strokeWidth: 1.25 }
-				},
-				{
-					type: 'rectangle',
-					x: 18,
-					y: 9,
-					width: 27,
-					height: 29,
-					options: { seed: 32, strokeWidth: 1.25 }
-				},
-				{
-					type: 'rectangle',
-					x: 23,
-					y: 5,
-					width: 27,
-					height: 29,
-					options: { seed: 33, strokeWidth: 1.25 }
-				}
-			]
+			shapes: featureIcons.charts
 		},
 		{
 			title: 'Maps with a point of view',
 			copy: 'Spatial stories shaped through data, terrain, and careful craft.',
-			shapes: [
-				...Array.from({ length: 8 }, (_, index) => {
-					const angle = (Math.PI * 2 * index) / 8;
-					return {
-						type: 'line',
-						x1: 30 + Math.cos(angle) * 12,
-						y1: 25 + Math.sin(angle) * 12,
-						x2: 30 + Math.cos(angle) * 22,
-						y2: 25 + Math.sin(angle) * 22,
-						options: { seed: 100 + index, strokeWidth: 1.25, roughness: 1.25 }
-					};
-				}),
-				{
-					type: 'ellipse',
-					x: 30,
-					y: 25,
-					width: 5,
-					height: 5,
-					options: {
-						seed: 112,
-						fill: 'var(--sketch-ink, var(--ink, #1d1d1f))',
-						fillStyle: 'solid',
-						strokeWidth: 1
-					}
-				}
-			]
+			shapes: featureIcons.maps
 		},
 		{
 			title: 'Creative code in motion',
 			copy: 'Interactive experiments built with Svelte, Three.js, D3, and GLSL.',
-			shapes: [
-				{
-					type: 'path',
-					d: 'M 12 30 C 4 20, 12 8, 24 13 C 27 2, 45 5, 43 18 C 56 19, 55 38, 42 38 C 38 51, 18 47, 20 37 C 15 38, 11 35, 12 30 Z',
-					options: { seed: 550, strokeWidth: 1.25, roughness: 1.45 }
-				},
-				{
-					type: 'curve',
-					points: [
-						[21, 27],
-						[27, 20],
-						[34, 28],
-						[40, 21]
-					],
-					options: { seed: 551, strokeWidth: 1.1 }
-				}
-			]
+			shapes: featureIcons.creativeCode
 		}
 	];
 
@@ -214,10 +74,10 @@
 	<PortfolioHeader {activeCategory} onselect={selectCategory} />
 
 	<section class="hero" aria-labelledby="landing-title">
-		<RoughSvg class="hero-spark" width={50} height={48} shapes={starShapes} />
+		<RoughSvg class="hero-spark" width={50} height={48} shapes={star} />
 		<h1 id="landing-title">
 			I make maps, charts,<br />
-			and <span class="underlined">code creatively.<RoughSvg width={320} height={18} shapes={underlineShapes} /></span>
+			and <span class="underlined">code creatively.<RoughSvg width={320} height={18} shapes={underline} /></span>
 		</h1>
 		<p>
 			Selected data visualizations, maps, and interactive experiments<br />
@@ -228,18 +88,18 @@
 	<section class="project-wall-section" aria-label="Selected projects">
 		<div class="annotation drag-annotation" aria-hidden="true">
 			<span>Drag to unroll</span>
-			<RoughSvg width={280} height={72} shapes={dragArrowShapes} />
+			<RoughSvg width={280} height={72} shapes={dragArrow} />
 		</div>
 
 		<div class="annotation wall-annotation" aria-hidden="true">
 			<span>Project wall</span>
-			<RoughSvg class="star" width={50} height={48} shapes={starShapes} />
+			<RoughSvg class="star" width={50} height={48} shapes={star} />
 		</div>
 
 		<div class="annotation infinite-annotation" aria-hidden="true">
 			<span>{filteredProjects.length} projects</span>
-			<RoughSvg class="infinity" width={78} height={45} shapes={infinityShapes} />
-			<RoughSvg class="infinite-arrow" width={225} height={48} shapes={infiniteArrowShapes} />
+			<RoughSvg class="infinity" width={78} height={45} shapes={infinity} />
+			<RoughSvg class="infinite-arrow" width={225} height={48} shapes={infiniteArrow} />
 		</div>
 
 		{#key activeCategory}

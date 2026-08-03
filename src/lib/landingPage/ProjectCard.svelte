@@ -1,39 +1,29 @@
 <script>
 	import { base } from '$app/paths';
 	import RoughSvg from './RoughSvg.svelte';
+	import { categoryLabel } from '$lib/project/project.js';
+	import { cardSeed, cardFrame, cardImageFrame, paperRadius } from './sketches.js';
 
 	/**
 	 * @type {{
 	 *   project: import('$lib/project/project.js').Project,
 	 *   active?: boolean,
 	 *   tabindex?: number,
-	 *   onfocus?: (event: FocusEvent) => void,
-	 *   shouldSuppressClick?: () => boolean
+	 *   onfocus?: (event: FocusEvent) => void
 	 * }}
 	 */
-	let {
-		project,
-		active = false,
-		tabindex = 0,
-		onfocus = () => {},
-		shouldSuppressClick = () => false
-	} = $props();
+	let { project, active = false, tabindex = 0, onfocus = () => {} } = $props();
 
-	/** @type {Record<string, string>} */
-	const categoryNames = {
-		charts: 'Charts',
-		maps: 'Maps',
-		'code creatively': 'Creative code'
-	};
-
-	let rawHref = $derived(project.projectLink.trim());
-	let projectHref = $derived(rawHref.startsWith('/') ? `${base}${rawHref}` : rawHref);
+	let projectHref = $derived(
+		project.projectLink.startsWith('/') ? `${base}${project.projectLink}` : project.projectLink
+	);
 	let optimizedImage = $derived(toOptimizedImage(project.projectImgSource));
 	let formattedDate = $derived(formatDate(project.date));
-	let category = $derived(categoryNames[project.titleTag] ?? project.titleTag);
-	let frameShapes = $derived(createFrameShapes(project.projectName));
-	let imageFrameShapes = $derived(createImageFrameShapes(project.projectName));
-	let paperRadius = $derived(createPaperRadius(project.projectName));
+	let category = $derived(categoryLabel(project.category));
+	let seed = $derived(cardSeed(project.seed));
+	let frameShapes = $derived(cardFrame(seed));
+	let imageFrameShapes = $derived(cardImageFrame(seed));
+	let cardRadius = $derived(paperRadius(seed));
 	let imageLoaded = $state(false);
 
 	/** @param {string} source */
@@ -49,98 +39,6 @@
 			month: '2-digit',
 			year: '2-digit'
 		}).format(date);
-	}
-
-	/** @param {string} value */
-	function hash(value) {
-		let result = 0;
-		for (let index = 0; index < value.length; index += 1) {
-			result = (result * 31 + value.charCodeAt(index)) >>> 0;
-		}
-		return (result % 2000000000) + 1;
-	}
-
-	/** @param {string} name */
-	function createFrameShapes(name) {
-		const seed = hash(name);
-		const topLeft = 8 + (seed % 8);
-		const topRight = 8 + ((seed >>> 3) % 9);
-		const bottomRight = 8 + ((seed >>> 7) % 8);
-		const bottomLeft = 7 + ((seed >>> 11) % 10);
-		return [
-			{
-				type: 'polygon',
-				points: [
-					[topLeft, 15],
-					[991 - topRight, 9 + (seed % 4)],
-					[990 - bottomRight, 909 - (seed % 5)],
-					[bottomLeft, 911 - ((seed >>> 4) % 5)]
-				],
-				options: { seed, roughness: 1.05, bowing: 0.75, strokeWidth: 1.65 }
-			},
-			{
-				type: 'polygon',
-				points: [
-					[8 + ((seed >>> 6) % 5), 21],
-					[988 - ((seed >>> 9) % 6), 14],
-					[985, 901 - ((seed >>> 12) % 5)],
-					[12, 903]
-				],
-				options: {
-					seed: seed + 17,
-					roughness: 1.55,
-					bowing: 1.1,
-					strokeWidth: 0.72,
-					stroke: 'var(--sketch-line, rgb(29 29 31 / 0.68))'
-				}
-			}
-		];
-	}
-
-	/** @param {string} name */
-	function createImageFrameShapes(name) {
-		const seed = hash(name) + 701;
-		return [
-			{
-				type: 'polygon',
-				points: [
-					[7 + (seed % 4), 8 + ((seed >>> 2) % 3)],
-					[953 - ((seed >>> 5) % 5), 6 + ((seed >>> 8) % 4)],
-					[954 - ((seed >>> 11) % 4), 713 - ((seed >>> 14) % 4)],
-					[6 + ((seed >>> 17) % 5), 712 - ((seed >>> 20) % 3)]
-				],
-				options: { seed, roughness: 1.15, bowing: 0.7, strokeWidth: 1.85 }
-			},
-			{
-				type: 'polygon',
-				points: [
-					[10, 11],
-					[949, 9 + ((seed >>> 7) % 3)],
-					[951, 709],
-					[9 + ((seed >>> 13) % 3), 708]
-				],
-				options: {
-					seed: seed + 23,
-					roughness: 1.6,
-					bowing: 0.95,
-					strokeWidth: 0.7,
-					stroke: 'var(--sketch-line-soft, rgb(41 41 35 / 0.38))'
-				}
-			}
-		];
-	}
-
-	/** @param {string} name */
-	function createPaperRadius(name) {
-		const seed = hash(name);
-		/** @param {number} shift */
-		const corner = (shift) => `${1.2 + ((seed >>> shift) % 11) / 10}%`;
-		return `${corner(0)} ${corner(4)} ${corner(8)} ${corner(12)} / ${corner(2)} ${corner(6)} ${corner(10)} ${corner(14)}`;
-	}
-
-	/** @param {MouseEvent} event */
-	function handleClick(event) {
-		if (shouldSuppressClick()) event.preventDefault();
 	}
 
 	/** @param {Event} event */
@@ -163,8 +61,7 @@
 	rel="external noreferrer"
 	{tabindex}
 	aria-label={`${project.projectName} — open project in a new tab`}
-	style:--paper-radius={paperRadius}
-	onclick={handleClick}
+	style:--paper-radius={cardRadius}
 	onfocus={onfocus}
 	ondragstart={(event) => event.preventDefault()}
 >

@@ -15,3 +15,7 @@ _Avoid_: Blog feed, gallery grid
 **Project category**:
 One of the portfolio's canonical groupings: Charts, Maps, or Creative Code. Visitors use these groupings to narrow the Project wall.
 _Avoid_: Title tag, navigation item
+
+**Sketch**:
+A hand-drawn rough.js decoration (underlines, arrows, stars, frames) that gives the site its paper-and-ink look. The sketch vocabulary lives in one module; each Project's frames are seeded from its name so they are unique but stable.
+_Avoid_: Doodle, icon

@@ -1,46 +1,11 @@
 <script>
-	import { prefersReducedMotion } from 'svelte/motion';
 	import ProjectCard from './ProjectCard.svelte';
+	import { WallMotion } from './wallMotion.svelte.js';
 
 	/** @type {{ projects?: import('$lib/project/project.js').Project[] }} */
 	let { projects = [] } = $props();
 
-	const DECELERATION_RATE = 0.998;
-	const DAMPING_RATIO = 0.88;
-	const RESPONSE = 0.5;
-	const ANGULAR_FREQUENCY = (Math.PI * 2) / RESPONSE;
-	const MAX_FRAME_DELTA = 1 / 30;
-	const MAX_ELAPSED_TIME = 0.1;
-	const MAX_RELEASE_SPEED = 8;
-	const POINTER_HISTORY_WINDOW = 110;
-	const DRAG_THRESHOLD = 8;
-
-	// Track position in project units so a responsive step change cannot shift the active project.
-	let offset = $state(0);
 	let stageWidth = $state(1200);
-	let isDragging = $state(false);
-	let isMoving = $state(false);
-	let suppressClick = $state(false);
-
-	let animationFrame = 0;
-	let previousFrameTime = 0;
-	/** @type {'idle' | 'spring'} */
-	let motionMode = 'idle';
-	let motionTarget = 0;
-	let motionVelocity = 0;
-	let dragFrame = 0;
-	/** @type {number | undefined} */
-	let pendingDragOffset;
-
-	/** @type {number | undefined} */
-	let pointerId;
-	let dragStartX = 0;
-	let dragStartOffset = 0;
-	/** @type {{ x: number; time: number }[]} */
-	let pointerHistory = [];
-	/** @type {number | undefined} */
-	let clickResetTimer;
-
 	let isMobile = $derived(stageWidth <= 720);
 	let cardWidth = $derived(
 		isMobile
@@ -49,11 +14,19 @@
 	);
 	let step = $derived(cardWidth * (isMobile ? 1.08 : 1));
 	let visibleCount = $derived(isMobile ? 5 : 9);
-	let activeVirtualIndex = $derived(Math.round(-offset));
+
+	const motion = new WallMotion({
+		step: () => step,
+		isMobile: () => isMobile,
+		count: () => projects.length
+	});
+
+	let activeVirtualIndex = $derived(Math.round(-motion.offset));
 	let activeProject = $derived(projects[mod(activeVirtualIndex, projects.length)]);
 	let visibleCards = $derived.by(() => {
 		if (projects.length === 0) return [];
 
+		const offset = motion.offset;
 		const half = Math.floor(visibleCount / 2);
 		const center = Math.round(-offset);
 		const radius =
@@ -75,7 +48,7 @@
 			const curveDepth = Math.max(radius * (Math.cos(theta) - 1) * 0.9, -350);
 			const translateZ = 82 + curveDepth;
 			const rotateY = clamp(((-theta * 180) / Math.PI) * 1.32, -34, 34);
-			const variationSeed = hashProject(projects[projectIndex].projectName);
+			const variationSeed = projects[projectIndex].seed;
 			const naturalY = ((variationSeed % 17) - 8) * 0.64;
 			const arcDrop = Math.min(distance * distance * 0.85, 6);
 			const naturalTilt = (((variationSeed >>> 5) % 13) - 6) * 0.22;
@@ -105,315 +78,18 @@
 	function clamp(value, minimum, maximum) {
 		return Math.min(Math.max(value, minimum), maximum);
 	}
-
-	/** @param {string} value */
-	function hashProject(value) {
-		let result = 0;
-		for (let index = 0; index < value.length; index += 1) {
-			result = (result * 31 + value.charCodeAt(index)) >>> 0;
-		}
-		return result;
-	}
-
-	/** @param {number} value */
-	function nearestStep(value) {
-		return Math.round(value);
-	}
-
-	function stopFrameDriver() {
-		if (animationFrame) cancelAnimationFrame(animationFrame);
-		animationFrame = 0;
-		previousFrameTime = 0;
-	}
-
-	function finishMotion() {
-		stopFrameDriver();
-		motionMode = 'idle';
-		motionVelocity = 0;
-		isMoving = isDragging;
-	}
-
-	function requestNextFrame() {
-		if (!animationFrame) animationFrame = requestAnimationFrame(updateMotion);
-	}
-
-	/** @param {number} target @param {number} initialVelocity */
-	function startSpring(target, initialVelocity) {
-		stopFrameDriver();
-		motionMode = 'spring';
-		motionTarget = target;
-		motionVelocity = initialVelocity;
-		previousFrameTime = performance.now();
-		isMoving = true;
-		requestNextFrame();
-	}
-
-	/** @param {number} time */
-	function updateMotion(time) {
-		animationFrame = 0;
-		let remainingSeconds = Math.min(
-			Math.max((time - previousFrameTime) / 1000, 0),
-			MAX_ELAPSED_TIME
-		);
-		previousFrameTime = time;
-
-		if (motionMode !== 'spring') {
-			finishMotion();
-			return;
-		}
-
-		while (remainingSeconds > 0) {
-			const deltaSeconds = Math.min(remainingSeconds, MAX_FRAME_DELTA);
-			const acceleration =
-				-(ANGULAR_FREQUENCY ** 2) * (offset - motionTarget) -
-				2 * DAMPING_RATIO * ANGULAR_FREQUENCY * motionVelocity;
-			motionVelocity += acceleration * deltaSeconds;
-			offset += motionVelocity * deltaSeconds;
-			remainingSeconds -= deltaSeconds;
-
-			if (Math.abs(offset - motionTarget) < 0.0015 && Math.abs(motionVelocity) < 0.008) {
-				offset = motionTarget;
-				finishMotion();
-				return;
-			}
-		}
-
-		requestNextFrame();
-	}
-
-	/** @param {number} velocityPerSecond */
-	function projectRelease(velocityPerSecond) {
-		return (velocityPerSecond / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE));
-	}
-
-	/** @param {number} velocityPerSecond */
-	function releaseTarget(velocityPerSecond) {
-		const maximumTravel = isMobile ? 2 : 4;
-		const projectedTravel = clamp(
-			projectRelease(velocityPerSecond),
-			-maximumTravel,
-			maximumTravel
-		);
-		return nearestStep(offset + projectedTravel);
-	}
-
-	/** @param {number} value */
-	function queueDragOffset(value) {
-		pendingDragOffset = value;
-		if (!dragFrame) dragFrame = requestAnimationFrame(flushDragOffset);
-	}
-
-	function flushDragOffset() {
-		if (dragFrame) cancelAnimationFrame(dragFrame);
-		dragFrame = 0;
-		if (pendingDragOffset === undefined) return;
-		offset = pendingDragOffset;
-		pendingDragOffset = undefined;
-	}
-
-	function cancelDragFrame() {
-		if (dragFrame) cancelAnimationFrame(dragFrame);
-		dragFrame = 0;
-		pendingDragOffset = undefined;
-	}
-
-	/** @param {number} value */
-	function setOffsetInstantly(value) {
-		finishMotion();
-		offset = value;
-	}
-
-	/** @param {number} x @param {number} time */
-	function recordPointerSample(x, time) {
-		pointerHistory.push({ x, time });
-		const cutoff = time - POINTER_HISTORY_WINDOW;
-
-		while (pointerHistory.length > 2 && pointerHistory[1].time < cutoff) {
-			pointerHistory.shift();
-		}
-		while (pointerHistory.length > 8) pointerHistory.shift();
-	}
-
-	function getReleaseVelocity() {
-		if (pointerHistory.length < 2) return 0;
-
-		const averageTime =
-			pointerHistory.reduce((sum, sample) => sum + sample.time, 0) / pointerHistory.length;
-		const averageX =
-			pointerHistory.reduce((sum, sample) => sum + sample.x, 0) / pointerHistory.length;
-		let covariance = 0;
-		let timeVariance = 0;
-
-		for (const sample of pointerHistory) {
-			const centeredTime = sample.time - averageTime;
-			covariance += centeredTime * (sample.x - averageX);
-			timeVariance += centeredTime * centeredTime;
-		}
-
-		return timeVariance > 0 ? (covariance / timeVariance) * (1000 / step) : 0;
-	}
-
-	function resetClickSuppression() {
-		if (clickResetTimer !== undefined) window.clearTimeout(clickResetTimer);
-		clickResetTimer = window.setTimeout(() => (suppressClick = false), 0);
-	}
-
-	/** @param {PointerEvent} event */
-	function handlePointerDown(event) {
-		if (pointerId !== undefined || event.button !== 0 || projects.length < 2) return;
-		finishMotion();
-		cancelDragFrame();
-		pointerId = event.pointerId;
-		suppressClick = false;
-		dragStartX = event.clientX;
-		dragStartOffset = offset;
-		pointerHistory = [{ x: event.clientX, time: performance.now() }];
-	}
-
-	/** @param {PointerEvent} event */
-	function handlePointerMove(event) {
-		if (event.pointerId !== pointerId) return;
-		const now = performance.now();
-		const delta = event.clientX - dragStartX;
-		recordPointerSample(event.clientX, now);
-
-		if (!isDragging) {
-			if (Math.abs(delta) <= DRAG_THRESHOLD) return;
-			isDragging = true;
-			isMoving = true;
-			suppressClick = true;
-			const target = /** @type {HTMLDivElement} */ (event.currentTarget);
-			target.setPointerCapture(event.pointerId);
-		}
-
-		event.preventDefault();
-		queueDragOffset(dragStartOffset + delta / step);
-	}
-
-	/** @param {PointerEvent} event */
-	function handlePointerEnd(event) {
-		const activePointerId = pointerId;
-		if (activePointerId === undefined || event.pointerId !== activePointerId) return;
-		const wasDragging = isDragging;
-		const wasCancelled = event.type === 'pointercancel';
-		const target = /** @type {HTMLDivElement} */ (event.currentTarget);
-
-		if (!wasCancelled && wasDragging) {
-			const finalDelta = event.clientX - dragStartX;
-			pendingDragOffset = dragStartOffset + finalDelta / step;
-			flushDragOffset();
-			recordPointerSample(event.clientX, performance.now());
-		} else {
-			cancelDragFrame();
-		}
-
-		const releaseVelocity = clamp(getReleaseVelocity(), -MAX_RELEASE_SPEED, MAX_RELEASE_SPEED);
-		isDragging = false;
-		pointerId = undefined;
-		if (target.hasPointerCapture(activePointerId)) target.releasePointerCapture(activePointerId);
-
-		if (wasCancelled) {
-			setOffsetInstantly(wasDragging ? nearestStep(offset) : dragStartOffset);
-		} else if (wasDragging) {
-			if (prefersReducedMotion.current) {
-				setOffsetInstantly(nearestStep(offset));
-			} else {
-				startSpring(releaseTarget(releaseVelocity), releaseVelocity);
-			}
-		} else {
-			setOffsetInstantly(dragStartOffset);
-		}
-
-		resetClickSuppression();
-		pointerHistory = [];
-	}
-
-	/** @param {PointerEvent} event */
-	function handleLostPointerCapture(event) {
-		if (event.pointerId !== pointerId) return;
-		// Touch pointers are implicitly captured by the pointerdown target (a card), so
-		// promoting that capture to the stage fires a bubbled lostpointercapture from the
-		// card. Only a capture loss on the stage itself should abort the drag.
-		if (event.target !== event.currentTarget) return;
-		const wasDragging = isDragging;
-		cancelDragFrame();
-		isDragging = false;
-		pointerId = undefined;
-		pointerHistory = [];
-		setOffsetInstantly(wasDragging ? nearestStep(offset) : dragStartOffset);
-		resetClickSuppression();
-	}
-
-	/** @param {number} direction */
-	function moveBy(direction) {
-		const target = nearestStep(offset) + direction;
-		if (prefersReducedMotion.current) setOffsetInstantly(target);
-		else startSpring(target, 0);
-	}
-
-	/** @param {KeyboardEvent} event */
-	function handleKeydown(event) {
-		const wall = /** @type {HTMLDivElement} */ (event.currentTarget);
-		if (event.key === 'ArrowRight') {
-			event.preventDefault();
-			wall.focus({ preventScroll: true });
-			moveBy(-1);
-		} else if (event.key === 'ArrowLeft') {
-			event.preventDefault();
-			wall.focus({ preventScroll: true });
-			moveBy(1);
-		} else if (event.key === 'Home') {
-			event.preventDefault();
-			wall.focus({ preventScroll: true });
-			setOffsetInstantly(0);
-		}
-	}
-
-	/** @param {number} virtualIndex */
-	function focusCard(virtualIndex) {
-		if (pointerId !== undefined) return;
-		setOffsetInstantly(-virtualIndex);
-	}
-
-	/** @param {HTMLDivElement} node */
-	function dragSurface(node) {
-		node.addEventListener('pointerdown', handlePointerDown);
-		node.addEventListener('pointermove', handlePointerMove);
-		node.addEventListener('pointerup', handlePointerEnd);
-		node.addEventListener('pointercancel', handlePointerEnd);
-		node.addEventListener('lostpointercapture', handleLostPointerCapture);
-		node.addEventListener('keydown', handleKeydown);
-
-		return () => {
-			cancelDragFrame();
-			if (pointerId !== undefined) {
-				offset = isDragging ? nearestStep(offset) : dragStartOffset;
-				isDragging = false;
-				pointerId = undefined;
-				pointerHistory = [];
-			}
-			finishMotion();
-			if (clickResetTimer !== undefined) window.clearTimeout(clickResetTimer);
-			node.removeEventListener('pointerdown', handlePointerDown);
-			node.removeEventListener('pointermove', handlePointerMove);
-			node.removeEventListener('pointerup', handlePointerEnd);
-			node.removeEventListener('pointercancel', handlePointerEnd);
-			node.removeEventListener('lostpointercapture', handleLostPointerCapture);
-			node.removeEventListener('keydown', handleKeydown);
-		};
-	}
 </script>
 
 <div class="wall-wrap">
 	<div
-		class={['wall-stage', { dragging: isDragging, coasting: isMoving && !isDragging }]}
+		class={['wall-stage', { dragging: motion.isDragging, coasting: motion.isMoving && !motion.isDragging }]}
 		role="region"
 		aria-roledescription="carousel"
 		aria-label="Infinite project wall. Drag or flick horizontally, or use the left and right arrow keys."
 		aria-describedby="wall-instructions"
 		tabindex="-1"
 		bind:clientWidth={stageWidth}
-		{@attach dragSurface}
+		{@attach motion.attach}
 	>
 		<p id="wall-instructions" class="sr-only">
 			Drag or flick the wall horizontally. Use the left and right arrow keys to move one project at a time.
@@ -431,15 +107,14 @@
 						project={card.project}
 						active={card.active}
 						tabindex={card.active ? 0 : -1}
-						onfocus={() => focusCard(card.virtualIndex)}
-						shouldSuppressClick={() => suppressClick}
+						onfocus={() => motion.focusCard(card.virtualIndex)}
 					/>
 				</div>
 			{/each}
 		</div>
 
 		<p class="sr-only" aria-live="polite" aria-atomic="true">
-			{#if activeProject && !isMoving}Current project: {activeProject.projectName}{/if}
+			{#if activeProject && !motion.isMoving}Current project: {activeProject.projectName}{/if}
 		</p>
 	</div>
 </div>

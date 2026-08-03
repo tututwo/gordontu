@@ -1,14 +1,5 @@
-@import "@fontsource-variable/libre-franklin";
 @import "@fontsource-variable/newsreader";
 @import "@fontsource-variable/shantell-sans";
-@import "tailwindcss";
-@config "../tailwind.config.js";
-
-@font-face {
-	font-family: "HanYiShouJinShuFan";
-	src: url("/fonts/HanYiShouJinShuFan/HanYiShouJinShuFan.ttf") format("truetype");
-	font-display: swap;
-}
 
 @layer base {
 	:root {

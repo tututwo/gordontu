@@ -1,319 +1,289 @@
-import { writable } from "svelte/store";
-
 /**
  * @typedef {Object} Project
  * @property {string} projectName
- * @property {string} projectDescription
  * @property {string} projectLink
  * @property {string} projectImgSource
  * @property {string[]} tools
- * @property {string} titleTag
+ * @property {string} category
  * @property {string} date
+ * @property {number} seed - deterministic sketch seed derived from projectName; the wall's
+ *   tilt and the card's frame both draw from it so a Project reads as one object
  */
 
-/** @type {Project[]} */
-export const projects = [
-
-  {
-    projectName:
-      "Traveling Particles",
-    projectDescription: "",
-    projectLink: "  https://traveling-particles.vercel.app/",
-    projectImgSource: "/projects/CreativeCoding/three_us_road.png",
-    tools: ["Three", "D3"],
-    titleTag: "code creatively",
-    date: "2024-11-01",
-  },
-  {
-    projectName:
-      "California Affordable Housing",
-    projectDescription: "",
-    projectLink: "https://ternercenter.berkeley.edu/affordability-for-whom.html",
-    projectImgSource: "/projects/Charts/svelte_california_housing.png",
-    tools: ["Svelte", "D3"],
-    titleTag: "code creatively",
-    date: "2023-11-01",
-  },
-  {
-    projectName:
-      "Election Map - 3D Visualization with Three.js and GLSL",
-    projectDescription: "",
-    projectLink: "https://vite-three-five.vercel.app/",
-    projectImgSource: "/projects/Charts/three_election.png",
-    tools: ["Three.js, React.js"],
-    titleTag: "code creatively",
-    date: "2023-11-01",
-  },
-  {
-    projectName:
-      "Brain Pulse Animation - Recreate Blue Yard Studio's Brain Pulse Animation",
-    projectDescription: "",
-    projectLink: "https://brain-impulse.vercel.app/",
-    projectImgSource: "/projects/CreativeCoding/R3f-Brain.png",
-    tools: ["Three.js, React.js"],
-    titleTag: "code creatively",
-    date: "2023-11-01",
-  },
-  {
-    projectName:
-      "Global Earthquakes - 3D Visualization with Three.js and Observable",
-    projectDescription: "",
-    projectLink: "https://earthquake-landingpage.vercel.app/",
-    projectImgSource: "/projects/CreativeCoding/Earthquake.png",
-    tools: ["Three.js, Svelte.js"],
-    titleTag: "code creatively",
-    date: "2023-03-01",
-  },
-  {
-    projectName:
-      "Stitching Heart, Blooming Flowers",
-    projectDescription: "",
-    projectLink: "https://beating-heart-phi.vercel.app/",
-    projectImgSource: "/projects/CreativeCoding/R3f-Heart.png",
-    tools: ["Three.js, React.js"],
-    titleTag: "code creatively",
-    date: "2023-02-01",
-  },
-  {
-    projectName:
-      "Spike Planet",
-    projectDescription: "",
-    projectLink: "https://spikey-planet.vercel.app/",
-    projectImgSource: "/projects/CreativeCoding/R3f-spikey.png",
-    tools: ["Three.js, React.js"],
-    titleTag: "code creatively",
-    date: "2023-03-01",
-  },
-  {
-    projectName:
-      "Number of Chinese Company Infrastructure in the US and Abroad.",
-    projectDescription: "",
-    projectLink: "https://twitter.com/tu_yukun/status/1646917464767225862/photo/1",
-    projectImgSource: "https://pbs.twimg.com/media/FtcYkEzXoAAxtcw?format=png&name=medium",
-    tools: ["Observable"],
-    titleTag: "charts",
-    date: "2023-04-01",
-  },
-  {
-    projectName:
-      "Number of Middle Age Himalayan Climbers Is Increasing Over Time",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/@tututwo/himalayan-ridge",
-    projectImgSource: "/projects/Charts/d3_Himalayan.png",
-    tools: ["Observable"],
-    titleTag: "charts",
-    date: "2022-01-01",
-  },
-  {
-    projectName: "Recreate: Why teachers are walking out of the classroom",
-    projectDescription: "",
-    projectLink: "https://teacher-svelte.netlify.app/",
-    projectImgSource: "/projects/Charts/svelte_teacherSalary.png",
-    tools: ["Svelte", "D3"],
-    titleTag: "charts",
-    date: "2021-07-01",
-  },
-  {
-    projectName: "Covid Monitoring Dashboard - China",
-    projectDescription: "",
-    projectLink: "https://www.chinacovidmonitor.org/",
-    projectImgSource: "/projects/Charts/svelte-covid-cn.png",
-    tools: ["Svelte", "D3", "R"],
-    titleTag: "charts",
-    date: "2022-08-01",
-  },
-  {
-    projectName:
-      "How dry would each state be if Americans only consumed local state-produced beer?",
-    projectDescription:
-      "Geofacetted stack bar chart that compares the beer production and beer consumption in each statevisuals.",
-    projectLink:
-      "https://twitter.com/_tuyukun/status/1281702418581827584",
-    projectImgSource: "https://pbs.twimg.com/media/EcmEau_UMAAat7E?format=jpg&name=4096x4096",
-    tools: ["R"],
-    titleTag: "charts",
-    date: "2020-12-10",
-  },
-  {
-    projectName:
-      "How much money did award-winning shows earn before the award date?",
-    projectDescription:
-      "Exploring the net gross and days before the awarding date of each musical that debutted after 1986",
-    projectLink: "https://twitter.com/_tuyukun/status/1297733577849765888/photo/1",
-    projectImgSource: "https://pbs.twimg.com/media/EgJ5z45UMAA1-dD?format=png&name=medium",
-    tools: ["R"],
-    titleTag: "charts",
-    date: "2021-01-10",
-  },
-  {
-    projectName: "CSS Doodle Chinese Pattern",
-    projectDescription: "",
-    projectLink: "https://codepen.io/collection/LPePxy",
-    projectImgSource: "/projects/CreativeCoding/css-doodle-纹样.png",
-    tools: ["CSS"],
-    titleTag: "code creatively",
-    date: "2021-12-02",
-  },
-  {
-    projectName: "Rotating 3D Cubes",
-    projectDescription: "",
-    projectLink:
-      "https://observablehq.com/@tututwo/three-js-animated-cubes?collection=@tututwo/three-js-creative-coding-practice",
-    projectImgSource: "/projects/CreativeCoding/Observable_GR_animateCubes.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2021-01-02",
-  },
-  {
-    projectName: "Sunset Blob",
-    projectDescription: "",
-    projectLink:
-      "https://observablehq.com/@tututwo/the-annual-ring-v2?collection=@tututwo/three-js-creative-coding-practice",
-    projectImgSource: "/projects/CreativeCoding/Observable_GR_blobRing.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2021-01-09",
-  },
-  {
-    projectName: "Rough Fried Eggs",
-    projectDescription: "",
-    projectLink:
-      "https://observablehq.com/d/1d6edd39edb160e7?collection=@tututwo/three-js-creative-coding-practice",
-    projectImgSource:
-      "/projects/CreativeCoding/Observable_GR_circlePackingMerging.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2021-02-09",
-  },
-  {
-    projectName: "Lili Pads",
-    projectDescription: "",
-    projectLink:
-      "https://observablehq.com/d/86bf42953f2582bd?collection=@tututwo/three-js-creative-coding-practice",
-    projectImgSource: "/projects/CreativeCoding/Observable_GR_lotusLeave.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2021-01-19",
-  },
-  {
-    projectName: "Rough Squares",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/@tututwo/rough-canvas-squares",
-    projectImgSource: "/projects/CreativeCoding/Observable_GR_roughSquare.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2021-01-01",
-  },
-  {
-    projectName: "GLSL SDF Practice Collection",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/collection/@tututwo/sdf",
-    projectImgSource: "/projects/CreativeCoding/Observable_SDF.png",
-    tools: ["GLSL"],
-    titleTag: "code creatively",
-    date: "2022-08-01",
-  },
-  {
-    projectName: "Star Candy Ball",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/d/027525671baa52b4",
-    projectImgSource: "/projects/CreativeCoding/Observable-Star.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2022-12-01",
-  },
-  {
-    projectName: "Flow Field 2D",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/d/73794013ffa23a9c?collection=@tututwo/three-js-creative-coding-practice",
-    projectImgSource: "/projects/CreativeCoding/Observable-flowfield.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2023-01-31",
-  },
-  {
-    projectName: "Unfold a Chinese Lattern",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/@tututwo/chinese-lantern",
-    projectImgSource: "/projects/CreativeCoding/Observable_lattern.png",
-    tools: ["Observable"],
-    titleTag: "code creatively",
-    date: "2021-07-01",
-  },
-  {
-    projectName: "Canvas Lightning",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/@tututwo/lightning",
-    projectImgSource: "/projects/CreativeCoding/Observable_lightning.png",
-    tools: ["GLSL"],
-    titleTag: "code creatively",
-    date: "2021-10-01",
-  },
-  {
-    projectName: "Kois",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/@tututwo/kois",
-    projectImgSource: "/projects/CreativeCoding/Observable_kois.png",
-    tools: ["Canvas"],
-    titleTag: "code creatively",
-    date: "2022-09-10",
-  },
-  {
-    projectName:
-      "Developing and undeveloped countries remain to be the agricultural countries, made in QGIS",
-    projectDescription: "",
-    projectLink: "https://datawrapper.dwcdn.net/VjDoq/5/",
-    projectImgSource: "/projects/Maps/map_datawrapper_agriculture.png",
-    tools: ["Datawrapper"],
-    titleTag: "maps",
-    date: "2020-12-10",
-  },
-  {
-    projectName: "China Elevation",
-    projectDescription: "",
-    projectLink: "/projects/Maps/map_elevation_ridge.png",
-    projectImgSource: "/projects/Maps/map_elevation_ridge.png",
-    tools: ["QGIS", "Adobe Illustrator"],
-    titleTag: "maps",
-    date: "2020-10-17",
-  },
-  {
-    projectName: "Most buildings in Manhattan were built before 1960s",
-    projectDescription: "",
-    projectLink: "/projects/Maps/map_Manhattan.png",
-    projectImgSource: "/projects/Maps/map_Manhattan_cover.png",
-    tools: ["QGIS"],
-    titleTag: "maps",
-    date: "2020-12-27",
-  },
-  {
-    projectName: "Sichuan Basin Elevation",
-    projectDescription: "",
-    projectLink: "https://observablehq.com/d/299f845c1c4ba8fe",
-    projectImgSource: "/projects/Maps/map_ridgelineSichuan.png",
-    tools: ["Observable"],
-    titleTag: "maps",
-    date: "2022-01-27",
-  },
-  {
-    projectName: "The elevation of Jiangxi Province",
-    projectDescription: "",
-    projectLink: "/projects/Maps/map_shuimomap_shuimo.png",
-    projectImgSource: "/projects/Maps/map_shuimomap_shuimo_cover.png",
-    tools: ["QGIS"],
-    titleTag: "maps",
-    date: "2020-11-07",
-  },
-  {
-    projectName: "Two Dragons of China",
-    projectDescription: "",
-    projectLink: "/projects/Maps/map_twodragons.png",
-    projectImgSource: "/projects/Maps/map_twodragons_cover.png",
-    tools: ["QGIS"],
-    titleTag: "maps",
-    date: "2020-11-27",
-  },
+/** Canonical Project categories — value stored on each Project, label shown to visitors. */
+export const categories = [
+	{ value: 'charts', label: 'Charts' },
+	{ value: 'maps', label: 'Maps' },
+	{ value: 'code creatively', label: 'Creative code' }
 ];
 
-// Kept for the legacy project views while the landing page consumes the plain data.
-export const projectCardInfo = writable(projects);
+/** @param {string} value */
+export function categoryLabel(value) {
+	return categories.find((category) => category.value === value)?.label ?? value;
+}
+
+/** @type {Omit<Project, 'seed'>[]} */
+const data = [
+	{
+		projectName: "Traveling Particles",
+		projectLink: "https://traveling-particles.vercel.app/",
+		projectImgSource: "/projects/CreativeCoding/three_us_road.png",
+		tools: ["Three", "D3"],
+		category: "code creatively",
+		date: "2024-11-01",
+	},
+	{
+		projectName: "California Affordable Housing",
+		projectLink: "https://ternercenter.berkeley.edu/affordability-for-whom.html",
+		projectImgSource: "/projects/Charts/svelte_california_housing.png",
+		tools: ["Svelte", "D3"],
+		category: "charts",
+		date: "2023-11-01",
+	},
+	{
+		projectName: "Election Map - 3D Visualization with Three.js and GLSL",
+		projectLink: "https://vite-three-five.vercel.app/",
+		projectImgSource: "/projects/Charts/three_election.png",
+		tools: ["Three.js", "React.js"],
+		category: "charts",
+		date: "2023-11-01",
+	},
+	{
+		projectName: "Brain Pulse Animation - Recreate Blue Yard Studio's Brain Pulse Animation",
+		projectLink: "https://brain-impulse.vercel.app/",
+		projectImgSource: "/projects/CreativeCoding/R3f-Brain.png",
+		tools: ["Three.js", "React.js"],
+		category: "code creatively",
+		date: "2023-11-01",
+	},
+	{
+		projectName: "Global Earthquakes - 3D Visualization with Three.js and Observable",
+		projectLink: "https://earthquake-landingpage.vercel.app/",
+		projectImgSource: "/projects/CreativeCoding/Earthquake.png",
+		tools: ["Three.js", "Svelte.js"],
+		category: "code creatively",
+		date: "2023-03-01",
+	},
+	{
+		projectName: "Stitching Heart, Blooming Flowers",
+		projectLink: "https://beating-heart-phi.vercel.app/",
+		projectImgSource: "/projects/CreativeCoding/R3f-Heart.png",
+		tools: ["Three.js", "React.js"],
+		category: "code creatively",
+		date: "2023-02-01",
+	},
+	{
+		projectName: "Spike Planet",
+		projectLink: "https://spikey-planet.vercel.app/",
+		projectImgSource: "/projects/CreativeCoding/R3f-spikey.png",
+		tools: ["Three.js", "React.js"],
+		category: "code creatively",
+		date: "2023-03-01",
+	},
+	{
+		projectName: "Number of Chinese Company Infrastructure in the US and Abroad.",
+		projectLink: "https://twitter.com/tu_yukun/status/1646917464767225862/photo/1",
+		projectImgSource: "https://pbs.twimg.com/media/FtcYkEzXoAAxtcw?format=png&name=medium",
+		tools: ["Observable"],
+		category: "charts",
+		date: "2023-04-01",
+	},
+	{
+		projectName: "Number of Middle Age Himalayan Climbers Is Increasing Over Time",
+		projectLink: "https://observablehq.com/@tututwo/himalayan-ridge",
+		projectImgSource: "/projects/Charts/d3_Himalayan.png",
+		tools: ["Observable"],
+		category: "charts",
+		date: "2022-01-01",
+	},
+	{
+		projectName: "Recreate: Why teachers are walking out of the classroom",
+		projectLink: "https://teacher-svelte.netlify.app/",
+		projectImgSource: "/projects/Charts/svelte_teacherSalary.png",
+		tools: ["Svelte", "D3"],
+		category: "charts",
+		date: "2021-07-01",
+	},
+	{
+		projectName: "Covid Monitoring Dashboard - China",
+		projectLink: "https://www.chinacovidmonitor.org/",
+		projectImgSource: "/projects/Charts/svelte-covid-cn.png",
+		tools: ["Svelte", "D3", "R"],
+		category: "charts",
+		date: "2022-08-01",
+	},
+	{
+		projectName: "How dry would each state be if Americans only consumed local state-produced beer?",
+		projectLink: "https://twitter.com/_tuyukun/status/1281702418581827584",
+		projectImgSource: "https://pbs.twimg.com/media/EcmEau_UMAAat7E?format=jpg&name=4096x4096",
+		tools: ["R"],
+		category: "charts",
+		date: "2020-12-10",
+	},
+	{
+		projectName: "How much money did award-winning shows earn before the award date?",
+		projectLink: "https://twitter.com/_tuyukun/status/1297733577849765888/photo/1",
+		projectImgSource: "https://pbs.twimg.com/media/EgJ5z45UMAA1-dD?format=png&name=medium",
+		tools: ["R"],
+		category: "charts",
+		date: "2021-01-10",
+	},
+	{
+		projectName: "CSS Doodle Chinese Pattern",
+		projectLink: "https://codepen.io/collection/LPePxy",
+		projectImgSource: "/projects/CreativeCoding/css-doodle-纹样.png",
+		tools: ["CSS"],
+		category: "code creatively",
+		date: "2021-12-02",
+	},
+	{
+		projectName: "Rotating 3D Cubes",
+		projectLink: "https://observablehq.com/@tututwo/three-js-animated-cubes?collection=@tututwo/three-js-creative-coding-practice",
+		projectImgSource: "/projects/CreativeCoding/Observable_GR_animateCubes.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2021-01-02",
+	},
+	{
+		projectName: "Sunset Blob",
+		projectLink: "https://observablehq.com/@tututwo/the-annual-ring-v2?collection=@tututwo/three-js-creative-coding-practice",
+		projectImgSource: "/projects/CreativeCoding/Observable_GR_blobRing.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2021-01-09",
+	},
+	{
+		projectName: "Rough Fried Eggs",
+		projectLink: "https://observablehq.com/d/1d6edd39edb160e7?collection=@tututwo/three-js-creative-coding-practice",
+		projectImgSource: "/projects/CreativeCoding/Observable_GR_circlePackingMerging.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2021-02-09",
+	},
+	{
+		projectName: "Lili Pads",
+		projectLink: "https://observablehq.com/d/86bf42953f2582bd?collection=@tututwo/three-js-creative-coding-practice",
+		projectImgSource: "/projects/CreativeCoding/Observable_GR_lotusLeave.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2021-01-19",
+	},
+	{
+		projectName: "Rough Squares",
+		projectLink: "https://observablehq.com/@tututwo/rough-canvas-squares",
+		projectImgSource: "/projects/CreativeCoding/Observable_GR_roughSquare.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2021-01-01",
+	},
+	{
+		projectName: "GLSL SDF Practice Collection",
+		projectLink: "https://observablehq.com/collection/@tututwo/sdf",
+		projectImgSource: "/projects/CreativeCoding/Observable_SDF.png",
+		tools: ["GLSL"],
+		category: "code creatively",
+		date: "2022-08-01",
+	},
+	{
+		projectName: "Star Candy Ball",
+		projectLink: "https://observablehq.com/d/027525671baa52b4",
+		projectImgSource: "/projects/CreativeCoding/Observable-Star.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2022-12-01",
+	},
+	{
+		projectName: "Flow Field 2D",
+		projectLink: "https://observablehq.com/d/73794013ffa23a9c?collection=@tututwo/three-js-creative-coding-practice",
+		projectImgSource: "/projects/CreativeCoding/Observable-flowfield.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2023-01-31",
+	},
+	{
+		projectName: "Unfold a Chinese Lattern",
+		projectLink: "https://observablehq.com/@tututwo/chinese-lantern",
+		projectImgSource: "/projects/CreativeCoding/Observable_lattern.png",
+		tools: ["Observable"],
+		category: "code creatively",
+		date: "2021-07-01",
+	},
+	{
+		projectName: "Canvas Lightning",
+		projectLink: "https://observablehq.com/@tututwo/lightning",
+		projectImgSource: "/projects/CreativeCoding/Observable_lightning.png",
+		tools: ["GLSL"],
+		category: "code creatively",
+		date: "2021-10-01",
+	},
+	{
+		projectName: "Kois",
+		projectLink: "https://observablehq.com/@tututwo/kois",
+		projectImgSource: "/projects/CreativeCoding/Observable_kois.png",
+		tools: ["Canvas"],
+		category: "code creatively",
+		date: "2022-09-10",
+	},
+	{
+		projectName: "Developing and undeveloped countries remain to be the agricultural countries, made in QGIS",
+		projectLink: "https://datawrapper.dwcdn.net/VjDoq/5/",
+		projectImgSource: "/projects/Maps/map_datawrapper_agriculture.png",
+		tools: ["Datawrapper"],
+		category: "maps",
+		date: "2020-12-10",
+	},
+	{
+		projectName: "China Elevation",
+		projectLink: "/projects/Maps/map_elevation_ridge.png",
+		projectImgSource: "/projects/Maps/map_elevation_ridge.png",
+		tools: ["QGIS", "Adobe Illustrator"],
+		category: "maps",
+		date: "2020-10-17",
+	},
+	{
+		projectName: "Most buildings in Manhattan were built before 1960s",
+		projectLink: "/projects/Maps/map_Manhattan.png",
+		projectImgSource: "/projects/Maps/map_Manhattan_cover.png",
+		tools: ["QGIS"],
+		category: "maps",
+		date: "2020-12-27",
+	},
+	{
+		projectName: "Sichuan Basin Elevation",
+		projectLink: "https://observablehq.com/d/299f845c1c4ba8fe",
+		projectImgSource: "/projects/Maps/map_ridgelineSichuan.png",
+		tools: ["Observable"],
+		category: "maps",
+		date: "2022-01-27",
+	},
+	{
+		projectName: "The elevation of Jiangxi Province",
+		projectLink: "/projects/Maps/map_shuimomap_shuimo.png",
+		projectImgSource: "/projects/Maps/map_shuimomap_shuimo_cover.png",
+		tools: ["QGIS"],
+		category: "maps",
+		date: "2020-11-07",
+	},
+	{
+		projectName: "Two Dragons of China",
+		projectLink: "/projects/Maps/map_twodragons.png",
+		projectImgSource: "/projects/Maps/map_twodragons_cover.png",
+		tools: ["QGIS"],
+		category: "maps",
+		date: "2020-11-27",
+	},
+];
+
+/** @param {string} value */
+function hashName(value) {
+	let result = 0;
+	for (let index = 0; index < value.length; index += 1) {
+		result = (result * 31 + value.charCodeAt(index)) >>> 0;
+	}
+	return result;
+}
+
+/** Every Project, newest first, seeded for the sketch renderers. */
+export const projects = data
+	.map((project) => ({ ...project, seed: hashName(project.projectName) }))
+	.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
