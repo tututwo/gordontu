@@ -1,7 +1,7 @@
 <script>
 	import { base } from '$app/paths';
 	import RoughSvg from './RoughSvg.svelte';
-	import { categoryLabel } from '$lib/project/project.js';
+	import { categoryLabel, toOptimizedImage } from '$lib/project/project.js';
 	import { cardSeed, cardFrame, cardImageFrame, paperRadius } from './sketches.js';
 
 	/**
@@ -25,12 +25,6 @@
 	let imageFrameShapes = $derived(cardImageFrame(seed));
 	let cardRadius = $derived(paperRadius(seed));
 	let imageLoaded = $state(false);
-
-	/** @param {string} source */
-	function toOptimizedImage(source) {
-		if (!source.startsWith('/projects/')) return source;
-		return source.replace('/projects/', '/projects-optimized/').replace(/\.[^.]+$/, '.webp');
-	}
 
 	/** @param {string} value */
 	function formatDate(value) {

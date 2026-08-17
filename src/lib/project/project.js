@@ -8,6 +8,7 @@
  * @property {string} date
  * @property {number} seed - deterministic sketch seed derived from projectName; the wall's
  *   tilt and the card's frame both draw from it so a Project reads as one object
+ * @property {string} slug - URL segment of the Project page (`/<category>/<slug>`), from projectName; unique
  */
 
 /**
@@ -47,7 +48,7 @@ export function categoryLabel(value) {
 	return categories.find((category) => category.value === value)?.label ?? value;
 }
 
-/** @type {Omit<Project, 'seed'>[]} */
+/** @type {Omit<Project, 'seed' | 'slug'>[]} */
 const data = [
 	{
 		projectName: "Traveling Particles",
@@ -308,7 +309,30 @@ export function hashName(value) {
 	return result;
 }
 
-/** Every Project, newest first, seeded for the sketch renderers. */
+/** URL segment for a Project name: lower-case, runs of non-alphanumerics become one dash. @param {string} value */
+export function slugify(value) {
+	return value
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+}
+
+/** `/projects/x.png` → `/projects-optimized/x.webp`; other sources pass through. @param {string} source */
+export function toOptimizedImage(source) {
+	if (!source.startsWith('/projects/')) return source;
+	return source.replace('/projects/', '/projects-optimized/').replace(/\.[^.]+$/, '.webp');
+}
+
+/** Every Project, newest first, seeded for the sketch renderers, slugged for its page. */
 export const projects = data
-	.map((project) => ({ ...project, seed: hashName(project.projectName) }))
+	.map((project) => ({
+		...project,
+		seed: hashName(project.projectName),
+		slug: slugify(project.projectName)
+	}))
 	.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+if (new Set(projects.map((project) => project.slug)).size !== projects.length) {
+	throw new Error('Duplicate project slug — rename the colliding projectName');
+}

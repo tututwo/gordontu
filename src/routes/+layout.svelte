@@ -1,13 +1,8 @@
 <script>
 	import '../app.css';
 	import Analytics from '$lib/Analytics.svelte';
-	import { page } from '$app/state';
-	import PortfolioHeader from '$lib/landingPage/PortfolioHeader.svelte';
 
 	let { children } = $props();
-
-	// The landing page is the card deck alone; the header only chaperones the inner pages.
-	let isLanding = $derived(page.route.id === '/');
 </script>
 
 <Analytics />
@@ -31,10 +26,6 @@
 		</filter>
 		<rect width="100%" height="100%" filter="url(#paper-noise)"></rect>
 	</svg>
-
-	{#if !isLanding}
-		<PortfolioHeader />
-	{/if}
 
 	<main>{@render children()}</main>
 </div>
