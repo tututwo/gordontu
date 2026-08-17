@@ -1,12 +1,9 @@
 <script>
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import RoughSvg from './RoughSvg.svelte';
 	import { categories } from '$lib/project/project.js';
 	import { navActiveLine, socialFrames, socialIcons, headerDivider } from './sketches.js';
-
-	let { activeCategory = 'all', onselect = () => {} } = $props();
-
-	const filters = [{ value: 'all', label: 'All' }, ...categories];
 </script>
 
 <header class="site-header">
@@ -17,19 +14,16 @@
 		<span>Gordon Tu</span>
 	</a>
 
-	<nav class="category-nav" aria-label="Filter projects by category">
-		{#each filters as category (category.value)}
-			<button
-				type="button"
-				class={activeCategory === category.value ? 'active' : ''}
-				aria-pressed={activeCategory === category.value}
-				onclick={() => onselect(category.value)}
-			>
+	<nav class="category-nav" aria-label="Project categories">
+		{#each categories as category (category.value)}
+			{@const href = resolve('/[category]', { category: category.slug })}
+			{@const active = page.url.pathname === href}
+			<a {href} aria-current={active ? 'page' : undefined}>
 				{category.label}
-				{#if activeCategory === category.value}
+				{#if active}
 					<RoughSvg class="active-line" width={120} height={16} shapes={navActiveLine} />
 				{/if}
-			</button>
+			</a>
 		{/each}
 	</nav>
 
@@ -124,7 +118,7 @@
 		gap: clamp(1.4rem, 3.1vw, 3.45rem);
 	}
 
-	.category-nav button,
+	.category-nav a,
 	.outbound-links a {
 		position: relative;
 		padding: 0.55rem 0;
@@ -142,7 +136,7 @@
 	}
 
 	.brand,
-	.category-nav button,
+	.category-nav a,
 	.outbound-links a {
 		transform: scale(1);
 		transform-origin: center;
@@ -151,7 +145,7 @@
 		touch-action: manipulation;
 	}
 
-	.category-nav button {
+	.category-nav a {
 		opacity: 0.66;
 		font-family: var(--font-hand);
 		font-variation-settings: 'INFM' 58;
@@ -159,19 +153,19 @@
 		transition: transform var(--press-out-duration) var(--ease-out);
 	}
 
-	.category-nav button:focus-visible,
-	.category-nav button.active {
+	.category-nav a:focus-visible,
+	.category-nav a[aria-current="page"] {
 		opacity: 1;
 	}
 
 	.brand:active:not(:focus-visible),
-	.category-nav button:active:not(:focus-visible),
+	.category-nav a:active:not(:focus-visible),
 	.outbound-links a:active:not(:focus-visible) {
 		transform: scale(0.97);
 		transition-duration: var(--press-in-duration);
 	}
 
-	.category-nav button:focus-visible,
+	.category-nav a:focus-visible,
 	.outbound-links a:focus-visible,
 	.brand:focus-visible {
 		outline: 2px solid var(--accent);
@@ -236,7 +230,7 @@
 	}
 
 	@media (hover: hover) and (pointer: fine) {
-		.category-nav button:hover {
+		.category-nav a:hover {
 			opacity: 1;
 		}
 
@@ -298,7 +292,7 @@
 			display: none;
 		}
 
-		.category-nav button {
+		.category-nav a {
 			font-size: 0.62rem;
 		}
 
@@ -315,10 +309,10 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.brand,
-		.category-nav button,
+		.category-nav a,
 		.outbound-links a,
 		.brand:active,
-		.category-nav button:active,
+		.category-nav a:active,
 		.outbound-links a:active {
 			transform: none;
 		}
@@ -328,7 +322,7 @@
 			transition: none;
 		}
 
-		.category-nav button {
+		.category-nav a {
 			transition: none;
 		}
 	}
@@ -348,11 +342,11 @@
 			--sketch-ink: var(--ink);
 		}
 
-		.category-nav button {
+		.category-nav a {
 			opacity: 0.82;
 		}
 
-		.category-nav button:focus-visible,
+		.category-nav a:focus-visible,
 		.outbound-links a:focus-visible,
 		.brand:focus-visible {
 			outline-width: 3px;

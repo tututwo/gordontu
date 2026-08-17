@@ -19,7 +19,7 @@ function clamp(value, minimum, maximum) {
  * Drag, flick, spring, and keyboard motion for the Project wall.
  *
  * Interface: `offset` (position in project units), `isDragging`, `isMoving`,
- * `attach(node)` (stage attachment), `focusCard(virtualIndex)`.
+ * `attach(node)` (stage attachment), `focusCard(virtualIndex)`, `moveBy(±1)` (spring one step).
  * Everything else — spring integration, velocity estimation, pointer capture,
  * post-drag click suppression — is implementation.
  *
@@ -35,6 +35,7 @@ export class WallMotion {
 	#step;
 	#isMobile;
 	#count;
+	#bounds;
 
 	#animationFrame = 0;
 	#previousFrameTime = 0;
@@ -55,19 +56,39 @@ export class WallMotion {
 	#suppressClick = false;
 
 	/**
-	 * @param {{ step: () => number, isMobile: () => boolean, count: () => number }} options
-	 *   Getters so the motion tracks the wall's responsive layout.
+	 * @param {{
+	 *   step: () => number,
+	 *   isMobile: () => boolean,
+	 *   count: () => number,
+	 *   bounds?: () => { min: number, max: number }
+	 * }} options
+	 *   Getters so the motion tracks the wall's responsive layout. Omit `bounds` for an
+	 *   infinite wall; give it and the offset rubber-bands at the edges and settles inside.
 	 */
-	constructor({ step, isMobile, count }) {
+	constructor({ step, isMobile, count, bounds }) {
 		this.#step = step;
 		this.#isMobile = isMobile;
 		this.#count = count;
+		this.#bounds = bounds;
 	}
 
 	/** @param {number} virtualIndex */
 	focusCard(virtualIndex) {
 		if (this.#pointerId !== undefined) return;
-		this.#setOffsetInstantly(-virtualIndex);
+		this.#setOffsetInstantly(this.#clampToBounds(-virtualIndex));
+	}
+
+	/** @param {number} value */
+	#clampToBounds(value) {
+		const bounds = this.#bounds?.();
+		return bounds ? clamp(value, bounds.min, bounds.max) : value;
+	}
+
+	/** Beyond the bounds the pointer moves the deck at a third of its speed. @param {number} clientX */
+	#dragOffsetFor(clientX) {
+		const raw = this.#dragStartOffset + (clientX - this.#dragStartX) / this.#step();
+		const inside = this.#clampToBounds(raw);
+		return inside + (raw - inside) * 0.3;
 	}
 
 	#stopFrameDriver() {
@@ -147,7 +168,7 @@ export class WallMotion {
 			-maximumTravel,
 			maximumTravel
 		);
-		return Math.round(this.offset + projectedTravel);
+		return this.#clampToBounds(Math.round(this.offset + projectedTravel));
 	}
 
 	/** @param {number} value */
@@ -178,7 +199,7 @@ export class WallMotion {
 
 	/** Ease onto the nearest step instead of teleporting — hard cuts read as glitches. */
 	#settleToNearest() {
-		const target = Math.round(this.offset);
+		const target = this.#clampToBounds(Math.round(this.offset));
 		if (prefersReducedMotion.current || target === this.offset) {
 			this.#setOffsetInstantly(target);
 		} else {
@@ -263,7 +284,7 @@ export class WallMotion {
 		}
 
 		event.preventDefault();
-		this.#queueDragOffset(this.#dragStartOffset + delta / this.#step());
+		this.#queueDragOffset(this.#dragOffsetFor(event.clientX));
 	};
 
 	/** @param {PointerEvent} event */
@@ -278,10 +299,7 @@ export class WallMotion {
 			// The up event contributes position only, never a velocity sample — it often
 			// repeats the last move's x a few frames later, which reads as a stop and
 			// erases a real flick. (pointercancel coordinates are unreliable; skip them.)
-			if (!wasCancelled) {
-				this.#pendingDragOffset =
-					this.#dragStartOffset + (event.clientX - this.#dragStartX) / this.#step();
-			}
+			if (!wasCancelled) this.#pendingDragOffset = this.#dragOffsetFor(event.clientX);
 			this.#flushDragOffset();
 		} else {
 			this.#cancelDragFrame();
@@ -329,9 +347,9 @@ export class WallMotion {
 		else this.#setOffsetInstantly(this.#dragStartOffset);
 	};
 
-	/** @param {number} direction */
-	#moveBy(direction) {
-		const target = Math.round(this.offset) + direction;
+	/** Spring one step; -1 = next, +1 = previous. @param {number} direction */
+	moveBy(direction) {
+		const target = this.#clampToBounds(Math.round(this.offset) + direction);
 		if (prefersReducedMotion.current) this.#setOffsetInstantly(target);
 		else this.#startSpring(target, 0);
 	}
@@ -342,11 +360,11 @@ export class WallMotion {
 		if (event.key === 'ArrowRight') {
 			event.preventDefault();
 			wall.focus({ preventScroll: true });
-			this.#moveBy(-1);
+			this.moveBy(-1);
 		} else if (event.key === 'ArrowLeft') {
 			event.preventDefault();
 			wall.focus({ preventScroll: true });
-			this.#moveBy(1);
+			this.moveBy(1);
 		} else if (event.key === 'Home') {
 			event.preventDefault();
 			wall.focus({ preventScroll: true });

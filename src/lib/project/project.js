@@ -10,11 +10,36 @@
  *   tilt and the card's frame both draw from it so a Project reads as one object
  */
 
-/** Canonical Project categories — value stored on each Project, label shown to visitors. */
+/**
+ * Canonical Project categories — `value` is stored on each Project (never rename it),
+ * `slug` is the URL form (`/charts`), and the rest feeds the landing card deck.
+ * `image` → swap for `/cards/<slug>.webp` once the card artwork lands in static/cards/.
+ */
 export const categories = [
-	{ value: 'charts', label: 'Charts' },
-	{ value: 'maps', label: 'Maps' },
-	{ value: 'code creatively', label: 'Creative code' }
+	{
+		value: 'charts',
+		label: 'Charts',
+		slug: 'charts',
+		icon: 'charts',
+		description: 'Charts that turn complex systems into clear, memorable stories.',
+		image: '/projects-optimized/Charts/three_election.webp'
+	},
+	{
+		value: 'maps',
+		label: 'Maps',
+		slug: 'maps',
+		icon: 'maps',
+		description: 'Spatial stories shaped through data, terrain, and careful craft.',
+		image: '/projects-optimized/Maps/map_shuimomap_shuimo_cover.webp'
+	},
+	{
+		value: 'code creatively',
+		label: 'Creative code',
+		slug: 'creative-code',
+		icon: 'creativeCode',
+		description: 'Interactive experiments built with Svelte, Three.js, D3, and GLSL.',
+		image: '/projects-optimized/CreativeCoding/R3f-Heart.webp'
+	}
 ];
 
 /** @param {string} value */
@@ -274,8 +299,8 @@ const data = [
 	},
 ];
 
-/** @param {string} value */
-function hashName(value) {
+/** Deterministic seed for the sketch renderers. @param {string} value */
+export function hashName(value) {
 	let result = 0;
 	for (let index = 0; index < value.length; index += 1) {
 		result = (result * 31 + value.charCodeAt(index)) >>> 0;
