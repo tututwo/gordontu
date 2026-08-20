@@ -198,6 +198,7 @@
 		-webkit-user-select: none;
 		-webkit-touch-callout: none;
 		cursor: grab;
+		filter: drop-shadow(0 18px 18px rgb(49 42 35 / 0.16));
 		outline: none;
 	}
 

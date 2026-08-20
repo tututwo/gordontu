@@ -1,63 +1,59 @@
-# Landing page design QA
+# Infinite canvas card-wall design QA
 
-- Source visual truth: `docs/landing-page.png`
-- Browser implementation: `.design-qa/implementation-corrected-final.jpg`
-- Side-by-side comparison: `.design-qa/comparison-corrected-final.jpg`
-- Mobile implementation: `.design-qa/implementation-corrected-mobile.jpg`
-- Desktop viewport: 1672 × 941 CSS px
-- Mobile viewport: 390 × 844 CSS px
-- Intentional omission: the reference's top-right navigation is not implemented
+- Source visual truth: `/Users/gordontu/Library/Application Support/CleanShot/media/media_TMJuTRZdxU/CleanShot 2026-08-19 at 21.18.02.png`
+- Local source copy: `.design-qa/reference-card-wall.png`
+- Implementation screenshot: `.design-qa/implementation-card-wall-final.png`
+- Full-view comparison: `.design-qa/comparison-card-wall.png`
+- Viewport: 2495 × 1154 CSS px
+- Source pixels: 2495 × 1154
+- Implementation pixels: 2495 × 1154
+- Density normalization: none; implementation `devicePixelRatio` was 1
+- State: `/creative-code`, initial closed-card canvas state
 
-## Pass 1 — card material and page shell
+## Findings
 
-Replaced the earlier Wallflow-inspired page with the corrected reference's sparse white canvas,
-tracked two-line brand, three portrait category cards, and handwritten closing statement. Each
-card now uses zero-padded numbering, ochre details, restrained uppercase typography, filtered
-project imagery, rough double contours, stacked paper offsets, and real CSS 3D side planes.
+No actionable P0, P1, or P2 mismatch remains.
 
-Visible mismatch found:
+- Fonts and typography: the reference's poster lettering belongs to its raster artwork. The implementation keeps each project's own raster artwork and adds no synthetic card text; the existing Gordon Tu home link remains as product navigation.
+- Spacing and layout rhythm: uniform 2:3 portrait cards, four-to-five visible desktop columns, deterministic loose tilts, a wider second-row interval, partial edge cards, and top-row breathing room match the source composition.
+- Colors and visual tokens: the route now uses a warm neutral `#f3f0eb` canvas and soft brown-black drop shadows close to the source's paper-wall treatment.
+- Image quality and asset fidelity: existing optimized project images remain sharp and are center-cropped into the selected portrait format. Opaque paper backings preserve a rectangular card silhouette behind transparent artwork in both wall and open-card states. No placeholder, generated, CSS-drawn, or replacement artwork was introduced.
+- Copy and content: category names, descriptions, project names, links, and dialog actions are unchanged.
 
-- [P1] Preserving the original stage-width spacing left most neighboring cards off-screen, so
-  the page did not form the reference's three-card fan.
+Focused-region comparison was not needed: the requested fidelity surfaces are card silhouette, spacing, tilt, background, and shadow, all clearly readable in the same-size full-view comparison. Fine text inside the cards is source artwork rather than editable interface copy.
 
-Fix:
+## Comparison history
 
-- Kept WallMotion's original drag step, spring, bounds, pointer capture, and shared `rotateY`
-  progression, but separated the resting visual fan spacing. Maps now starts centered with both
-  neighboring category designs visible.
+### Pass 1
 
-## Pass 2 — same-size visual comparison
+- Evidence: `.design-qa/comparison-card-wall-pass1.png`
+- [P2] The new portrait cards and wider row pitch pushed the first row above the viewport, clipping card tops and losing the reference's upper breathing room.
+- Fix: biased the gallery's initial camera position downward by 18% of one responsive cell while preserving pan limits and centered-card opening.
 
-The final comparison places the 1672 × 941 implementation beside the corrected source.
+### Pass 2
 
-- Brand lands at approximately x 57 / y 48 with matching tracking and line spacing.
-- Cards occupy approximately x 148–1519 / y 182–792, matching the source's scale, overlap,
-  center alignment, and opposing side rotations.
-- The center face is approximately 437 × 555 px and uses the reference's internal hierarchy.
-- The closing statement and ochre dash land in the same bottom-center zone.
-- The background is route-scoped neutral white; gallery routes keep their existing palette.
-- Existing project images remain, as specified in the implementation plan, and are treated as
-  pale monochrome sketches rather than introducing new assets.
+- Evidence: `.design-qa/comparison-card-wall-pass2.png`
+- The row framing was corrected, but [P2] the transparent Sunset Blob artwork at bottom right still cast a dome-shaped shadow instead of reading as the source's rectangular paper card.
+- Fix: added an opaque paper plane behind every gallery image and the opened-card front, sharing the existing transforms, opacity, ordering, and disposal lifecycle.
 
-No actionable P0, P1, or P2 visual mismatch remains within the approved existing-image scope.
+### Pass 3
 
-## Responsive and interaction QA
+- Evidence: `.design-qa/comparison-card-wall.png`
+- Every item now keeps the rectangular poster silhouette. The first row lands below the top edge, the second row remains partially visible, and card scale, spacing, rotation, neutral background, and shadows align with the source. No P0/P1/P2 finding remains.
 
-- Mobile at 390 × 844 keeps the centered card readable, shows neighboring edges, places the
-  accessible controls below the deck, and lets the closing statement follow in normal flow.
-- A pointer drag moved Maps to Creative coding and changed all three card `rotateY` transforms
-  together; the settled transforms were 360°, 180°, and 0°.
-- Previous/next controls returned the page to Maps and the polite live region announced the
-  correct category state.
-- Card links, center-only tab order, keyboard controls, reduced-motion rules, and pointer click
-  suppression remain intact.
+## Browser verification
+
+- Landing cards: Charts and Creative Coding each navigated to their canvas route on the first click; Maps uses the same link path.
+- Canvas: opening and closing a project card worked; drag panning changed the canvas position.
+- Responsive check: `.design-qa/implementation-maps-mobile.png` at 390 × 844 CSS px.
+- Open-card check: `.design-qa/open-card.png`.
+- Browser console: no warnings or errors on the final `/creative-code` capture.
 
 ## Validation
 
-- Production build: passed.
-- Svelte autofixer: passed for `+page.svelte` and `CardDeck.svelte` with no issues or suggestions.
-- Landing-page diagnostics: clean.
-- Repository-wide `npm run check`: only the two pre-existing missing `gtag` type errors remain in
-  `src/lib/Analytics.svelte`; no diagnostic points to the landing redesign.
+- `node src/lib/gallery/layout.check.js`: passed.
+- `npm run build`: passed.
+- Svelte autofixer: no issues in the changed Svelte components.
+- `npm run check`: still reports the two pre-existing undefined `gtag` diagnostics in `src/lib/Analytics.svelte`; no diagnostic points to this change.
 
 final result: passed

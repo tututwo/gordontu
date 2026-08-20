@@ -8,7 +8,7 @@ export const CARD_RATIO = 1.5;
 /** Card footprint inside its cell. */
 const CARD_FILL = 0.8;
 /** Row pitch as a fraction of the cell. */
-const ROW_PITCH = 0.85;
+const ROW_PITCH = 1.15;
 
 /** Cell pitch from viewport width — one knob for how big the postcards read. @param {number} viewportWidth */
 export function cellSize(viewportWidth) {
@@ -27,7 +27,7 @@ export function cardSize(cell, landscape) {
 
 /**
  * The whole section laid out once — every project appears exactly one time.
- * Columns follow the viewport aspect (two on a phone, ~six on a laptop), preferring a count whose
+ * Columns follow the visible cell pitch (two on a phone, ~four on a wide desktop), preferring a count whose
  * last row is fullest; a short last row is spread across the full width so there is no void.
  * Odd rows shift half a step (checkerboard) and every card gets seed jitter and a ±4° tilt.
  * @param {{ seed: number }[]} projects
@@ -38,9 +38,8 @@ export function cardSize(cell, landscape) {
  */
 export function layoutPlane(projects, cell, viewportW, viewportH) {
 	const n = projects.length;
-	const aspect = viewportW / viewportH;
-	const low = Math.max(2, Math.floor(Math.sqrt(n * aspect)));
-	const high = Math.max(low, Math.ceil(Math.sqrt(n * aspect)) + 1);
+	const low = Math.min(n, Math.max(2, Math.round(viewportW / cell)));
+	const high = Math.min(n, low + 1);
 	let cols = low;
 	let bestFill = -1;
 	for (let candidate = low; candidate <= Math.min(high, n); candidate += 1) {

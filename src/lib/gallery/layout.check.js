@@ -15,6 +15,7 @@ ok(projects.every((p) => p.slug.length > 0), 'slugs non-empty');
 const landscape = cardSize(300, true);
 const portrait = cardSize(300, false);
 ok(landscape.w === portrait.h && landscape.h === portrait.w, 'aspects share a cell');
+ok(layoutPlane(projects.slice(0, 6), 620, 2495, 1154).width === 2790, 'wide canvas uses four columns');
 
 for (const [w, h] of [
 	[1440, 900],

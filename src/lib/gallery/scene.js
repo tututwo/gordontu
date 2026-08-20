@@ -10,6 +10,7 @@ const OPEN_MS = 520;
 const REVEAL_MS = 380;
 const REVEAL_STAGGER_MS = 28;
 const PAPER = 0xf1ebe0;
+const CARD_PAPER = 0xfffdf9;
 
 /** @typedef {import('../project/project.js').Project} Project */
 
@@ -18,6 +19,7 @@ const PAPER = 0xf1ebe0;
  * @property {Project} project
  * @property {THREE.Mesh} mesh the one postcard on the plane
  * @property {THREE.MeshBasicMaterial} material opacity = reveal × ghost
+ * @property {THREE.MeshBasicMaterial} backingMaterial opaque silhouette beneath transparent art
  * @property {boolean} landscape
  * @property {{ w: number, h: number }} size
  */
@@ -45,6 +47,7 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 	let width = 1;
 	let height = 1;
 	let cell = 300;
+	let homeY = 0;
 	let plane = layoutPlane(projects, cell, width, height);
 	/** @type {Card[]} */
 	const cards = [];
@@ -54,15 +57,21 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 	// --- hero (the opened card) ---
 	const hero = new THREE.Group();
 	hero.visible = false;
-	hero.renderOrder = projects.length + 1;
+	hero.renderOrder = projects.length * 2 + 2;
+	const heroPaper = new THREE.Mesh(
+		geometry,
+		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: CARD_PAPER })
+	);
 	const heroFront = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ transparent: true, depthTest: false }));
 	const heroBack = new THREE.Mesh(
 		geometry,
 		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: PAPER })
 	);
+	heroPaper.position.z = -0.001;
 	heroBack.rotation.y = Math.PI;
-	heroFront.renderOrder = heroBack.renderOrder = hero.renderOrder;
-	hero.add(heroFront, heroBack);
+	heroPaper.renderOrder = hero.renderOrder;
+	heroFront.renderOrder = heroBack.renderOrder = hero.renderOrder + 1;
+	hero.add(heroPaper, heroFront, heroBack);
 	scene.add(hero);
 	/** @type {Card | undefined} */
 	let heroCard;
@@ -86,11 +95,21 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 	const loads = [];
 	for (const [index, project] of projects.entries()) {
 		const material = new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: PAPER, opacity: 0 });
+		const backingMaterial = new THREE.MeshBasicMaterial({
+			transparent: true,
+			depthTest: false,
+			color: CARD_PAPER,
+			opacity: 0
+		});
 		const mesh = new THREE.Mesh(geometry, material);
-		mesh.renderOrder = index;
+		const backing = new THREE.Mesh(geometry, backingMaterial);
+		backing.position.z = -0.001;
+		backing.renderOrder = index * 2;
+		mesh.renderOrder = index * 2 + 1;
+		mesh.add(backing);
 		scene.add(mesh);
 		/** @type {Card} */
-		const card = { project, mesh, material, landscape: true, size: cardSize(cell, true) };
+		const card = { project, mesh, material, backingMaterial, landscape: false, size: cardSize(cell, false) };
 		mesh.userData.card = card;
 		cards.push(card);
 		const load = loadTexture(toOptimizedImage(project.projectImgSource))
@@ -100,9 +119,8 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 				texture.colorSpace = THREE.SRGBColorSpace;
 				texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 				const image = /** @type {{ width: number, height: number }} */ (texture.image);
-				card.landscape = image.width >= image.height;
 				const imageRatio = image.width / image.height;
-				const cardRatio = card.landscape ? CARD_RATIO : 1 / CARD_RATIO;
+				const cardRatio = 1 / CARD_RATIO;
 				if (imageRatio > cardRatio) {
 					texture.repeat.x = cardRatio / imageRatio;
 					texture.offset.x = (1 - texture.repeat.x) / 2;
@@ -139,9 +157,10 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 		camera.fov = (2 * Math.atan(height / 2 / CAMERA_Z) * 180) / Math.PI;
 		camera.updateProjectionMatrix();
 		cell = cellSize(width);
+		homeY = cell * 0.18;
 		plane = layoutPlane(projects, cell, width, height);
 		for (const card of cards) place(card);
-		if (heroCard) heroTo = { ...heroTo, ...heroBoxFor(heroCard) };
+		if (heroCard) heroTo = { ...heroTo, y: pan.y + homeY, ...heroBoxFor(heroCard) };
 		wake();
 	}
 
@@ -159,7 +178,7 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 		let animating = false;
 
 		// Pan is screen px (+y down); the camera moves the opposite way in world units (+y up).
-		camera.position.set(-pan.x, pan.y, CAMERA_Z);
+		camera.position.set(-pan.x, pan.y + homeY, CAMERA_Z);
 
 		// Open tween.
 		if (openValue !== openTarget) {
@@ -177,6 +196,7 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 			const reveal = reduced() ? 1 : cubicOut(Math.min(1, Math.max(0, revealAge / REVEAL_MS)));
 			if (reveal < 1) animating = true;
 			card.material.opacity = reveal * ghost;
+			card.backingMaterial.opacity = reveal * ghost;
 			card.mesh.visible = card !== heroCard;
 		}
 
@@ -279,7 +299,7 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 				w: card.size.w,
 				h: card.size.h
 			};
-			heroTo = { x: -pan.x, y: pan.y, rot: 0, ...heroBoxFor(card) };
+			heroTo = { x: -pan.x, y: pan.y + homeY, rot: 0, ...heroBoxFor(card) };
 			heroFront.material.map = card.material.map;
 			heroFront.material.color.set(card.material.map ? 0xffffff : PAPER);
 			heroFront.material.needsUpdate = true;
@@ -325,8 +345,10 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 			for (const card of cards) {
 				card.material.map?.dispose();
 				card.material.dispose();
+				card.backingMaterial.dispose();
 			}
 			heroBackTexture?.dispose();
+			heroPaper.material.dispose();
 			heroFront.material.dispose();
 			heroBack.material.dispose();
 			geometry.dispose();
