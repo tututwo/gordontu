@@ -17,7 +17,7 @@
 			image: '/projects-optimized/Maps/map_shuimomap_shuimo_cover.webp'
 		},
 		{
-			label: 'Creative coding',
+			label: 'Creative code',
 			copy: 'Experiments in code that move, react, and surprise.',
 			image: '/projects-optimized/CreativeCoding/R3f-Heart.webp'
 		}
@@ -80,16 +80,6 @@
 		});
 	});
 
-	/** @param {MouseEvent} event @param {(typeof cards)[number]} card */
-	function handleCardClick(event, card) {
-		// The stage's capture-phase listener already cancelled post-drag clicks.
-		if (event.defaultPrevented) return;
-		// The centre card is a plain link; modified clicks keep their browser meaning.
-		if (card.isCenter || event.button !== 0 || event.metaKey || event.ctrlKey) return;
-		event.preventDefault();
-		motion.moveBy(-Math.round(card.relative));
-	}
-
 	/** @param {number} value @param {number} minimum @param {number} maximum */
 	function clamp(value, minimum, maximum) {
 		return Math.min(Math.max(value, minimum), maximum);
@@ -128,7 +118,6 @@
 						aria-label={`${card.item.label} — ${card.item.description}`}
 						draggable="false"
 						ondragstart={(event) => event.preventDefault()}
-						onclick={(event) => handleCardClick(event, card)}
 					>
 						<RoughSvg
 							class="card__sheet"
