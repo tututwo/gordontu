@@ -17,7 +17,7 @@
 			image: '/projects-optimized/Maps/map_shuimomap_shuimo_cover.webp'
 		},
 		{
-			label: 'Creative coding',
+			label: 'Creative code',
 			copy: 'Experiments in code that move, react, and surprise.',
 			image: '/projects-optimized/CreativeCoding/R3f-Heart.webp'
 		}
