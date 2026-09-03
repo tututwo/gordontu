@@ -1,5 +1,6 @@
 @import "@fontsource-variable/newsreader";
 @import "@fontsource-variable/shantell-sans";
+@import "@fontsource-variable/inter";
 
 @layer base {
 	:root {
@@ -24,6 +25,8 @@
 		--sketch-line-soft: rgb(52 41 67 / 0.36);
 		--font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
 			sans-serif;
+		--font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+			Arial, sans-serif;
 		--font-display: "Newsreader Variable", Georgia, serif;
 		--font-hand: "Shantell Sans Variable", cursive;
 		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);

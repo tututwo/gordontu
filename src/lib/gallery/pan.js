@@ -1,5 +1,5 @@
 // ponytail: threshold / capture / velocity-fit / click-suppression are copied from
-// src/lib/landingPage/wallMotion.svelte.js and generalised to two axes; extract a shared
+// src/lib/gallery/wallMotion.svelte.js and generalised to two axes; extract a shared
 // module once the wall stops changing. Inertia is exponential decay (no step to snap to).
 const DECELERATION_RATE = 0.998; // per ms
 const MAX_RELEASE_SPEED = 4; // px per ms

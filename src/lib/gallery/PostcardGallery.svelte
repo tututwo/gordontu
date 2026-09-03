@@ -16,7 +16,7 @@
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifoldIcon';
 	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
 	import { categories } from '$lib/project/project.js';
-	import { WallMotion } from '$lib/landingPage/wallMotion.svelte.js';
+	import { WallMotion } from './wallMotion.svelte.js';
 	import { Pan } from './pan.js';
 
 	/** @typedef {import('$lib/project/project.js').Project} Project */

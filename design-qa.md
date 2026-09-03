@@ -147,3 +147,117 @@ No actionable P0, P1, or P2 mismatch remains.
   `src/lib/Analytics.svelte`; no diagnostic points to this change.
 
 final result: passed
+
+---
+
+# Landing page design QA
+
+- Source visual truth: `docs/landing-page.png` (1672 × 941)
+- Implementation screenshot: `.design-qa/landing-implementation-final.png`
+- Full-view comparison (mock above the pink bar, implementation below, both at half scale): `.design-qa/landing-comparison-final.png`
+- Blob-region comparison at native pixels: `.design-qa/landing-blobs-final.png`
+- Viewport: 1672 × 941 CSS px, device pixel ratio 1
+- State: `/`, Blob field at its home positions. Captured with headless Chrome under
+  `--force-prefers-reduced-motion` so the drift is frozen and the capture is repeatable:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist --hide-scrollbars --force-prefers-reduced-motion --window-size=1672,941 --virtual-time-budget=12000 --screenshot=.design-qa/landing-implementation-final.png http://localhost:5299/
+```
+
+  Without the reduced-motion flag headless Chrome marks the canvas ready but its virtual clock
+  finishes before the 900 ms fade-in, so the blobs are missing from the capture; that is a
+  capture artefact, the live page fades them in normally.
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- Fonts and typography: Inter Variable (added via `@fontsource-variable/inter`, exposed as
+  `--font-sans`) for every landing element, all uppercase as in the mock. Headline 8.6vw at
+  weight 640 with -0.015em tracking matches the mock's cap height (106 vs 107 px) and width
+  within 1%; nav items (1.65vw, 0.1em), masthead and colophon match in size, weight and
+  tracking within a few pixels.
+- Spacing and layout rhythm: masthead, headline centre, nav pitch and colophon baseline land
+  within 4 px of the mock at 1672 × 941. The brand's accent bar hangs 24 px outside the text
+  column, the About underline sits 0.55em below, and the colophon is a three-column grid so the
+  status line is centred on the page rather than between its neighbours.
+- Colours and visual tokens: paper `#f2edec`, ink `#000`, muted `#5d5b60`, accent `#f4aa12`, blob
+  cores `#cbdef6` / `#ee8b68` / `#fdd07e`, all sampled from the mock. The layout's ambient washes
+  are switched off on the landing so only the Blob field colours the paper; the existing
+  paper-noise layer still multiplies over the blobs.
+- Blob field: sizes, placement and softness match the mock at rest (outer radii 0.15 / 0.215 /
+  0.13 of the viewport height, feather 0.6, grain 0.65, wobble ±4%). Edges dissolve with a
+  screen-fixed stipple; the union of the three densities never bridges on its own and the drift's
+  `MIN_GAP` floor (0.72 of the summed radii) keeps every pair as two lobes.
+- Copy and content: nav labels come from the category data (`Creative code` renamed to
+  `Creative coding` so the gallery heading agrees with the landing), Blog and About link to their
+  new placeholder routes, and the colophon copies the mock's location, status, links and version.
+- Intentional P3 differences: the blobs drift, so any live frame differs from the static mock;
+  the blue/salmon overlap mixes to a soft mauve where the mock shows two overlapping hazes.
+
+## Comparison history
+
+### Pass 1
+
+- Evidence: `.design-qa/landing-comparison-pass1.png`
+- Typography only (headless Chrome had no WebGL). [P1] Headline and nav were ~6% narrower than
+  the mock, the brand bar sat inside the text column, the colophon was 18 px low and its type
+  12% small.
+- Fix: headline 8vw / weight 640, nav 1.62vw, brand `margin-left: -1.15rem`, bottom padding
+  6.2svh, colophon 0.9rem. A later adversarial review measured the headline capitals 7% short
+  and the nav 10% small; final values are headline 8.6vw / -0.015em, nav 1.65vw / 0.1em, and a
+  1.85rem gap between the contact links.
+
+### Pass 2
+
+- Evidence: `.design-qa/landing-comparison-pass2.png`, `.design-qa/landing-blobs-pass2.png`
+- [P0] Blob edges went grey: the shader wrote premultiplied colour but the material blended it
+  as straight alpha, multiplying by alpha twice. [P1] With a symmetric distance-field feather and
+  a large smooth-minimum, the three blobs melted into one haze and the sine hash showed a
+  cross-hatch lattice.
+- Fix: `blending: THREE.NoBlending`; replaced the distance-field shader with density metaballs
+  (`(1 - x²)²` per blob, `mix(max, sum, uBlend)`), a sin-free hash on DPR-sized cells, and
+  per-frame wave constants hoisted to uniforms.
+
+### Pass 4
+
+- Evidence: `.design-qa/landing-comparison-pass4.png`, `.design-qa/landing-blobs-pass4.png`
+- [P2] Blobs were a third smaller than the mock and their outline wobble (±7%) read as eggs.
+- Fix: outer radii raised to 0.15 / 0.215 / 0.13 with `MIN_GAP` 0.72 so the mock's resting
+  overlap is legal, wobble ±4%, feather 0.6, grain 0.65.
+
+### Final
+
+- Evidence: `.design-qa/landing-comparison-final.png`, `.design-qa/landing-blobs-final.png`
+- Sizes, softness, placement and typography agree with the mock; no P0/P1/P2 finding remains.
+
+## Browser verification
+
+- Every nav link navigates in one click: Charts → `/charts`, Maps → `/maps`, Creative coding →
+  `/creative-code`, Blog → `/blog`; About → `/about`; the brand link returns to `/`.
+- The Blob field drifts: frames 8–10 s apart show every blob in a new position with no console
+  output; blobs stay behind the headline and never merge.
+- Reduced motion: the headless `--force-prefers-reduced-motion` capture renders one still frame
+  at the home positions.
+- Responsive: verified in the Browser pane at 390 × 844 CSS px: `scrollWidth` equals the
+  viewport, no element extends past the right edge, the headline stays on one line at 319 px,
+  the colophon stacks and the brand and About stay in the masthead. Headless Chrome cannot
+  produce this capture: on macOS it enforces a minimum window width, so a 375 or 390 px
+  `--window-size` lays the page out wider and crops it, which looks like an overflow that the
+  live page does not have.
+- Keyboard: every link draws a 2 px ink focus ring (the accent yellow is 1.7:1 on this paper, so
+  it is kept for hover only); the About and Blog crumb links no longer remove their outline.
+- Colophon: at 900 × 700 the three groups stack, each on a single line; `v1.0.0` keeps its
+  lowercase v.
+- Browser console: no warnings or errors on `/`, `/about`, `/blog`, `/creative-code`.
+
+## Validation
+
+- `node src/lib/landingPage/blobDrift.check.js` (runs against the shipped seeds in
+  `blobSeeds.js`): passed. `node src/lib/gallery/layout.check.js`: passed.
+- Svelte autofixer: no issues in `BlobField.svelte`, `+page.svelte`, `about/+page.svelte`,
+  `blog/+page.svelte`.
+- `npm run check`: only the two pre-existing `gtag` diagnostics in `src/lib/Analytics.svelte`.
+- `npm run build`: passed.
+
+final result: passed

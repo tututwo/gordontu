@@ -1,5 +1,10 @@
 # Animation and visual-system plans
 
+> Historical: plans 001–005 built the DOM landing wall and card deck, removed on 2026-09-03 by the
+> landing redesign (see `docs/adr/0003-three-js-landing-blob-field.md`). Of that work only
+> `src/lib/gallery/wallMotion.svelte.js` (the postcard flip) and `cardSeed` in
+> `src/lib/gallery/postcardBack.js` survive.
+
 | Plan | Title | Severity | Status | Dependencies |
 | --- | --- | --- | --- | --- |
 | 001 | Make the project wall fluid and velocity-aware | HIGH | DONE | 003 for shared tokens |

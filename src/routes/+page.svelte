@@ -1,153 +1,276 @@
 <script>
 	import { resolve } from '$app/paths';
-	import CardDeck from '$lib/landingPage/CardDeck.svelte';
+	import RadioButtonIcon from 'phosphor-svelte/lib/RadioButtonIcon';
+	import BlobField from '$lib/landingPage/BlobField.svelte';
+	import { landingBlobs } from '$lib/landingPage/blobSeeds.js';
+	import { categories } from '$lib/project/project.js';
 </script>
 
 <svelte:head>
-	<title>Gordon Tu — Creative developer</title>
+	<title>Gordon Tu — Design engineer</title>
 	<meta
 		name="description"
-		content="Maps, charts, and creatively coded interactive experiments by Gordon Tu."
+		content="Design + code: charts, maps, and creative coding by Gordon Tu, a design engineer."
 	/>
 </svelte:head>
 
+<BlobField blobs={landingBlobs} />
+
 <div class="landing">
-	<a class="brand" href={resolve('/')} aria-label="Gordon Tu — home">
-		<span class="brand__name">Gordon Tu</span>
-		<span class="brand__role">Creative developer</span>
-	</a>
+	<header class="masthead">
+		<a class="brand" href={resolve('/')}>
+			<span class="brand__name">Gordon Tu</span>
+			<span class="brand__role">Design engineer</span>
+		</a>
+		<a class="about" href={resolve('/about')}>About</a>
+	</header>
 
-	<h1 class="sr-only">Gordon Tu — creative developer</h1>
-
-	<CardDeck />
-
-	<div class="tagline" aria-hidden="true">
-		<p>
-			I build thoughtful digital experiences<br />
-			with a love for data, design, and detail.
-		</p>
-		<span></span>
+	<div class="hero">
+		<h1>Design + Code</h1>
+		<nav aria-label="Sections">
+			<ul>
+				{#each categories as { label, slug } (slug)}
+					<li><a href={resolve('/[category]', { category: slug })}>{label}</a></li>
+				{/each}
+				<li><a href={resolve('/blog')}>Blog</a></li>
+			</ul>
+		</nav>
 	</div>
+
+	<footer class="colophon">
+		<p class="place">
+			<RadioButtonIcon size={15} aria-hidden="true" />
+			<span>37.77°N 122.42°W</span>
+		</p>
+		<p class="status"><span class="muted">Status:</span> Open to opportunities</p>
+		<p class="contacts">
+			<a href="mailto:gordontu2@gmail.com">Email</a>
+			<span class="muted" aria-hidden="true">/</span>
+			<a href="https://github.com/tututwo" target="_blank" rel="noreferrer">GitHub</a>
+			<span class="muted" aria-hidden="true">/</span>
+			<!-- Gordon: confirm this LinkedIn slug before deploying; it is unverified. -->
+			<a href="https://www.linkedin.com/in/gordontu" target="_blank" rel="noreferrer">LinkedIn</a>
+			<span class="version muted">v1.0.0</span>
+		</p>
+	</footer>
 </div>
 
 <style>
-	:global(.site-shell:has(.landing)) {
-		--paper: #fefefe;
-		--paper-elevated: #fff;
-		--ink: #232326;
-		--muted-ink: #666563;
-		--accent: #c4923a;
-		--wash-blush: rgb(255 255 255 / 0.88);
-		--wash-sky: rgb(255 255 255 / 0.82);
-		--wash-mint: rgb(255 255 255 / 0.78);
-		--surface: rgb(255 255 255 / 0.94);
-		--hairline: rgb(35 35 38 / 0.14);
-		--shadow-soft: rgb(35 35 38 / 0.1);
-		--sketch-line: rgb(35 35 38 / 0.74);
-		--sketch-line-soft: rgb(35 35 38 / 0.34);
+	/* On html so the html/body backgrounds (overscroll) take the landing paper too. */
+	:global(html:has(.landing)) {
+		--paper: #f2edec;
+		--ink: #000;
+		--muted-ink: #5d5b60;
+		--accent: #f4aa12;
+		--wash-blush: transparent;
+		--wash-sky: transparent;
+		--wash-mint: transparent;
 	}
 
 	.landing {
 		position: relative;
-		min-height: 100svh;
-		color: var(--ink);
-	}
-
-	.brand {
-		position: absolute;
-		z-index: 40;
-		top: clamp(2rem, 5.2svh, 3rem);
-		left: clamp(1.5rem, 3.4vw, 3.6rem);
+		z-index: 1;
 		display: grid;
-		gap: 0.7rem;
-		width: max-content;
+		grid-template-rows: auto 1fr auto;
+		min-height: 100svh;
+		padding: clamp(1.5rem, 4.7svh, 2.8rem) clamp(1.25rem, 4vw, 4.2rem) clamp(1.75rem, 6.2svh, 3.75rem);
 		color: var(--ink);
-		font-family: var(--font-ui);
-		text-decoration: none;
+		font-family: var(--font-sans);
 		text-transform: uppercase;
 	}
 
-	.brand__name {
-		font-size: clamp(0.95rem, 1.2vw, 1.22rem);
-		font-weight: 560;
-		letter-spacing: 0.43em;
+	a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	a:focus-visible {
+		/* Ink, not accent: the accent is 1.7:1 on this paper, far below the 3:1 a focus ring needs. */
+		outline: 2px solid var(--ink);
+		outline-offset: 6px;
+	}
+
+	p {
+		margin: 0;
+	}
+
+	.muted {
+		color: var(--muted-ink);
+	}
+
+	/* --- masthead --- */
+
+	.masthead {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1.5rem;
+	}
+
+	.brand {
+		display: grid;
+		gap: 0.6rem;
+		/* The bar hangs outside the text column, as in the mock. */
+		margin-left: -1.15rem;
+		padding: 0.15rem 0 0.15rem 1.45rem;
+		border-left: 2px solid var(--accent);
 		line-height: 1;
+	}
+
+	.brand__name {
+		font-size: 0.95rem;
+		font-weight: 700;
+		letter-spacing: 0.22em;
 	}
 
 	.brand__role {
-		font-size: clamp(0.54rem, 0.63vw, 0.64rem);
-		font-weight: 460;
-		letter-spacing: 0.5em;
-		line-height: 1;
+		color: var(--muted-ink);
+		font-size: 0.8rem;
+		font-weight: 500;
+		letter-spacing: 0.22em;
 	}
 
-	.brand:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 7px;
+	.about {
+		margin-top: 0.35rem;
+		font-size: 0.95rem;
+		font-weight: 600;
+		letter-spacing: 0.18em;
+		text-decoration: underline;
+		text-decoration-color: var(--muted-ink);
+		text-decoration-thickness: 1.5px;
+		text-underline-offset: 0.55em;
 	}
 
-	.tagline {
-		position: absolute;
-		z-index: 30;
-		bottom: clamp(2.35rem, 4.6svh, 2.7rem);
-		left: 50%;
+	.about:hover {
+		text-decoration-color: var(--accent);
+	}
+
+	/* --- hero --- */
+
+	.hero {
 		display: grid;
+		align-content: center;
 		justify-items: center;
-		transform: translateX(-50%) rotate(-0.25deg);
-		pointer-events: none;
-	}
-
-	.tagline p {
-		width: max-content;
-		margin: 0;
-		color: var(--ink);
-		font-family: var(--font-hand);
-		font-size: clamp(0.76rem, 1.05vw, 1rem);
-		font-variation-settings: 'INFM' 75;
-		font-weight: 430;
-		letter-spacing: 0.14em;
-		line-height: 1.9;
+		gap: clamp(2rem, 6svh, 3.6rem);
+		padding: 2rem 0;
 		text-align: center;
 	}
 
-	.tagline span {
-		width: 2rem;
-		height: 2px;
-		margin-top: clamp(0.85rem, 1.8svh, 1.1rem);
-		background: var(--accent);
-		transform: rotate(-1deg);
+	h1 {
+		margin: 0;
+		font-size: clamp(2.5rem, 8.6vw, 9rem);
+		font-weight: 640;
+		letter-spacing: -0.015em;
+		line-height: 1;
+		text-wrap: balance;
 	}
 
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
+	nav ul {
+		display: grid;
+		gap: clamp(1.3rem, 4.4svh, 2.6rem);
+		margin: 0;
 		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
+		list-style: none;
+	}
+
+	nav a {
+		display: inline-block;
+		padding: 0.15em 0.4em;
+		font-size: clamp(1.05rem, 1.65vw, 1.75rem);
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-decoration: underline;
+		text-decoration-color: transparent;
+		text-decoration-thickness: 2px;
+		text-underline-offset: 0.35em;
+		transition: text-decoration-color 160ms var(--ease-out);
+	}
+
+	nav a:hover,
+	nav a:focus-visible {
+		text-decoration-color: var(--accent);
+	}
+
+	/* --- colophon --- */
+
+	.colophon {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		gap: 1.5rem 2.5rem;
+		font-size: 0.9rem;
+		font-weight: 500;
+		letter-spacing: 0.16em;
+		line-height: 1.2;
+	}
+
+	.place,
+	.status,
+	.contacts {
 		white-space: nowrap;
-		border: 0;
+	}
+
+	.place {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+
+	.place :global(svg) {
+		color: var(--muted-ink);
+	}
+
+	.contacts {
+		display: inline-flex;
+		align-items: center;
+		justify-self: end;
+		gap: 1.85rem;
+	}
+
+	.contacts a:hover {
+		color: var(--muted-ink);
+	}
+
+	.version {
+		margin-left: 1.4rem;
+		font-weight: 400;
+		text-transform: none;
+	}
+
+	/* The three colophon groups only share one line from about 1000px up; below that, stack them. */
+	@media (max-width: 1000px) {
+		.colophon {
+			grid-template-columns: 1fr;
+			justify-items: start;
+			gap: 0.9rem;
+		}
+
+		.contacts {
+			justify-self: start;
+		}
 	}
 
 	@media (max-width: 720px) {
-		.brand {
-			top: 1.5rem;
-			left: 1.25rem;
+		.landing {
+			padding: 1.25rem 1.25rem 1.5rem;
 		}
 
-		.tagline {
-			position: relative;
-			bottom: auto;
-			left: auto;
-			padding: 1.5rem 1rem 2rem;
-			transform: rotate(-0.25deg);
+		.hero {
+			gap: 2rem;
 		}
 
-		.tagline p {
-			width: auto;
+		.colophon {
 			font-size: 0.72rem;
-			letter-spacing: 0.08em;
+		}
+
+		.contacts {
+			flex-wrap: wrap;
+			gap: 0.8rem;
+			white-space: normal;
+		}
+
+		.version {
+			margin-left: 0.4rem;
 		}
 	}
 </style>

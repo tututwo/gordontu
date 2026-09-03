@@ -16,7 +16,8 @@ function clamp(value, minimum, maximum) {
 }
 
 /**
- * Drag, flick, spring, and keyboard motion for the Project wall.
+ * Drag, flick, spring, and keyboard motion along one axis of "cards". Born as the landing Project
+ * wall's controller (removed in ADR-0003); today it drives the Postcard gallery's flip.
  *
  * Interface: `offset` (position in project units), `isDragging`, `isMoving`,
  * `attach(node)` (stage attachment), `focusCard(virtualIndex)`, `moveBy(±1)` (spring one step).

@@ -6,40 +6,34 @@
  * @property {string[]} tools
  * @property {string} category
  * @property {string} date
- * @property {number} seed - deterministic sketch seed derived from projectName; the wall's
- *   tilt and the card's frame both draw from it so a Project reads as one object
+ * @property {number} seed - deterministic sketch seed derived from projectName; the postcard
+ *   back's rough.js drawing is seeded from it so a Project reads as one object
  * @property {string} slug - URL segment of the Project page (`/<category>/<slug>`), from projectName; unique
  */
 
 /**
  * Canonical Project categories — `value` is stored on each Project (never rename it),
- * `slug` is the URL form (`/charts`), and the rest feeds the landing card deck.
- * `image` → swap for `/cards/<slug>.webp` once the card artwork lands in static/cards/.
+ * `slug` is the URL form (`/charts`); `label` and `description` feed the Landing nav, the
+ * gallery chrome and each category page's meta.
  */
 export const categories = [
 	{
 		value: 'charts',
 		label: 'Charts',
 		slug: 'charts',
-		icon: 'charts',
-		description: 'Charts that turn complex systems into clear, memorable stories.',
-		image: '/projects-optimized/Charts/three_election.webp'
+		description: 'Charts that turn complex systems into clear, memorable stories.'
 	},
 	{
 		value: 'maps',
 		label: 'Maps',
 		slug: 'maps',
-		icon: 'maps',
-		description: 'Spatial stories shaped through data, terrain, and careful craft.',
-		image: '/projects-optimized/Maps/map_shuimomap_shuimo_cover.webp'
+		description: 'Spatial stories shaped through data, terrain, and careful craft.'
 	},
 	{
 		value: 'code creatively',
-		label: 'Creative code',
+		label: 'Creative coding',
 		slug: 'creative-code',
-		icon: 'creativeCode',
-		description: 'Interactive experiments built with Svelte, Three.js, D3, and GLSL.',
-		image: '/projects-optimized/CreativeCoding/R3f-Heart.webp'
+		description: 'Interactive experiments built with Svelte, Three.js, D3, and GLSL.'
 	}
 ];
 

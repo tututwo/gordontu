@@ -1,7 +1,11 @@
 import rough from 'roughjs';
 import { CanvasTexture, SRGBColorSpace } from 'three';
 import { categoryLabel } from '../project/project.js';
-import { cardSeed } from '../landingPage/sketches.js';
+
+/** A Project's seed mapped into rough.js's accepted range, so its back is unique but stable. @param {number} projectSeed */
+export function cardSeed(projectSeed) {
+	return (projectSeed % 2000000000) + 1;
+}
 
 /** Design-token values the canvas needs (it cannot resolve `var()`). */
 const TOKENS = ['--paper-elevated', '--ink', '--muted-ink', '--accent', '--sketch-line', '--sketch-line-soft'];
