@@ -21,6 +21,7 @@ const fragmentShader = (count) => /* glsl */ `
 
 	uniform vec3 uBlobs[COUNT];    // x, y, radius in device px, origin bottom-left
 	uniform vec3 uColors[COUNT];   // sRGB 0..1, written out as-is
+	uniform vec3 uStretch[COUNT];  // xy: unit velocity direction, z: area-preserving stretch
 	uniform vec2 uWave[2];         // slowly rotating wave vectors shared by every outline
 	uniform vec2 uPhase[COUNT];    // per-blob phase of each wave, advanced by JS
 	uniform float uFalloff;        // super-Gaussian steepness: bigger = tighter core, shorter rim
@@ -44,6 +45,10 @@ const fragmentShader = (count) => /* glsl */ `
 			// Blob-local space, radius == 1. Two plane waves sampled on the unit circle act as a
 			// low-frequency noise of (angle, time): a ±8% radius wobble, no atan needed.
 			vec2 q = (p - uBlobs[i].xy) / max(uBlobs[i].z, 1.0);
+			// Longer along the velocity, thinner across it, same area: a thrown blob smears like a
+			// paint drop, while the tiny cruise stretch stays visually round.
+			float s = 1.0 + uStretch[i].z;
+			q = q * s + uStretch[i].xy * dot(q, uStretch[i].xy) * (1.0 / s - s);
 			float w = 0.6 * sin(dot(uWave[0], q) + uPhase[i].x) + 0.4 * sin(dot(uWave[1], q) + uPhase[i].y);
 			float d2 = dot(q, q) * (1.0 + 0.32 * w);
 			// Flat-topped super-Gaussian exp(-k d^6), fitted to the reference: solid to ~0.45r, half
@@ -90,6 +95,7 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 	const uniforms = {
 		uBlobs: { value: blobs.map(() => new THREE.Vector3()) },
 		uColors: { value: blobs.map((blob) => srgb(blob.color)) },
+		uStretch: { value: blobs.map(() => new THREE.Vector3()) },
 		uWave: { value: [new THREE.Vector2(), new THREE.Vector2()] },
 		uPhase: { value: blobs.map(() => new THREE.Vector2()) },
 		uFalloff: { value: 8.3 },
@@ -113,6 +119,56 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 	let last = 0;
 	let ready = false;
 	let disposed = false;
+	let px = NaN;
+	let py = NaN;
+	let cursor = '';
+	/** @type {number | undefined} */
+	let pointerId;
+
+	/** @param {string} next */
+	function setCursor(next) {
+		if (next !== cursor) document.body.style.cursor = cursor = next;
+	}
+
+	/** @param {PointerEvent} event @returns {[number, number]} */
+	function point(event) {
+		return [event.clientX, canvas.clientHeight - event.clientY];
+	}
+
+	/** @param {PointerEvent} event */
+	function onpointerdown(event) {
+		if (reduced() || event.button !== 0 || pointerId !== undefined) return;
+		const target = event.target instanceof Element ? event.target : null;
+		if (target?.closest('a, button')) return;
+		const [x, y] = point(event);
+		const i = event.pointerType === 'touch' ? -1 : drift.hit(x, y);
+		if (i < 0) {
+			drift.poke(x, y);
+			return;
+		}
+		drift.grab(i, x, y);
+		pointerId = event.pointerId;
+		event.preventDefault();
+		try {
+			target?.setPointerCapture(event.pointerId);
+		} catch {
+			// The pointer may already have ended before capture is established.
+		}
+	}
+
+	/** @param {PointerEvent} event */
+	function onpointermove(event) {
+		if (event.pointerType === 'touch') return;
+		[px, py] = point(event);
+		if (event.pointerId === pointerId) drift.move(px, py);
+	}
+
+	/** @param {PointerEvent} event */
+	function onpointerup(event) {
+		if (event.pointerId !== pointerId) return;
+		pointerId = undefined;
+		drift.release();
+	}
 
 	/** @param {number} now */
 	function render(now) {
@@ -124,6 +180,13 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 		uniforms.uWave.value[1].set(Math.cos(1.9 - t * 0.07), Math.sin(1.9 - t * 0.07)).multiplyScalar(4.1);
 		drift.blobs.forEach((blob, i) => {
 			uniforms.uBlobs.value[i].set(blob.x * dpr, blob.y * dpr, blob.r * dpr);
+			const speed = Math.hypot(blob.sx, blob.sy);
+			const stretch = Math.min(0.35, speed / (10 * blob.r));
+			uniforms.uStretch.value[i].set(
+				speed ? blob.sx / speed : 0,
+				speed ? blob.sy / speed : 0,
+				stretch
+			);
 			uniforms.uPhase.value[i].set(i * 2.1 + t * 0.23, -i * 1.7 - t * 0.17);
 		});
 		renderer.render(scene, camera);
@@ -140,6 +203,7 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 		const dt = last ? (now - last) / 1000 : 0;
 		last = now;
 		drift.step(dt);
+		setCursor(reduced() ? '' : pointerId !== undefined ? 'grabbing' : drift.hit(px, py) < 0 ? '' : 'grab');
 		render(now);
 		if (!reduced()) frame = requestAnimationFrame(tick);
 	}
@@ -178,6 +242,11 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 	}
 	// A restored context has an empty buffer; with reduced motion nothing else would repaint it.
 	canvas.addEventListener('webglcontextrestored', wake);
+	window.addEventListener('pointerdown', onpointerdown);
+	window.addEventListener('pointermove', onpointermove);
+	window.addEventListener('pointerup', onpointerup);
+	window.addEventListener('pointercancel', onpointerup);
+	window.addEventListener('lostpointercapture', onpointerup);
 	resize();
 
 	return {
@@ -187,6 +256,12 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 			disposed = true;
 			observer.disconnect();
 			canvas.removeEventListener('webglcontextrestored', wake);
+			window.removeEventListener('pointerdown', onpointerdown);
+			window.removeEventListener('pointermove', onpointermove);
+			window.removeEventListener('pointerup', onpointerup);
+			window.removeEventListener('pointercancel', onpointerup);
+			window.removeEventListener('lostpointercapture', onpointerup);
+			setCursor('');
 			if (frame) cancelAnimationFrame(frame);
 			if (resizePending) cancelAnimationFrame(resizePending);
 			geometry.dispose();

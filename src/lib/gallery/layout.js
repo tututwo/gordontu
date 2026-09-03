@@ -79,11 +79,12 @@ export function layoutPlane(projects, cell, viewportW, viewportH) {
  * How far the camera may travel so the plane's edge never leaves the viewport more than `margin`
  * behind. A plane smaller than the viewport is pinned to the centre on that axis.
  * @param {number} planeW @param {number} planeH @param {number} viewportW @param {number} viewportH @param {number} margin
+ * @param {number} [zoom=1]
  * @returns {{ x: number, y: number }} half-extents; the camera stays within ±x, ±y
  */
-export function panLimits(planeW, planeH, viewportW, viewportH, margin) {
+export function panLimits(planeW, planeH, viewportW, viewportH, margin, zoom = 1) {
 	return {
-		x: Math.max(0, (planeW + margin * 2 - viewportW) / 2),
-		y: Math.max(0, (planeH + margin * 2 - viewportH) / 2)
+		x: Math.max(0, ((planeW + margin * 2) * zoom - viewportW) / 2),
+		y: Math.max(0, ((planeH + margin * 2) * zoom - viewportH) / 2)
 	};
 }

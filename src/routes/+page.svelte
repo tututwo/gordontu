@@ -39,7 +39,7 @@
 
 	<footer class="colophon">
 		<p class="place">
-			<RadioButtonIcon size={15} aria-hidden="true" />
+			<RadioButtonIcon size={17} aria-hidden="true" />
 			<span>37.77°N 122.42°W</span>
 		</p>
 		<p class="status"><span class="muted">Status:</span> Open to opportunities</p>
@@ -73,7 +73,8 @@
 		display: grid;
 		grid-template-rows: auto 1fr auto;
 		min-height: 100svh;
-		padding: clamp(1.5rem, 4.7svh, 2.8rem) clamp(1.25rem, 4vw, 4.2rem) clamp(1.75rem, 6.2svh, 3.75rem);
+		padding: clamp(1.5rem, 4.7svh, 2.8rem) clamp(1.25rem, 4vw, 4.2rem)
+			clamp(1.75rem, 5.65svh, 3.4rem);
 		color: var(--ink);
 		font-family: var(--font-sans);
 		text-transform: uppercase;
@@ -197,11 +198,16 @@
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
-		gap: 1.5rem 2.5rem;
-		font-size: 0.9rem;
+		gap: 1.5rem clamp(1rem, 2.4vw, 2.5rem);
+		font-size: clamp(0.68rem, 0.86vw, 0.875rem);
 		font-weight: 500;
 		letter-spacing: 0.16em;
 		line-height: 1.2;
+	}
+
+	.colophon .muted {
+		color: #77747a;
+		font-weight: 400;
 	}
 
 	.place,
@@ -213,18 +219,26 @@
 	.place {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: clamp(0.5rem, 0.67vw, 0.7rem);
+		letter-spacing: 0.2em;
 	}
 
 	.place :global(svg) {
-		color: var(--muted-ink);
+		width: clamp(0.68rem, 1.02vw, 1.0625rem);
+		height: clamp(0.68rem, 1.02vw, 1.0625rem);
+		color: #77747a;
+	}
+
+	.status {
+		transform: translateX(calc(clamp(0.625rem, 0.96vw, 1rem) * -1));
+		letter-spacing: 0.18em;
 	}
 
 	.contacts {
 		display: inline-flex;
 		align-items: center;
 		justify-self: end;
-		gap: 1.85rem;
+		gap: clamp(1rem, 1.7vw, 1.75rem);
 	}
 
 	.contacts a:hover {
@@ -232,17 +246,21 @@
 	}
 
 	.version {
-		margin-left: 1.4rem;
+		margin-left: clamp(0.75rem, 1.34vw, 1.4rem);
 		font-weight: 400;
 		text-transform: none;
 	}
 
-	/* The three colophon groups only share one line from about 1000px up; below that, stack them. */
-	@media (max-width: 1000px) {
+	/* Fluid type keeps the colophon on one line through tablet widths; stack only once it gets tight. */
+	@media (max-width: 900px) {
 		.colophon {
 			grid-template-columns: 1fr;
 			justify-items: start;
 			gap: 0.9rem;
+		}
+
+		.status {
+			transform: none;
 		}
 
 		.contacts {

@@ -30,10 +30,10 @@ const CARD_PAPER = 0xfffdf9;
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Project[]} projects
- * @param {{ pan: { x: number, y: number }, reduced: () => boolean, onready: () => void }} options
+ * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize?: (box: { w: number, h: number }) => void }} options
  *   `pan` is sampled every frame (screen px, +y down); `onready` fires once textures are in.
  */
-export function createScene(canvas, projects, { pan, reduced, onready }) {
+export function createScene(canvas, projects, { pan, reduced, onready, onheroresize = () => {} }) {
 	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.setClearColor(0x000000, 0);
@@ -160,7 +160,11 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 		homeY = cell * 0.18;
 		plane = layoutPlane(projects, cell, width, height);
 		for (const card of cards) place(card);
-		if (heroCard) heroTo = { ...heroTo, y: pan.y + homeY, ...heroBoxFor(heroCard) };
+		pan.constrain();
+		if (heroCard) {
+			heroTo = heroTargetFor(heroCard);
+			onheroresize(heroBoxFor(heroCard));
+		}
 		wake();
 	}
 
@@ -172,13 +176,25 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 		if (!frame && !disposed) frame = requestAnimationFrame(tick);
 	}
 
+	/** Apply the screen-space view controller to Three's world-space camera. */
+	function syncCamera() {
+		const zoom = Math.max(0.001, pan.zoom);
+		if (camera.zoom !== zoom) {
+			camera.zoom = zoom;
+			camera.updateProjectionMatrix();
+		}
+		// Dividing by zoom keeps a one-pixel drag equal to one screen pixel at every scale.
+		camera.position.set(-pan.x / zoom, (pan.y + homeY) / zoom, CAMERA_Z);
+		camera.updateMatrixWorld();
+	}
+
 	/** @param {number} now */
 	function tick(now) {
 		frame = 0;
 		let animating = false;
 
 		// Pan is screen px (+y down); the camera moves the opposite way in world units (+y up).
-		camera.position.set(-pan.x, pan.y + homeY, CAMERA_Z);
+		syncCamera();
 
 		// Open tween.
 		if (openValue !== openTarget) {
@@ -224,6 +240,19 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 		return { w: h / CARD_RATIO, h };
 	}
 
+	/** World-space target whose rendered box matches heroBoxFor at the current camera zoom. @param {Card} card */
+	function heroTargetFor(card) {
+		const zoom = Math.max(0.001, pan.zoom);
+		const box = heroBoxFor(card);
+		return {
+			x: -pan.x / zoom,
+			y: (pan.y + homeY) / zoom,
+			rot: 0,
+			w: box.w / zoom,
+			h: box.h / zoom
+		};
+	}
+
 	/** @param {number} target */
 	function tweenOpen(target) {
 		openFrom = openValue;
@@ -264,13 +293,19 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 	});
 
 	return {
+		/** Fixed screen-space composition offset used by pointer-anchored zoom. */
+		viewOffset() {
+			return { x: 0, y: homeY };
+		},
+
 		/** Half-extents the pan may travel, in screen px. */
 		panLimits() {
-			return panLimits(plane.width, plane.height, width, height, cell * 0.5);
+			return panLimits(plane.width, plane.height, width, height, cell * 0.5, pan.zoom);
 		},
 
 		/** Which card is under the pointer, if any. @param {PointerEvent | MouseEvent} event */
 		hitTest(event) {
+			syncCamera();
 			const rect = canvas.getBoundingClientRect();
 			const ndc = new THREE.Vector2(
 				((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -291,6 +326,7 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 		open(project) {
 			const card = cards.find((c) => c.project === project);
 			if (!card) return;
+			syncCamera();
 			heroCard = card;
 			heroFrom = {
 				x: card.mesh.position.x,
@@ -299,7 +335,7 @@ export function createScene(canvas, projects, { pan, reduced, onready }) {
 				w: card.size.w,
 				h: card.size.h
 			};
-			heroTo = { x: -pan.x, y: pan.y + homeY, rot: 0, ...heroBoxFor(card) };
+			heroTo = heroTargetFor(card);
 			heroFront.material.map = card.material.map;
 			heroFront.material.color.set(card.material.map ? 0xffffff : PAPER);
 			heroFront.material.needsUpdate = true;

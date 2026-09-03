@@ -60,6 +60,152 @@ final result: passed
 
 ---
 
+# Maps gallery browser-comment QA — 2026-09-03
+
+- Source visual truth: the five `/maps` browser annotations supplied in this task, plus the
+  persisted pre-change capture `.design-qa/maps-comments-before.png`.
+- Browser implementation: `.design-qa/maps-comments-after-final.png`.
+- Full-view comparison: `.design-qa/maps-comments-comparison.png`.
+- Focused bottom-control comparison: `.design-qa/maps-bottom-chrome-comparison.png`.
+- Zoom/open-card evidence: `.design-qa/maps-zoom-open.png` and
+  `.design-qa/maps-zoom-flipped.png`.
+- Responsive evidence: `.design-qa/maps-comments-mobile-390.png`,
+  `.design-qa/maps-comments-mobile-320.png`, and
+  `.design-qa/maps-comments-landscape-568.png`.
+- Viewport: 1044 × 817 CSS px for the primary comparison; source and implementation are both
+  1044 × 817 pixels at browser capture density 1, so no density normalization was needed.
+- State: `/maps`, initial closed-card canvas. The pre-change source capture retained the user's
+  live pan position, so canvas art positions are not used as fidelity evidence in the full-view
+  comparison; the annotated controls and the final home framing are compared directly.
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains in the annotated gallery chrome or zoom flow.
+
+- Fonts and typography: the existing Inter/Newsreader/Shantell type system is unchanged. The
+  Project index label was intentionally reduced from 0.84rem/610 to 0.8rem/570 and its count from
+  weight 650 to 590, producing the lighter control requested by the annotation without changing
+  project-list typography.
+- Spacing and layout rhythm: the visual header, Move dock, and project-count pill are absent. The
+  category navigation is a 246.3 × 54.3 px horizontal pill centred at the bottom with zero measured
+  centre error; dividers are vertical and tooltips open upward. Project index height fell from
+  55.2 px to 42.4 px. At 390 × 844, 320 × 568, and 568 × 320 there is no overlap among index,
+  navigation, and help, and `scrollWidth === innerWidth`.
+- Colors and visual tokens: the existing paper, ink, hairline, blur, shadow, current-category fill,
+  focus accent, reduced-transparency, and increased-contrast tokens are preserved.
+- Image quality and asset fidelity: postcard textures, crop, optimized sources, shadows, and WebGL
+  paper backings are unchanged. Navigation continues to use the existing Phosphor icon family; no
+  placeholder, CSS-drawn, custom-SVG, or replacement artwork was introduced.
+- Copy and content: deleted controls leave no stale references. Canvas and help text now explain
+  drag/arrow movement, wheel/trackpad/touch pinch zoom, `+`/`−`, `0`, and Recenter. A visually hidden
+  category `h1` preserves the page heading after the visual header was removed.
+
+## Comparison history
+
+### Pass 1
+
+- Evidence: `.design-qa/maps-comments-comparison-pass1.png` and
+  `.design-qa/maps-comments-after-pass1.png`.
+- [P2] Removing the header's old camera compensation while adding zoom shifted the entire postcard
+  plane roughly 75 px upward, changing unrelated artwork framing.
+- Fix: restored the responsive home offset as a fixed screen-space composition value and included
+  that offset in wheel/pinch anchor math, camera translation, and opened-card targeting.
+
+### Pass 2 — final
+
+- Evidence: `.design-qa/maps-comments-comparison.png` and
+  `.design-qa/maps-bottom-chrome-comparison.png`.
+- The original postcard framing is restored while every annotated chrome change remains in place.
+  No P0/P1/P2 typography, spacing, token, image, copy, or responsive finding remains.
+
+## Browser verification
+
+- DOM/accessibility: no `.gallery-header`, `.pan-dock`, or `.status-pill` remains; one accessible
+  `h1` and one `Gallery navigation` landmark remain, with the current category marked by
+  `aria-current="page"`.
+- Mouse/trackpad zoom: vertical wheel changed zoom from 1 to 1.3195 and back; `ctrl+wheel` changed it
+  to 1.4142 while `visualViewport.scale` stayed 1. Safari gesture events are also handled. Pointer
+  anchoring matched the expected pan offset, and repeated input clamped exactly at 0.55 and 2.5.
+- Touch/controller: the deterministic two-pointer check covers pinch start, moving midpoint,
+  pinch-to-one-finger drag handoff without a jump, and tap suppression after pinch.
+- Keyboard/Recenter: `+` zoomed to 1.2, `0` returned zoom and pan to 1/0/0, and the visible Recenter
+  control returned focus to the canvas and performed the same reset.
+- Open-card path: at 1.4142×, hit testing opened the correct Manhattan project; the WebGL hero and
+  DOM hit target measured 359.48 × 539.22 CSS px and stayed aligned, flip rendered the postcard
+  back, zoom remained locked while open, Escape closed it, and the prior view was retained.
+- Lifecycle: switching Maps → Charts → Maps after zoom reset the new category to 1× and updated the
+  route/current state correctly.
+- Fresh final `/maps` navigation reported no console errors or warnings; only Vite connection debug
+  entries were present.
+
+## Validation
+
+- `node src/lib/gallery/pan.check.js`: passed.
+- `node src/lib/gallery/layout.check.js`: passed.
+- `npm run build`: passed.
+- Svelte autofixer: no issues in `PostcardGallery.svelte`; its two advisory suggestions concern the
+  existing Three.js effect and canvas binding.
+- `npm run check`: still reports only the two pre-existing undefined `gtag` diagnostics in
+  `src/lib/Analytics.svelte`; no diagnostic points to the gallery changes.
+
+final result: passed
+
+---
+
+# Landing page colophon annotation QA — 2026-09-03
+
+- Source visual truth: `docs/landing-page.png`
+- Browser implementation: `.design-qa/landing-footer-implementation-final.png`
+- Focused reference crop: `.design-qa/landing-footer-reference.png`
+- Focused implementation crop: `.design-qa/landing-footer-focused-final.png`
+- Focused comparison (reference above the pink divider, implementation below): `.design-qa/landing-footer-comparison-final.png`
+- Responsive implementation: `.design-qa/landing-footer-responsive-1087.png`
+- Reference and implementation pixels: 1672 × 941; CSS viewport: 1672 × 941; browser density: 1; no density normalization
+- State: `/`, initial landing page; QA scope is the annotated colophon only
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains in the annotated colophon.
+
+- Fonts and typography: Inter Variable is preserved. Primary coordinates, opportunity text, and contact links use the stronger 500 weight; `STATUS:`, separators, and the version use 400 and a quieter gray. The desktop size now tops out at 14 px and scales fluidly at narrower one-line widths. Location and status receive the slightly wider tracking visible in the source.
+- Spacing and layout rhythm: at 1672 × 941, the final colophon ink baseline is y=873–884, matching the source's y=873–884. The status group renders at x=664–976 versus the source's x=666–975, and the contact group at x=1168–1605 versus source ink at x=1167–1601. The larger radio, tighter contact gaps, and lower baseline reproduce the source hierarchy and edge rhythm.
+- Colors and visual tokens: the existing paper and black ink remain unchanged. Secondary metadata uses `#77747a`, matching the lighter source treatment without weakening the primary labels.
+- Image quality and asset fidelity: the existing Phosphor radio icon is retained and rendered responsively; no placeholder, generated image, CSS drawing, inline SVG, or replacement asset was introduced.
+- Copy and content: coordinates, availability copy, email/GitHub/LinkedIn labels and targets, and `v1.0.0` are unchanged.
+- Responsive behavior: checked at 1087 × 761, 901 × 760, 900 × 760, 720 × 800, and 390 × 844. The colophon stays on one line through 901 px, stacks at 900 px, and reports no horizontal overflow at any checked width.
+
+## Comparison history
+
+### Pass 1
+
+- Before evidence: `/tmp/gordontu-landing-before.png` at 1672 × 941 and `/tmp/gordontu-landing-1087-before.png` at 1087 × 761.
+- [P2] The fixed 14.4 px type, 500 weight on all metadata, fixed gaps, and 1000 px stacking threshold made the annotated 1087 px view too large and visually flat. Its colophon ended at x=1085.8 instead of the padded content edge x=1043.5.
+- [P2] At source size the text sat about 5 px too high, the status block was 14–18 px too far right, and the contact group began about 14 px too far left.
+- Fix: introduced fluid type and spacing, separated primary and secondary weights, lightened secondary metadata, increased/scaled the radio, lowered the baseline, gave location/status their source-specific tracking, shifted the desktop status group left responsively, and moved the stacking breakpoint to 900 px.
+
+### Pass 2 — final
+
+- Post-fix full evidence: `.design-qa/landing-footer-implementation-final.png`.
+- Post-fix focused evidence: `.design-qa/landing-footer-comparison-final.png`.
+- Post-fix responsive evidence: `.design-qa/landing-footer-responsive-1087.png`; the colophon ends exactly at the x=1043.5 content edge with `scrollWidth === innerWidth`.
+- No P0/P1/P2 typography, spacing, color, asset, copy, or responsive issue remains in the annotated region.
+
+## Browser verification
+
+- The browser-rendered implementation was inspected at the source viewport and five responsive widths.
+- Existing links and copy were left intact; this annotation changes presentation only.
+- The colophon itself emits no warning or error. The current working tree still produces a pre-existing `collisionSteps is not defined` console error from `src/lib/landingPage/blobDrift.js`; that edited blob runtime is outside this annotation and was not changed here.
+
+## Validation
+
+- Svelte autofixer: no issues or suggestions in `src/routes/+page.svelte`.
+- `npm run build`: passed.
+- `npm run check`: still reports only the two pre-existing undefined `gtag` diagnostics in `src/lib/Analytics.svelte`; no diagnostic points to the colophon change.
+
+final result: passed
+
+---
+
 # Postcard gallery chrome design QA
 
 - Source visual truth: `/Users/gordontu/Library/Application Support/CleanShot/media/media_b2r4OsqnWL/CleanShot 2026-08-19 at 21.21.11.png`

@@ -2,6 +2,7 @@
 // Plain throws on purpose — @types/node is not installed and svelte-check type-checks this file.
 import { projects, slugify } from '../project/project.js';
 import { cardSize, layoutPlane, panLimits } from './layout.js';
+import { MAX_ZOOM, MIN_ZOOM, anchoredPan, clampZoom, wheelZoomRatio } from './viewTransform.js';
 
 /** @param {unknown} condition @param {string} message */
 const ok = (condition, message) => {
@@ -43,5 +44,28 @@ const small = panLimits(600, 400, 1440, 900, 100);
 ok(small.x === 0 && small.y === 0, 'a plane smaller than the viewport cannot pan');
 const big = panLimits(2400, 1200, 1440, 900, 100);
 ok(big.x === (2400 + 200 - 1440) / 2 && big.y === (1200 + 200 - 900) / 2, 'pan limits leave the margin visible');
+
+const zoomed = panLimits(2400, 1200, 1440, 900, 100, 2);
+ok(zoomed.x === ((2400 + 200) * 2 - 1440) / 2, 'zoom expands horizontal pan limits');
+ok(zoomed.y === ((1200 + 200) * 2 - 900) / 2, 'zoom expands vertical pan limits');
+ok(panLimits(600, 400, 1440, 900, 100, 0.55).x === 0, 'a zoomed-out small plane stays pinned');
+
+const startPan = { x: 90, y: -35 };
+const anchor = { x: -220, y: 140 };
+const ratio = 1.75;
+const nextPan = anchoredPan(startPan, anchor, anchor, ratio);
+const worldBefore = { x: (anchor.x - startPan.x) / 1, y: (anchor.y - startPan.y) / 1 };
+const worldAfter = { x: (anchor.x - nextPan.x) / ratio, y: (anchor.y - nextPan.y) / ratio };
+ok(Math.abs(worldAfter.x - worldBefore.x) < 1e-9, 'wheel zoom keeps the x anchor fixed');
+ok(Math.abs(worldAfter.y - worldBefore.y) < 1e-9, 'wheel zoom keeps the y anchor fixed');
+
+const movedAnchor = { x: -170, y: 110 };
+const pinchedPan = anchoredPan(startPan, anchor, movedAnchor, ratio);
+ok(Math.abs((movedAnchor.x - pinchedPan.x) / ratio - worldBefore.x) < 1e-9, 'pinch follows the moving x midpoint');
+ok(Math.abs((movedAnchor.y - pinchedPan.y) / ratio - worldBefore.y) < 1e-9, 'pinch follows the moving y midpoint');
+ok(clampZoom(0.1) === MIN_ZOOM && clampZoom(10) === MAX_ZOOM, 'zoom clamps at both ends');
+ok(wheelZoomRatio(-100, 0, false) > 1, 'wheel up zooms in');
+ok(wheelZoomRatio(100, 0, false) < 1, 'wheel down zooms out');
+ok(Number.isFinite(wheelZoomRatio(Number.MAX_SAFE_INTEGER, 0, true)), 'huge wheel deltas stay finite');
 
 console.log('layout ok');

@@ -1,16 +1,10 @@
 <script>
 	import { resolve } from '$app/paths';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
-	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
-	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
-	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import ChartBarIcon from 'phosphor-svelte/lib/ChartBarIcon';
 	import CodeIcon from 'phosphor-svelte/lib/CodeIcon';
-	import CompassIcon from 'phosphor-svelte/lib/CompassIcon';
 	import CrosshairSimpleIcon from 'phosphor-svelte/lib/CrosshairSimpleIcon';
-	import HandPalmIcon from 'phosphor-svelte/lib/HandPalmIcon';
 	import HouseSimpleIcon from 'phosphor-svelte/lib/HouseSimpleIcon';
 	import ListIcon from 'phosphor-svelte/lib/ListIcon';
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifoldIcon';
@@ -24,7 +18,6 @@
 	/** @type {{ projects: Project[], category: (typeof categories)[number] }} */
 	let { projects, category } = $props();
 
-	const PAN_STEP = 160;
 	const categoryLinks = categories.map((section) => ({
 		...section,
 		Icon:
@@ -48,6 +41,7 @@
 		locked: () => selected !== null,
 		reduced: () => prefersReducedMotion.current,
 		limits: () => scene?.panLimits() ?? { x: 0, y: 0 },
+		offset: () => scene?.viewOffset() ?? { x: 0, y: 0 },
 		onchange: () => scene?.wake(),
 		ontap: (event) => {
 			if (selected) return close();
@@ -78,9 +72,11 @@
 				created = createScene(node, list, {
 					pan,
 					reduced: () => prefersReducedMotion.current,
-					onready: () => (ready = true)
+					onready: () => (ready = true),
+					onheroresize: (box) => (heroBox = box)
 				});
 				scene = created;
+				pan.constrain();
 			});
 			return () => {
 				disposed = true;
@@ -88,9 +84,7 @@
 				scene = undefined;
 				ready = false;
 				selected = null;
-				pan.stop();
-				pan.x = 0;
-				pan.y = 0;
+				pan.reset();
 			};
 		};
 	}
@@ -116,10 +110,7 @@
 	}
 
 	function resetView() {
-		pan.stop();
-		pan.x = 0;
-		pan.y = 0;
-		scene?.wake();
+		pan.reset();
 		canvas?.focus({ preventScroll: true });
 	}
 
@@ -138,22 +129,12 @@
 		<canvas
 			bind:this={canvas}
 			tabindex="0"
-			aria-label="{category.label} postcards. Drag, scroll or use the arrow keys to look around; tap a card to open it."
+			aria-label="{category.label} postcards. Drag or use the arrow keys to move; scroll, pinch, or use plus and minus to zoom; press zero to recenter; tap a card to open it."
 			{@attach gallery(projects)}
 			{@attach pan.attach}
 		></canvas>
 	{/key}
-
-	<header class="gallery-header">
-		<a class="home-button" href={resolve('/')} aria-label="Back to the portfolio">
-			<ArrowLeftIcon size={18} weight="bold" aria-hidden="true" />
-		</a>
-		<div class="header-copy">
-			<span>Gordon Tu · Portfolio</span>
-			<h1>{category.label}</h1>
-			<small>{projects.length} projects on the canvas</small>
-		</div>
-	</header>
+	<h1 class="sr-only">{category.label}</h1>
 
 	<div class={['intro', { ready }]} aria-hidden={ready}>
 		<strong>{category.label}</strong>
@@ -239,40 +220,15 @@
 	</details>
 	{/key}
 
-	<div class="pan-dock bottom-chrome" role="toolbar" aria-label="Move the gallery">
-		<span class="pan-mode">
-			<span class="pan-mode-icon">
-				<HandPalmIcon size={19} weight="regular" aria-hidden="true" />
-			</span>
-			<span>Move</span>
-		</span>
-		<span class="pan-divider" aria-hidden="true"></span>
-		<button type="button" aria-label="Move left" onclick={() => pan.nudge(PAN_STEP, 0)}>
-			<ArrowLeftIcon size={17} weight="bold" aria-hidden="true" />
-		</button>
-		<button type="button" aria-label="Move up" onclick={() => pan.nudge(0, PAN_STEP)}>
-			<ArrowUpIcon size={17} weight="bold" aria-hidden="true" />
-		</button>
-		<button type="button" aria-label="Move down" onclick={() => pan.nudge(0, -PAN_STEP)}>
-			<ArrowDownIcon size={17} weight="bold" aria-hidden="true" />
-		</button>
-		<button type="button" aria-label="Move right" onclick={() => pan.nudge(-PAN_STEP, 0)}>
-			<ArrowRightIcon size={17} weight="bold" aria-hidden="true" />
-		</button>
-	</div>
-
 	<div class="gallery-status bottom-chrome">
-		<span class="status-pill">
-			<CompassIcon size={17} weight="regular" aria-hidden="true" />
-			{projects.length} projects
-		</span>
 		<details class="help">
 			<summary aria-label="How to use the gallery">
 				<QuestionIcon size={18} weight="bold" aria-hidden="true" />
 			</summary>
 			<div class="help-popover">
 				<strong>Explore the canvas</strong>
-				<p>Drag, scroll, use the arrow keys, or tap the move controls.</p>
+				<p>Drag or use the arrow keys to move. Scroll, pinch, or use + / − to zoom.</p>
+				<span>Press 0 or use Recenter to return home.</span>
 				<span>Open a postcard to flip it and view the project.</span>
 			</div>
 		</details>
@@ -307,12 +263,21 @@
 		outline-offset: -4px;
 	}
 
-	.gallery-header,
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
 	.tool-rail,
 	.project-index summary,
 	.project-index nav,
-	.pan-dock,
-	.status-pill,
 	.help summary,
 	.help-popover {
 		border: 1px solid color-mix(in srgb, var(--hairline) 82%, transparent);
@@ -322,61 +287,6 @@
 			inset 0 1px rgb(255 255 255 / 0.72);
 		backdrop-filter: blur(18px) saturate(1.12);
 		-webkit-backdrop-filter: blur(18px) saturate(1.12);
-	}
-
-	.gallery-header {
-		position: absolute;
-		z-index: 5;
-		top: clamp(1rem, 2.3vh, 1.35rem);
-		left: clamp(1rem, 1.7vw, 1.5rem);
-		display: flex;
-		width: min(18rem, calc(100vw - 6rem));
-		align-items: flex-start;
-		gap: 0.8rem;
-		padding: 0.85rem;
-		border-radius: 1.35rem;
-	}
-
-	.home-button {
-		display: grid;
-		width: 2.45rem;
-		height: 2rem;
-		flex: 0 0 auto;
-		place-items: center;
-		border-radius: 999px;
-		background: var(--ink);
-		color: var(--surface-solid);
-		text-decoration: none;
-	}
-
-	.header-copy {
-		display: grid;
-		min-width: 0;
-		gap: 0.12rem;
-	}
-
-	.header-copy > span {
-		color: var(--muted-ink);
-		font-size: 0.66rem;
-		font-weight: 590;
-		letter-spacing: 0.09em;
-		line-height: 1.25;
-		text-transform: uppercase;
-	}
-
-	.header-copy h1 {
-		margin: 0.08rem 0 0;
-		font-family: var(--font-display);
-		font-size: 1.55rem;
-		font-weight: 540;
-		letter-spacing: -0.035em;
-		line-height: 1;
-	}
-
-	.header-copy small {
-		color: var(--muted-ink);
-		font-size: 0.72rem;
-		line-height: 1.3;
 	}
 
 	.intro {
@@ -412,14 +322,14 @@
 	.tool-rail {
 		position: absolute;
 		z-index: 5;
-		top: 50%;
-		right: clamp(0.8rem, 1.45vw, 1.3rem);
-		display: grid;
-		justify-items: center;
+		bottom: clamp(0.8rem, 1.8vh, 1.1rem);
+		left: 50%;
+		display: flex;
+		align-items: center;
 		gap: 0.16rem;
 		padding: 0.36rem;
 		border-radius: 999px;
-		transform: translateY(-50%);
+		transform: translateX(-50%);
 		transition:
 			opacity 180ms var(--ease-out),
 			visibility 180ms;
@@ -467,16 +377,16 @@
 
 	.tool-divider {
 		display: block;
-		width: 1.4rem;
-		height: 1px;
-		margin: 0.18rem 0;
+		width: 1px;
+		height: 1.4rem;
+		margin: 0 0.18rem;
 		background: var(--hairline);
 	}
 
 	.tooltip {
 		position: absolute;
-		top: 50%;
-		right: calc(100% + 0.68rem);
+		bottom: calc(100% + 0.68rem);
+		left: 50%;
 		width: max-content;
 		padding: 0.34rem 0.52rem;
 		border-radius: 0.55rem;
@@ -486,7 +396,7 @@
 		font-size: 0.69rem;
 		font-weight: 590;
 		opacity: 0;
-		transform: translate(0.25rem, -50%);
+		transform: translate(-50%, 0.25rem);
 		transition:
 			opacity 130ms ease,
 			transform 130ms ease;
@@ -496,7 +406,7 @@
 	.tool-button:hover .tooltip,
 	.tool-button:focus-visible .tooltip {
 		opacity: 1;
-		transform: translate(0, -50%);
+		transform: translate(-50%, 0);
 	}
 
 	.hero-hit {
@@ -593,11 +503,11 @@
 	.project-index summary {
 		display: flex;
 		width: 17.5rem;
-		height: 3.45rem;
+		height: 2.65rem;
 		align-items: center;
-		gap: 0.65rem;
-		padding: 0 0.9rem;
-		border-radius: 1.2rem;
+		gap: 0.55rem;
+		padding: 0 0.75rem;
+		border-radius: 1rem;
 		color: var(--ink);
 		cursor: pointer;
 		list-style: none;
@@ -615,20 +525,20 @@
 
 	.summary-label {
 		flex: 1;
-		font-size: 0.84rem;
-		font-weight: 610;
+		font-size: 0.8rem;
+		font-weight: 570;
 	}
 
 	.summary-count {
 		display: grid;
-		min-width: 1.65rem;
-		height: 1.65rem;
+		min-width: 1.45rem;
+		height: 1.45rem;
 		place-items: center;
 		border-radius: 999px;
 		background: color-mix(in srgb, var(--ink) 7%, transparent);
 		color: var(--muted-ink);
 		font-size: 0.69rem;
-		font-weight: 650;
+		font-weight: 590;
 	}
 
 	.index-caret {
@@ -706,70 +616,6 @@
 		line-height: 1.35;
 	}
 
-	.pan-dock {
-		position: absolute;
-		left: 50%;
-		bottom: clamp(0.8rem, 1.8vh, 1.1rem);
-		display: flex;
-		align-items: center;
-		gap: 0.12rem;
-		padding: 0.36rem;
-		border-radius: 999px;
-		transform: translateX(-50%);
-	}
-
-	.pan-mode {
-		display: flex;
-		align-items: center;
-		gap: 0.55rem;
-		padding-right: 0.45rem;
-		font-size: 0.78rem;
-		font-weight: 620;
-	}
-
-	.pan-mode-icon {
-		display: grid;
-		width: 2.45rem;
-		height: 2.45rem;
-		place-items: center;
-		border-radius: 50%;
-		background: var(--ink);
-		box-shadow: 0 5px 13px rgb(30 24 38 / 0.2);
-		color: var(--surface-solid);
-	}
-
-	.pan-divider {
-		width: 1px;
-		height: 1.5rem;
-		margin: 0 0.2rem;
-		background: var(--hairline);
-	}
-
-	.pan-dock button {
-		display: grid;
-		width: 2.15rem;
-		height: 2.15rem;
-		place-items: center;
-		padding: 0;
-		border: 0;
-		border-radius: 50%;
-		background: transparent;
-		color: var(--ink);
-		cursor: pointer;
-		transition:
-			background 140ms ease,
-			transform var(--press-out-duration) var(--ease-out);
-	}
-
-	.pan-dock button:hover {
-		background: color-mix(in srgb, var(--ink) 8%, transparent);
-	}
-
-	.pan-dock button:active {
-		transform: scale(0.9);
-		transition-duration: var(--press-in-duration);
-	}
-
 	.gallery-status {
 		position: absolute;
 		right: clamp(0.8rem, 1.45vw, 1.3rem);
@@ -777,18 +623,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-	}
-
-	.status-pill {
-		display: flex;
-		height: 2.55rem;
-		align-items: center;
-		gap: 0.42rem;
-		padding: 0 0.8rem;
-		border-radius: 999px;
-		color: var(--muted-ink);
-		font-size: 0.72rem;
-		font-weight: 590;
 	}
 
 	.help {
@@ -837,11 +671,9 @@
 		line-height: 1.45;
 	}
 
-	.gallery-header a:focus-visible,
 	.tool-button:focus-visible,
 	.project-index summary:focus-visible,
 	.project-index nav a:focus-visible,
-	.pan-dock button:focus-visible,
 	.help summary:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 3px;
@@ -853,7 +685,6 @@
 		.tooltip,
 		.project-index summary,
 		.index-caret,
-		.pan-dock button,
 		.help summary,
 		.bottom-chrome {
 			transition: none;
@@ -861,30 +692,8 @@
 	}
 
 	@media (max-width: 840px) {
-		.gallery-header {
-			top: 0.75rem;
-			left: 0.75rem;
-			width: min(15rem, calc(100vw - 4.75rem));
-			gap: 0.65rem;
-			padding: 0.7rem;
-			border-radius: 1.15rem;
-		}
-
-		.home-button {
-			width: 2.25rem;
-			height: 1.9rem;
-		}
-
-		.header-copy h1 {
-			font-size: 1.35rem;
-		}
-
-		.header-copy small {
-			display: none;
-		}
-
 		.intro {
-			padding: 0 4.5rem 0 1rem;
+			padding: 0 1rem;
 		}
 
 		.intro strong {
@@ -896,14 +705,9 @@
 		}
 
 		.tool-rail {
-			right: 0.7rem;
+			bottom: calc(0.75rem + env(safe-area-inset-bottom));
 			gap: 0.05rem;
 			padding: 0.28rem;
-		}
-
-		.tool-button {
-			width: 2.35rem;
-			height: 2.35rem;
 		}
 
 		.tooltip {
@@ -916,8 +720,8 @@
 		}
 
 		.project-index summary {
-			width: 3rem;
-			height: 3rem;
+			width: 2.65rem;
+			height: 2.65rem;
 			justify-content: center;
 			padding: 0;
 			border-radius: 1rem;
@@ -934,39 +738,9 @@
 			max-height: min(58vh, 30rem);
 		}
 
-		.pan-dock {
-			bottom: calc(0.75rem + env(safe-area-inset-bottom));
-			gap: 0.05rem;
-			padding: 0.25rem;
-		}
-
-		.pan-mode {
-			gap: 0;
-			padding: 0;
-		}
-
-		.pan-mode > span:last-child,
-		.pan-divider {
-			display: none;
-		}
-
-		.pan-mode-icon {
-			width: 2.25rem;
-			height: 2.25rem;
-		}
-
-		.pan-dock button {
-			width: 2rem;
-			height: 2rem;
-		}
-
 		.gallery-status {
 			right: 0.75rem;
 			bottom: calc(0.75rem + env(safe-area-inset-bottom));
-		}
-
-		.status-pill {
-			display: none;
 		}
 
 		.help summary {
@@ -976,23 +750,17 @@
 		}
 	}
 
-	@media (max-height: 420px) {
+	@media (max-width: 360px) {
+		.project-index,
 		.gallery-status {
-			display: none;
-		}
-
-		.gallery.open .gallery-header {
-			display: none;
+			bottom: calc(4.15rem + env(safe-area-inset-bottom));
 		}
 	}
 
 	@media (prefers-reduced-transparency: reduce) {
-		.gallery-header,
 		.tool-rail,
 		.project-index summary,
 		.project-index nav,
-		.pan-dock,
-		.status-pill,
 		.help summary,
 		.help-popover {
 			background: var(--surface-solid);
@@ -1002,12 +770,9 @@
 	}
 
 	@media (prefers-contrast: more) {
-		.gallery-header,
 		.tool-rail,
 		.project-index summary,
 		.project-index nav,
-		.pan-dock,
-		.status-pill,
 		.help summary,
 		.help-popover {
 			border-color: var(--ink);
