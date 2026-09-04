@@ -160,7 +160,7 @@ export function createBlobScene(canvas, { blobs, reduced, onready, onsink = () =
 		const target = event.target instanceof Element ? event.target : null;
 		if (target?.closest('a, button')) return;
 		const [x, y] = point(event);
-		const i = event.pointerType === 'touch' ? -1 : drift.hit(x, y);
+		const i = drift.hit(x, y);
 		if (i < 0) {
 			drift.poke(x, y);
 			return;
@@ -177,7 +177,6 @@ export function createBlobScene(canvas, { blobs, reduced, onready, onsink = () =
 
 	/** @param {PointerEvent} event */
 	function onpointermove(event) {
-		if (event.pointerType === 'touch') return;
 		[px, py] = point(event);
 		if (event.pointerId === pointerId) drift.move(px, py);
 	}

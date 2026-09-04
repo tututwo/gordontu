@@ -101,6 +101,7 @@
 			clamp(1.75rem, 5.65svh, 3.4rem);
 		color: var(--ink);
 		font-family: var(--font-sans);
+		touch-action: pinch-zoom;
 		text-transform: uppercase;
 	}
 
@@ -327,6 +328,22 @@
 
 		.version {
 			margin-left: 0.4rem;
+		}
+	}
+
+	@media (orientation: landscape) and (max-height: 600px) {
+		.landing {
+			padding: 0.75rem 1.25rem;
+		}
+
+		.hero {
+			gap: 1rem;
+			padding: 0.75rem 0;
+		}
+
+		nav ul {
+			grid-template-columns: repeat(4, auto);
+			gap: 1rem;
 		}
 	}
 </style>
