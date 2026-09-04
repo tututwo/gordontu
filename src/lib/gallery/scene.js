@@ -1,7 +1,15 @@
 import * as THREE from 'three';
 import { cubicOut } from 'svelte/easing';
 import { toOptimizedImage } from '../project/project.js';
-import { CARD_RATIO, cardSize, cellSize, layoutPlane, panLimits } from './layout.js';
+import {
+	DEFAULT_CARD_RATIO,
+	cardSize,
+	cellSize,
+	closestCardRatio,
+	containScale,
+	layoutPlane,
+	panLimits
+} from './layout.js';
 import { backTexture, loadBackFonts, readTokens } from './postcardBack.js';
 
 const CAMERA_Z = 1000;
@@ -20,7 +28,8 @@ const CARD_PAPER = 0xfffdf9;
  * @property {THREE.Mesh} mesh the one postcard on the plane
  * @property {THREE.MeshBasicMaterial} material opacity = reveal × ghost
  * @property {THREE.MeshBasicMaterial} backingMaterial opaque silhouette beneath transparent art
- * @property {boolean} landscape
+ * @property {THREE.Mesh} art image plane contained inside the card
+ * @property {number} ratio width / height
  * @property {{ w: number, h: number }} size
  */
 
@@ -101,15 +110,23 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			color: CARD_PAPER,
 			opacity: 0
 		});
-		const mesh = new THREE.Mesh(geometry, material);
-		const backing = new THREE.Mesh(geometry, backingMaterial);
-		backing.position.z = -0.001;
-		backing.renderOrder = index * 2;
-		mesh.renderOrder = index * 2 + 1;
-		mesh.add(backing);
+		const mesh = new THREE.Mesh(geometry, backingMaterial);
+		const art = new THREE.Mesh(geometry, material);
+		art.position.z = 0.001;
+		mesh.renderOrder = index * 2;
+		art.renderOrder = index * 2 + 1;
+		mesh.add(art);
 		scene.add(mesh);
 		/** @type {Card} */
-		const card = { project, mesh, material, backingMaterial, landscape: false, size: cardSize(cell, false) };
+		const card = {
+			project,
+			mesh,
+			art,
+			material,
+			backingMaterial,
+			ratio: DEFAULT_CARD_RATIO,
+			size: cardSize(cell)
+		};
 		mesh.userData.card = card;
 		cards.push(card);
 		const load = loadTexture(toOptimizedImage(project.projectImgSource))
@@ -120,14 +137,9 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 				texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 				const image = /** @type {{ width: number, height: number }} */ (texture.image);
 				const imageRatio = image.width / image.height;
-				const cardRatio = 1 / CARD_RATIO;
-				if (imageRatio > cardRatio) {
-					texture.repeat.x = cardRatio / imageRatio;
-					texture.offset.x = (1 - texture.repeat.x) / 2;
-				} else {
-					texture.repeat.y = imageRatio / cardRatio;
-					texture.offset.y = (1 - texture.repeat.y) / 2;
-				}
+				card.ratio = closestCardRatio(imageRatio);
+				const artScale = containScale(imageRatio, card.ratio);
+				card.art.scale.set(artScale.x, artScale.y, 1);
 				material.map = texture;
 				material.color.set(0xffffff);
 				material.needsUpdate = true;
@@ -142,7 +154,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	/** Put a card on its cell with its current aspect. @param {Card} card */
 	function place(card) {
 		const spot = plane.cells[cards.indexOf(card)];
-		card.size = cardSize(cell, card.landscape);
+		card.size = cardSize(cell, card.ratio);
 		card.mesh.position.set(spot.x, spot.y, 0);
 		card.mesh.rotation.z = spot.rot;
 		card.mesh.scale.set(card.size.w, card.size.h, 1);
@@ -232,12 +244,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	function heroBoxFor(card) {
 		const maxW = width * 0.8;
 		const maxH = height * 0.66;
-		if (card.landscape) {
-			const w = Math.min(maxW, maxH * CARD_RATIO);
-			return { w, h: w / CARD_RATIO };
-		}
-		const h = Math.min(maxH, maxW * CARD_RATIO);
-		return { w: h / CARD_RATIO, h };
+		const w = Math.min(maxW, maxH * card.ratio);
+		return { w, h: w / card.ratio };
 	}
 
 	/** World-space target whose rendered box matches heroBoxFor at the current camera zoom. @param {Card} card */
@@ -336,6 +344,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 				h: card.size.h
 			};
 			heroTo = heroTargetFor(card);
+			heroFront.scale.copy(card.art.scale);
 			heroFront.material.map = card.material.map;
 			heroFront.material.color.set(card.material.map ? 0xffffff : PAPER);
 			heroFront.material.needsUpdate = true;
@@ -344,7 +353,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			loadBackFonts().then(() => {
 				if (heroCard !== card || disposed) return;
 				heroBackTexture?.dispose();
-				heroBackTexture = backTexture(project, card.landscape, tokens);
+				heroBackTexture = backTexture(project, card.ratio, tokens);
 				heroBack.material.map = heroBackTexture;
 				heroBack.material.color.set(0xffffff);
 				heroBack.material.needsUpdate = true;

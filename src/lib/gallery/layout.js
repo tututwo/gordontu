@@ -3,8 +3,14 @@
  * World units are CSS pixels; +x right, +y up (three convention); the plane is centred on the origin.
  */
 
-/** Postcard proportion (6 × 4). */
-export const CARD_RATIO = 1.5;
+/** The three display proportions available to a gallery card (width / height). */
+export const CARD_RATIOS = Object.freeze({
+	a4: 595 / 842,
+	instagram: 1080 / 1350,
+	macbookAir: 1280 / 832
+});
+export const DEFAULT_CARD_RATIO = CARD_RATIOS.instagram;
+const CARD_RATIO_OPTIONS = Object.values(CARD_RATIOS);
 /** Card footprint inside its cell. */
 const CARD_FILL = 0.8;
 /** Row pitch as a fraction of the cell. */
@@ -16,13 +22,41 @@ export function cellSize(viewportWidth) {
 }
 
 /**
- * Landscape and portrait cards share the same cell so a late aspect decision never moves the grid.
- * @param {number} cell @param {boolean} landscape @returns {{ w: number, h: number }}
+ * Pick the card whose proportion loses the least relative area when fitting an image.
+ * Log distance makes the comparison symmetric for portrait and landscape ratios.
+ * @param {number} imageRatio width / height
  */
-export function cardSize(cell, landscape) {
+export function closestCardRatio(imageRatio) {
+	if (!Number.isFinite(imageRatio) || imageRatio <= 0) return DEFAULT_CARD_RATIO;
+	return CARD_RATIO_OPTIONS.reduce((best, candidate) => {
+		const candidateDistance = Math.abs(Math.log(imageRatio / candidate));
+		const bestDistance = Math.abs(Math.log(imageRatio / best));
+		return candidateDistance < bestDistance ? candidate : best;
+	});
+}
+
+/**
+ * Every ratio uses the same long-edge envelope, so changing aspect never moves the grid.
+ * @param {number} cell @param {number} [ratio=DEFAULT_CARD_RATIO] width / height
+ * @returns {{ w: number, h: number }}
+ */
+export function cardSize(cell, ratio = DEFAULT_CARD_RATIO) {
 	const long = cell * CARD_FILL;
-	const short = long / CARD_RATIO;
-	return landscape ? { w: long, h: short } : { w: short, h: long };
+	return ratio >= 1 ? { w: long, h: long / ratio } : { w: long * ratio, h: long };
+}
+
+/**
+ * Scale an image plane inside its card like `object-fit: contain`, preserving every chart label.
+ * @param {number} imageRatio width / height @param {number} cardRatio width / height
+ * @returns {{ x: number, y: number }} local mesh scale
+ */
+export function containScale(imageRatio, cardRatio) {
+	if (!Number.isFinite(imageRatio) || imageRatio <= 0 || !Number.isFinite(cardRatio) || cardRatio <= 0) {
+		return { x: 1, y: 1 };
+	}
+	return imageRatio > cardRatio
+		? { x: 1, y: cardRatio / imageRatio }
+		: { x: imageRatio / cardRatio, y: 1 };
 }
 
 /**
@@ -54,7 +88,7 @@ export function layoutPlane(projects, cell, viewportW, viewportH) {
 	// Odd rows overhang by half a cell (checkerboard), so the plane is that much wider.
 	const rowWidth = cols * cell;
 	const width = rowWidth + (rows > 1 ? cell / 2 : 0);
-	// Cards are mostly landscape (0.53 cell tall), so rows sit closer than columns; one portrait still fits.
+	// Every card's long edge is 0.8 cell, so all three proportions fit without changing the row rhythm.
 	const rowPitch = cell * ROW_PITCH;
 	const height = rows * rowPitch;
 	const cells = projects.map((project, index) => {

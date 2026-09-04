@@ -60,12 +60,13 @@ function wrap(ctx, text, maxWidth, maxLines) {
  * The back of a postcard: paper, a rough divider, name / date / tools on the left,
  * the category as a hand-stamped mark top-right. Same seed as the card's sketch frames.
  * @param {import('../project/project.js').Project} project
- * @param {boolean} landscape
+ * @param {number} ratio card width / height
  * @param {Record<string, string>} tokens from readTokens()
  */
-export function backTexture(project, landscape, tokens) {
-	const w = landscape ? 900 : 600;
-	const h = landscape ? 600 : 900;
+export function backTexture(project, ratio, tokens) {
+	const landscape = ratio >= 1;
+	const w = landscape ? 900 : Math.round(900 * ratio);
+	const h = landscape ? Math.round(900 / ratio) : 900;
 	const canvas = document.createElement('canvas');
 	canvas.width = w;
 	canvas.height = h;

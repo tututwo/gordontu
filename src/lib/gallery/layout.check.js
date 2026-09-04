@@ -1,7 +1,14 @@
 // The one runnable check for the gallery's pure logic: `node src/lib/gallery/layout.check.js`.
 // Plain throws on purpose — @types/node is not installed and svelte-check type-checks this file.
 import { projects, slugify } from '../project/project.js';
-import { cardSize, layoutPlane, panLimits } from './layout.js';
+import {
+	CARD_RATIOS,
+	cardSize,
+	closestCardRatio,
+	containScale,
+	layoutPlane,
+	panLimits
+} from './layout.js';
 import { MAX_ZOOM, MIN_ZOOM, anchoredPan, clampZoom, wheelZoomRatio } from './viewTransform.js';
 
 /** @param {unknown} condition @param {string} message */
@@ -13,9 +20,34 @@ ok(slugify('Election Map - 3D Visualization with Three.js and GLSL') === 'electi
 ok(new Set(projects.map((p) => p.slug)).size === projects.length, 'slugs unique');
 ok(projects.every((p) => p.slug.length > 0), 'slugs non-empty');
 
-const landscape = cardSize(300, true);
-const portrait = cardSize(300, false);
-ok(landscape.w === portrait.h && landscape.h === portrait.w, 'aspects share a cell');
+const a4 = cardSize(300, CARD_RATIOS.a4);
+const instagram = cardSize(300, CARD_RATIOS.instagram);
+const macbook = cardSize(300, CARD_RATIOS.macbookAir);
+ok(a4.h === 240 && instagram.h === 240 && macbook.w === 240, 'all aspects share a long-edge envelope');
+ok(a4.w < instagram.w && macbook.h < macbook.w, 'the three cards keep their supplied proportions');
+ok(closestCardRatio(4967 / 6730) === CARD_RATIOS.a4, 'A4 is selected for tall source art');
+ok(closestCardRatio(1200 / 1200) === CARD_RATIOS.instagram, 'Instagram is selected for square source art');
+ok(closestCardRatio(2018 / 947) === CARD_RATIOS.macbookAir, 'MacBook Air is selected for wide source art');
+const a4InstagramBoundary = Math.sqrt(CARD_RATIOS.a4 * CARD_RATIOS.instagram);
+const instagramMacbookBoundary = Math.sqrt(CARD_RATIOS.instagram * CARD_RATIOS.macbookAir);
+ok(closestCardRatio(a4InstagramBoundary * 0.999) === CARD_RATIOS.a4, 'A4 boundary lower side');
+ok(closestCardRatio(a4InstagramBoundary * 1.001) === CARD_RATIOS.instagram, 'A4 boundary upper side');
+ok(
+	closestCardRatio(instagramMacbookBoundary * 0.999) === CARD_RATIOS.instagram,
+	'Instagram boundary lower side'
+);
+ok(
+	closestCardRatio(instagramMacbookBoundary * 1.001) === CARD_RATIOS.macbookAir,
+	'Instagram boundary upper side'
+);
+ok(closestCardRatio(Number.NaN) === CARD_RATIOS.instagram, 'invalid image ratios use the stable fallback');
+const containedWide = containScale(2018 / 947, CARD_RATIOS.macbookAir);
+ok(containedWide.x === 1 && containedWide.y < 1, 'wide art is contained without horizontal cropping');
+const containedTall = containScale(4967 / 6730, CARD_RATIOS.a4);
+ok(
+	containedTall.x <= 1 && containedTall.y <= 1 && (containedTall.x === 1 || containedTall.y === 1),
+	'tall art is contained without cropping'
+);
 ok(layoutPlane(projects.slice(0, 6), 620, 2495, 1154).width === 2790, 'wide canvas uses four columns');
 
 for (const [w, h] of [
