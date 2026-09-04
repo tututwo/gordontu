@@ -3,8 +3,8 @@
 
 	/** @typedef {import('./blobScene.js').BlobSeed} BlobSeed */
 
-	/** @type {{ blobs: BlobSeed[] }} */
-	let { blobs } = $props();
+	/** @type {{ blobs: BlobSeed[], onsink?: (i: number) => void }} */
+	let { blobs, onsink = () => {} } = $props();
 
 	let ready = $state(false);
 	/** @type {ReturnType<typeof import('./blobScene.js').createBlobScene> | undefined} */
@@ -29,7 +29,8 @@
 					created = createBlobScene(node, {
 						blobs: seeds,
 						reduced: () => prefersReducedMotion.current,
-						onready: () => (ready = true)
+						onready: () => (ready = true),
+						onsink
 					});
 					scene = created;
 				})

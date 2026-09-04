@@ -4,6 +4,23 @@
 	import BlobField from '$lib/landingPage/BlobField.svelte';
 	import { landingBlobs } from '$lib/landingPage/blobSeeds.js';
 	import { categories } from '$lib/project/project.js';
+
+	let sinks = $state(0);
+	let painted = $state(false);
+	let pocketed = 0;
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let paintTimer;
+
+	/** @param {number} i */
+	function onsink(i) {
+		sinks += 1;
+		pocketed |= 1 << i;
+		if (pocketed !== (1 << landingBlobs.length) - 1) return;
+		pocketed = 0;
+		painted = true;
+		clearTimeout(paintTimer);
+		paintTimer = setTimeout(() => (painted = false), 3000);
+	}
 </script>
 
 <svelte:head>
@@ -14,7 +31,7 @@
 	/>
 </svelte:head>
 
-<BlobField blobs={landingBlobs} />
+<BlobField blobs={landingBlobs} {onsink} />
 
 <div class="landing">
 	<header class="masthead">
@@ -26,7 +43,12 @@
 	</header>
 
 	<div class="hero">
-		<h1>Design + Code</h1>
+		<h1
+			class={{ painted }}
+			style:--c0={landingBlobs[0].color}
+			style:--c1={landingBlobs[1].color}
+			style:--c2={landingBlobs[2].color}>Design + Code</h1
+		>
 		<nav aria-label="Sections">
 			<ul>
 				{#each categories as { label, slug } (slug)}
@@ -50,7 +72,9 @@
 			<span class="muted" aria-hidden="true">/</span>
 			<!-- Gordon: confirm this LinkedIn slug before deploying; it is unverified. -->
 			<a href="https://www.linkedin.com/in/gordontu" target="_blank" rel="noreferrer">LinkedIn</a>
-			<span class="version muted">v1.0.0</span>
+			<span class="version muted"
+				>v1.0.0{#if sinks}<span aria-hidden="true"> · ×{sinks}</span>{/if}</span
+			>
 		</p>
 	</footer>
 </div>
@@ -159,11 +183,25 @@
 
 	h1 {
 		margin: 0;
+		background: linear-gradient(
+			100deg,
+			color-mix(in oklab, var(--c0), var(--ink) 32%),
+			color-mix(in oklab, var(--c1), var(--ink) 32%),
+			color-mix(in oklab, var(--c2), var(--ink) 32%)
+		);
+		-webkit-background-clip: text;
+		background-clip: text;
 		font-size: clamp(2.5rem, 8.6vw, 9rem);
 		font-weight: 640;
 		letter-spacing: -0.015em;
 		line-height: 1;
 		text-wrap: balance;
+		transition: color 1s var(--ease-out);
+	}
+
+	h1.painted {
+		color: transparent;
+		transition-duration: 160ms;
 	}
 
 	nav ul {

@@ -12,6 +12,26 @@ export const MAX_KICK = 2.5;
 export const EDGE = 0.75;
 /** Blob cores collide here; their feathered paint can still overlap into a metaball-like neck. */
 export const COLLISION_EDGE = 0.5;
+/** Hard impacts above this viewport-relative speed flash and shed paint. */
+const HARD = 0.25;
+/** Fixed number of short-lived paint droplets shared by every blob. */
+export const DROPS = 9;
+/** Seconds before a paint droplet has shrunk away. */
+const DROP_LIFE = 5;
+/** Colour borrowed from another blob per scale-relative impact speed. */
+const MIX_RATE = 0.05;
+/** Most colour a blob can borrow in one contact. */
+export const MIX_CAP = 0.1;
+/** Most borrowed colour a blob can carry across all contacts. */
+const MIX_TOTAL = 0.5;
+/** Minimum viewport-relative speed for a blob to enter a corner pocket. */
+const SINK_SPEED = 0.35;
+/** Extra corner tolerance as a fraction of the blob radius. */
+const POCKET = 0.15;
+/** Seconds spent shrinking into a pocket. */
+export const SINK_TIME = 0.35;
+/** Seconds spent growing back at the seed position. */
+export const GROW_TIME = 0.5;
 /** Longest step integrated at once; a background tab's first frame back is not a jump. */
 const MAX_DT = 0.05;
 /** Fixed physics slice; keeps the contact spring stable and fast bodies from tunnelling. */
@@ -55,6 +75,9 @@ const POKE_REACH = 0.5;
  * @property {number} uy
  * @property {number} sx  smoothed render velocity in CSS px/s
  * @property {number} sy
+ * @property {number} flash  hard-impact highlight, 0..1
+ * @property {number[]} mix  temporary weights borrowed from the other seed colours
+ * @property {number} sink  seconds through the sink/respawn timeline, or -1 while free
  */
 
 /**
@@ -81,9 +104,27 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 			ux: 0,
 			uy: 0,
 			sx: 0,
-			sy: 0
+			sy: 0,
+			flash: 0,
+			mix: seeds.map(() => 0),
+			sink: -1
 		};
 	});
+	const drops = Array.from({ length: DROPS }, () => ({
+		x: 0,
+		y: 0,
+		vx: 0,
+		vy: 0,
+		r: 0,
+		r0: 0,
+		life: 0,
+		parent: 0
+	}));
+	const touching = new Uint8Array(blobs.length * blobs.length);
+	/** @type {number[]} */
+	const sunk = [];
+	const pockets = [0, 0, 0, 0];
+	let nextDrop = 0;
 	let held = -1;
 	let ox = 0;
 	let oy = 0;
@@ -97,12 +138,39 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 	let hsy = 0;
 
 	/**
+	 * Shed a few reusable paint droplets through a broad fan.
+	 * @param {number} x
+	 * @param {number} y
+	 * @param {number} angle
+	 * @param {number} impact
+	 * @param {number} parent
+	 * @param {number} count
+	 */
+	function splash(x, y, angle, impact, parent, count) {
+		for (; count > 0; count--) {
+			const a = angle + (random() - 0.5) * 2.6;
+			const speed = impact * (0.4 + 0.4 * random());
+			Object.assign(drops[nextDrop++ % DROPS], {
+				x,
+				y,
+				vx: Math.cos(a) * speed,
+				vy: Math.sin(a) * speed,
+				r: 0,
+				r0: blobs[parent].r * (0.08 + 0.07 * random()),
+				life: DROP_LIFE,
+				parent
+			});
+		}
+	}
+
+	/**
 	 * Clamp anything past an edge and reflect only an outward total velocity. Free blobs keep their
 	 * cruise speed plus 70% of any scalar excess, so opposing cruise/kick vectors cannot add energy.
 	 * @param {Blob} blob
 	 * @param {number} i
 	 */
 	function bounce(blob, i) {
+		if (blob.sink >= 0) return;
 		// A viewport narrower than the blob just pins it to the middle instead of flapping.
 		const rx = Math.min(EDGE * blob.r, width / 2);
 		const ry = Math.min(EDGE * blob.r, height / 2);
@@ -130,6 +198,30 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 			return;
 		}
 		const speed = Math.hypot(ux, uy);
+		const impact = Math.hypot(reflectX ? ux : 0, reflectY ? uy : 0);
+		if (impact > HARD * scale) {
+			const nx = reflectX ? (blob.x === rx ? 1 : -1) : 0;
+			const ny = reflectY ? (blob.y === ry ? 1 : -1) : 0;
+			blob.flash = Math.max(blob.flash, Math.min(1, impact / scale));
+			splash(
+				blob.x - nx * EDGE * blob.r,
+				blob.y - ny * EDGE * blob.r,
+				Math.atan2(ny, nx),
+				impact,
+				i,
+				3 + Math.floor(random() * 3)
+			);
+		}
+		if (
+			Math.min(blob.x - rx, width - rx - blob.x) < POCKET * blob.r &&
+			Math.min(blob.y - ry, height - ry - blob.y) < POCKET * blob.r &&
+			speed > SINK_SPEED * scale
+		) {
+			blob.sink = 0;
+			blob.kx = blob.ky = 0;
+			sunk.push(i);
+			return;
+		}
 		const cruise = SPEED * scale;
 		const retained = speed > cruise ? cruise + (speed - cruise) * WALL_RESTITUTION : speed;
 		const retention = speed > 1e-9 ? retained / speed : 1;
@@ -193,6 +285,25 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 			blob.sx += (blob.ux - blob.sx) * stretchEase;
 			blob.sy += (blob.uy - blob.sy) * stretchEase;
 		});
+		pockets.fill(0);
+		blobs.forEach((blob) => {
+			if (blob.sink >= 0) return;
+			const fast = Math.min(
+				1,
+				Math.max(0, Math.hypot(blob.ux, blob.uy) / (SINK_SPEED * scale) - 0.5) * 2
+			);
+			if (!fast) return;
+			for (let corner = 0; corner < 4; corner++) {
+				const near =
+					1 -
+					Math.hypot(
+						blob.x - (corner % 2) * width,
+						blob.y - (corner >> 1) * height
+					) /
+						(2 * blob.r);
+				pockets[corner] = Math.max(pockets[corner], fast * Math.max(0, near));
+			}
+		});
 	}
 
 	/**
@@ -246,11 +357,19 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 			for (let j = i + 1; j < blobs.length; j++) {
 				const a = blobs[i];
 				const b = blobs[j];
+				const pair = i * blobs.length + j;
+				if (a.sink >= 0 || b.sink >= 0) {
+					touching[pair] = 0;
+					continue;
+				}
 				const contact = COLLISION_EDGE * (a.r + b.r);
 				let dx = b.x - a.x;
 				let dy = b.y - a.y;
 				let distance = Math.hypot(dx, dy);
-				if (distance >= contact) continue;
+				if (distance >= contact) {
+					touching[pair] = 0;
+					continue;
+				}
 
 				const [avx, avy] = velocity(a, i);
 				const [bvx, bvy] = velocity(b, j);
@@ -268,6 +387,25 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 				}
 
 				const approach = (bvx - avx) * dx + (bvy - avy) * dy;
+				if (!touching[pair]) {
+					touching[pair] = 1;
+					const impact = Math.max(0, -approach);
+					const amount = Math.min(MIX_CAP, (MIX_RATE * impact) / scale);
+					const roomA = Math.max(0, MIX_TOTAL - a.mix.reduce((sum, weight) => sum + weight, 0));
+					const roomB = Math.max(0, MIX_TOTAL - b.mix.reduce((sum, weight) => sum + weight, 0));
+					a.mix[j] += Math.min(amount, roomA);
+					b.mix[i] += Math.min(amount, roomB);
+					if (impact > HARD * scale) {
+						const flash = Math.min(1, impact / scale);
+						a.flash = Math.max(a.flash, flash);
+						b.flash = Math.max(b.flash, flash);
+						const x = a.x + dx * COLLISION_EDGE * a.r;
+						const y = a.y + dy * COLLISION_EDGE * a.r;
+						const tangent = Math.atan2(dy, dx) + Math.PI / 2;
+						splash(x, y, tangent, impact, i, 2 + Math.floor(random() * 2));
+						splash(x, y, tangent + Math.PI, impact, j, 2 + Math.floor(random() * 2));
+					}
+				}
 				const relativeAcceleration =
 					response * response * (contact - distance) - 2 * CONTACT_DAMPING * response * approach;
 				// A contact can push, never pull two bodies back together once they are parting quickly.
@@ -297,6 +435,9 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 
 	return {
 		blobs,
+		drops,
+		sunk,
+		pockets,
 
 		/** @param {number} w @param {number} h CSS px */
 		resize(w, h) {
@@ -325,6 +466,7 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 			let nearest = -1;
 			let nearestDistance = Infinity;
 			blobs.forEach((blob, i) => {
+				if (blob.sink >= 0) return;
 				const distance = Math.hypot(x - blob.x, y - blob.y) / blob.r;
 				if (distance < EDGE && distance < nearestDistance) {
 					nearest = i;
@@ -337,7 +479,7 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 		/** @param {number} i @param {number} x @param {number} y Hold without snapping to the pointer. */
 		grab(i, x, y) {
 			const blob = blobs[i];
-			if (!blob) return;
+			if (!blob || blob.sink >= 0) return;
 			held = i;
 			ox = blob.x - x;
 			oy = blob.y - y;
@@ -381,6 +523,7 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 			const reach = POKE_REACH * scale;
 			if (reach <= 0) return;
 			for (const blob of blobs) {
+				if (blob.sink >= 0) continue;
 				const dx = blob.x - x;
 				const dy = blob.y - y;
 				const distance = Math.hypot(dx, dy);
@@ -427,7 +570,8 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 					holdResponse
 				);
 				const smallestCore = blobs.reduce(
-					(smallest, blob) => Math.min(smallest, COLLISION_EDGE * blob.r),
+					(smallest, blob) =>
+						blob.sink < 0 ? Math.min(smallest, COLLISION_EDGE * blob.r) : smallest,
 					Infinity
 				);
 				if (smallestCore > 0) {
@@ -442,6 +586,7 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 			const cruise = SPEED * scale;
 			for (let n = 0; n < steps; n++) {
 				blobs.forEach((blob, i) => {
+					if (blob.sink >= 0) return;
 					if (i === held) {
 						[blob.x, hsx] = springAxis(blob.x, hsx, holdTargetX, substep, holdResponse);
 						[blob.y, hsy] = springAxis(blob.y, hsy, holdTargetY, substep, holdResponse);
@@ -461,6 +606,42 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 				ptx = tx;
 				pty = ty;
 			}
+			const flashDecay = Math.exp(-h / 0.15);
+			const mixDecay = Math.exp(-h / 10);
+			blobs.forEach((blob, i) => {
+				blob.flash *= flashDecay;
+				blob.mix.forEach((weight, j) => (blob.mix[j] = weight * mixDecay));
+				if (blob.sink < 0) return;
+				const was = blob.sink;
+				const full = seeds[i].radius * scale;
+				blob.sink += h;
+				if (blob.sink < SINK_TIME) {
+					blob.r = full * (1 - blob.sink / SINK_TIME);
+					const rx = Math.min(EDGE * blob.r, width / 2);
+					const ry = Math.min(EDGE * blob.r, height / 2);
+					blob.x = blob.x < width / 2 ? rx : width - rx;
+					blob.y = blob.y < height / 2 ? ry : height - ry;
+				} else if (blob.sink < SINK_TIME + GROW_TIME) {
+					if (was < SINK_TIME) {
+						blob.x = seeds[i].home[0] * width;
+						blob.y = seeds[i].home[1] * height;
+						const heading = random() * Math.PI * 2;
+						blob.vx = Math.cos(heading);
+						blob.vy = Math.sin(heading);
+						blob.kx = blob.ky = 0;
+					}
+					blob.r = full * ((blob.sink - SINK_TIME) / GROW_TIME);
+				} else {
+					blob.r = full;
+					blob.sink = -1;
+				}
+			});
+			drops.forEach((drop) => {
+				drop.life = Math.max(0, drop.life - h);
+				drop.x += drop.vx * h;
+				drop.y += drop.vy * h;
+				drop.r = drop.r0 * (drop.life / DROP_LIFE);
+			});
 			refreshVelocities(h);
 		}
 	};

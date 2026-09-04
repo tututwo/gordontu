@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createDrift } from './blobDrift.js';
+import { createDrift, DROPS } from './blobDrift.js';
 
 /**
  * @typedef {object} BlobSeed
@@ -24,6 +24,10 @@ const fragmentShader = (count) => /* glsl */ `
 	uniform vec3 uStretch[COUNT];  // xy: unit velocity direction, z: area-preserving stretch
 	uniform vec2 uWave[2];         // slowly rotating wave vectors shared by every outline
 	uniform vec2 uPhase[COUNT];    // per-blob phase of each wave, advanced by JS
+	uniform float uFlash[COUNT];   // hard-impact highlight, 0..1
+	uniform float uPockets[4];     // strength of each corner's pocket hint
+	uniform vec2 uSize;            // drawing-buffer size in device px
+	uniform float uRing;           // pocket-ring radius in device px
 	uniform float uFalloff;        // super-Gaussian steepness: bigger = tighter core, shorter rim
 	uniform float uGrain;          // film-grain amplitude on the alpha, strongest across the rim
 	uniform float uGrainSize;      // stipple cell in device px, so grain reads the same on 1x and 3x
@@ -40,11 +44,19 @@ const fragmentShader = (count) => /* glsl */ `
 		// Screen-fixed grain: the paper's tooth stays put while the paint drifts across it.
 		float n = hash12(floor(p / max(uGrainSize, 1.0)));
 		vec4 acc = vec4(0.0);   // premultiplied, painted back to front
+		for (int c = 0; c < 4; c++) {
+			if (uPockets[c] <= 0.001) continue;
+			vec2 corner = vec2(mod(float(c), 2.0), floor(float(c) * 0.5)) * uSize;
+			float ring = 0.25 * uPockets[c] * (1.0 - smoothstep(0.0, 0.14, abs(distance(p, corner) / uRing - 1.0)));
+			acc = acc * (1.0 - ring) + vec4(vec3(0.36, 0.36, 0.38) * ring, ring);
+		}
 
 		for (int i = 0; i < COUNT; i++) {
+			if (uBlobs[i].z < 1.0) continue;
 			// Blob-local space, radius == 1. Two plane waves sampled on the unit circle act as a
 			// low-frequency noise of (angle, time): a ±8% radius wobble, no atan needed.
 			vec2 q = (p - uBlobs[i].xy) / max(uBlobs[i].z, 1.0);
+			if (dot(q, q) > 4.0) continue;
 			// Longer along the velocity, thinner across it, same area: a thrown blob smears like a
 			// paint drop, while the tiny cruise stretch stays visually round.
 			float s = 1.0 + uStretch[i].z;
@@ -57,8 +69,9 @@ const fragmentShader = (count) => /* glsl */ `
 			// Film grain on the alpha: ~±4% in the core, ~±7% across the rim, vanishing with g so the
 			// paper around a blob stays clean.
 			float a = g * (1.0 + (n - 0.5) * uGrain * (1.2 - g));
+			vec3 paint = mix(uColors[i], vec3(1.0), 0.25 * uFlash[i]);
 			// Plain "over": a later blob paints on top of an earlier one, nothing bridges or bulges.
-			acc = acc * (1.0 - a) + vec4(uColors[i] * a, a);
+			acc = acc * (1.0 - a) + vec4(paint * a, a);
 		}
 
 		gl_FragColor = acc;
@@ -76,10 +89,10 @@ function srgb(hex) {
  * CPU drift that feeds blob centres in as uniforms. Plain object, no Svelte reactivity.
  *
  * @param {HTMLCanvasElement} canvas
- * @param {{ blobs: BlobSeed[], reduced: () => boolean, onready: () => void }} options
+ * @param {{ blobs: BlobSeed[], reduced: () => boolean, onready: () => void, onsink?: (i: number) => void }} options
  *   `reduced` is sampled every frame; `onready` fires once the first frame is on screen.
  */
-export function createBlobScene(canvas, { blobs, reduced, onready }) {
+export function createBlobScene(canvas, { blobs, reduced, onready, onsink = () => {} }) {
 	const renderer = new THREE.WebGLRenderer({
 		canvas,
 		alpha: true,
@@ -91,13 +104,19 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 	const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 	const scene = new THREE.Scene();
 	const drift = createDrift(blobs);
+	const count = blobs.length + DROPS;
+	const seedColors = blobs.map((blob) => srgb(blob.color));
 
 	const uniforms = {
-		uBlobs: { value: blobs.map(() => new THREE.Vector3()) },
-		uColors: { value: blobs.map((blob) => srgb(blob.color)) },
-		uStretch: { value: blobs.map(() => new THREE.Vector3()) },
+		uBlobs: { value: Array.from({ length: count }, () => new THREE.Vector3()) },
+		uColors: { value: Array.from({ length: count }, () => new THREE.Vector3()) },
+		uStretch: { value: Array.from({ length: count }, () => new THREE.Vector3()) },
 		uWave: { value: [new THREE.Vector2(), new THREE.Vector2()] },
-		uPhase: { value: blobs.map(() => new THREE.Vector2()) },
+		uPhase: { value: Array.from({ length: count }, () => new THREE.Vector2()) },
+		uFlash: { value: Array(count).fill(0) },
+		uPockets: { value: drift.pockets },
+		uSize: { value: new THREE.Vector2(1, 1) },
+		uRing: { value: 1 },
 		uFalloff: { value: 8.3 },
 		uGrain: { value: 0.62 },
 		uGrainSize: { value: 1 }
@@ -106,7 +125,7 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 	const material = new THREE.ShaderMaterial({
 		uniforms,
 		vertexShader,
-		fragmentShader: fragmentShader(blobs.length),
+		fragmentShader: fragmentShader(count),
 		// The shader writes premultiplied colour straight into the transparent buffer; any blend op
 		// would multiply by alpha a second time and muddy the feathered edges.
 		blending: THREE.NoBlending,
@@ -180,14 +199,25 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 		uniforms.uWave.value[1].set(Math.cos(1.9 - t * 0.07), Math.sin(1.9 - t * 0.07)).multiplyScalar(4.1);
 		drift.blobs.forEach((blob, i) => {
 			uniforms.uBlobs.value[i].set(blob.x * dpr, blob.y * dpr, blob.r * dpr);
+			const color = uniforms.uColors.value[i].copy(seedColors[i]);
+			blob.mix.forEach((weight, j) => weight && color.lerp(seedColors[j], weight));
 			const speed = Math.hypot(blob.sx, blob.sy);
-			const stretch = Math.min(0.35, speed / (10 * blob.r));
+			const stretch = Math.min(0.35, speed / (10 * Math.max(blob.r, 1)));
 			uniforms.uStretch.value[i].set(
 				speed ? blob.sx / speed : 0,
 				speed ? blob.sy / speed : 0,
 				stretch
 			);
 			uniforms.uPhase.value[i].set(i * 2.1 + t * 0.23, -i * 1.7 - t * 0.17);
+			uniforms.uFlash.value[i] = blob.flash;
+		});
+		drift.drops.forEach((drop, i) => {
+			const slot = blobs.length + i;
+			uniforms.uBlobs.value[slot].set(drop.x * dpr, drop.y * dpr, drop.r * dpr);
+			uniforms.uColors.value[slot].copy(uniforms.uColors.value[drop.parent]);
+			uniforms.uStretch.value[slot].set(0, 0, 0);
+			uniforms.uPhase.value[slot].set(slot * 2.1 + t * 0.23, -slot * 1.7 - t * 0.17);
+			uniforms.uFlash.value[slot] = 0;
 		});
 		renderer.render(scene, camera);
 		if (!ready) {
@@ -200,12 +230,16 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 	function tick(now) {
 		frame = 0;
 		if (disposed) return;
+		const frozen = reduced();
 		const dt = last ? (now - last) / 1000 : 0;
 		last = now;
-		drift.step(dt);
-		setCursor(reduced() ? '' : pointerId !== undefined ? 'grabbing' : drift.hit(px, py) < 0 ? '' : 'grab');
+		if (!frozen) {
+			drift.step(dt);
+			for (const i of drift.sunk.splice(0)) onsink(i);
+		}
+		setCursor(frozen ? '' : pointerId !== undefined ? 'grabbing' : drift.hit(px, py) < 0 ? '' : 'grab');
 		render(now);
-		if (!reduced()) frame = requestAnimationFrame(tick);
+		if (!frozen) frame = requestAnimationFrame(tick);
 	}
 
 	function wake() {
@@ -222,7 +256,10 @@ export function createBlobScene(canvas, { blobs, reduced, onready }) {
 		// CSS-size change.
 		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 		renderer.setSize(width, height, false);
-		uniforms.uGrainSize.value = Math.max(1, Math.round(renderer.getPixelRatio()));
+		const dpr = renderer.getPixelRatio();
+		uniforms.uGrainSize.value = Math.max(1, Math.round(dpr));
+		uniforms.uSize.value.set(width * dpr, height * dpr);
+		uniforms.uRing.value = 0.11 * Math.min(width, height) * dpr;
 		drift.resize(width, height);
 		// setSize clears the buffer after this frame's tick already drew, so paint again now rather
 		// than show one blank frame; a stopped loop (reduced motion) is simply woken.
