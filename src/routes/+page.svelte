@@ -70,8 +70,7 @@
 			<span class="muted" aria-hidden="true">/</span>
 			<a href="https://github.com/tututwo" target="_blank" rel="noreferrer">GitHub</a>
 			<span class="muted" aria-hidden="true">/</span>
-			<!-- Gordon: confirm this LinkedIn slug before deploying; it is unverified. -->
-			<a href="https://www.linkedin.com/in/gordontu" target="_blank" rel="noreferrer">LinkedIn</a>
+			<a href="https://www.linkedin.com/in/gordon-tu/" target="_blank" rel="noreferrer">LinkedIn</a>
 			<span class="version muted"
 				>v1.0.0{#if sinks}<span aria-hidden="true"> · ×{sinks}</span>{/if}</span
 			>

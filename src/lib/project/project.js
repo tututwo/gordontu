@@ -45,6 +45,14 @@ export function categoryLabel(value) {
 /** @type {Omit<Project, 'seed' | 'slug'>[]} */
 const data = [
 	{
+		projectName: "Gas Is Everywhere in California. Fast Charging Isn't.",
+		projectLink: "/projects/Maps/isochrone-charging-stations.png",
+		projectImgSource: "/projects/Maps/isochrone-charging-stations.png",
+		tools: ["QGIS"],
+		category: "maps",
+		date: "2026-09-04",
+	},
+	{
 		projectName: "Traveling Particles",
 		projectLink: "https://traveling-particles.vercel.app/",
 		projectImgSource: "/projects/CreativeCoding/three_us_road.png",
