@@ -53,6 +53,14 @@ const data = [
 		date: "2026-09-04",
 	},
 	{
+		projectName: "Poyang Lake Entered the Dry Season 100 Days Earlier",
+		projectLink: "/projects/Maps/map_poyang.png",
+		projectImgSource: "/projects/Maps/map_poyang.png",
+		tools: ["QGIS"],
+		category: "maps",
+		date: "2022-09-01",
+	},
+	{
 		projectName: "Traveling Particles",
 		projectLink: "https://traveling-particles.vercel.app/",
 		projectImgSource: "/projects/CreativeCoding/three_us_road.png",
