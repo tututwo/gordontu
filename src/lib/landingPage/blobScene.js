@@ -89,10 +89,10 @@ function srgb(hex) {
  * CPU drift that feeds blob centres in as uniforms. Plain object, no Svelte reactivity.
  *
  * @param {HTMLCanvasElement} canvas
- * @param {{ blobs: BlobSeed[], reduced: () => boolean, onready: () => void, onsink?: (i: number) => void }} options
+ * @param {{ blobs: BlobSeed[], reduced: () => boolean, onready: () => void, onsink: (i: number) => void }} options
  *   `reduced` is sampled every frame; `onready` fires once the first frame is on screen.
  */
-export function createBlobScene(canvas, { blobs, reduced, onready, onsink = () => {} }) {
+export function createBlobScene(canvas, { blobs, reduced, onready, onsink }) {
 	const renderer = new THREE.WebGLRenderer({
 		canvas,
 		alpha: true,

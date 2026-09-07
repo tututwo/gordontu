@@ -11,12 +11,6 @@
 		)
 	);
 	let optimized = $derived(toOptimizedImage(data.project.projectImgSource));
-
-	/** @param {Event} event */
-	function handleImageError(event) {
-		const image = /** @type {HTMLImageElement} */ (event.currentTarget);
-		if (!image.src.endsWith(data.project.projectImgSource)) image.src = data.project.projectImgSource;
-	}
 </script>
 
 <svelte:head>
@@ -41,7 +35,7 @@
 		<span>{data.project.tools.join(', ')}</span>
 	</p>
 
-	<img src={optimized} alt="" onerror={handleImageError} />
+	<img src={optimized} alt="" />
 
 	<p class="actions">
 		<a href={data.project.projectLink} target="_blank" rel="external noreferrer">Open project ↗</a>

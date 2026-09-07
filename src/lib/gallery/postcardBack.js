@@ -8,7 +8,7 @@ export function cardSeed(projectSeed) {
 }
 
 /** Design-token values the canvas needs (it cannot resolve `var()`). */
-const TOKENS = ['--paper-elevated', '--ink', '--muted-ink', '--accent', '--sketch-line', '--sketch-line-soft'];
+const TOKENS = ['--paper-elevated', '--ink', '--muted-ink', '--accent', '--sketch-line-soft'];
 const HAND_FONT = '"Shantell Sans Variable"';
 const DISPLAY_FONT = '"Newsreader Variable"';
 

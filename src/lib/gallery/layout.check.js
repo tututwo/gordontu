@@ -9,7 +9,7 @@ import {
 	layoutPlane,
 	panLimits
 } from './layout.js';
-import { MAX_ZOOM, MIN_ZOOM, anchoredPan, clampZoom, wheelZoomRatio } from './viewTransform.js';
+import { MAX_ZOOM, MIN_ZOOM, anchoredPan, clampZoom, wheelZoomRatio } from './pan.js';
 
 /** @param {unknown} condition @param {string} message */
 const ok = (condition, message) => {
@@ -17,7 +17,6 @@ const ok = (condition, message) => {
 };
 
 ok(slugify('Election Map - 3D Visualization with Three.js and GLSL') === 'election-map-3d-visualization-with-three-js-and-glsl', 'slugify');
-ok(new Set(projects.map((p) => p.slug)).size === projects.length, 'slugs unique');
 ok(projects.every((p) => p.slug.length > 0), 'slugs non-empty');
 
 const a4 = cardSize(300, CARD_RATIOS.a4);
@@ -48,14 +47,11 @@ ok(
 	containedTall.x <= 1 && containedTall.y <= 1 && (containedTall.x === 1 || containedTall.y === 1),
 	'tall art is contained without cropping'
 );
-ok(layoutPlane(projects.slice(0, 6), 620, 2495, 1154).width === 2790, 'wide canvas uses four columns');
+ok(layoutPlane(projects.slice(0, 6), 620, 2495).width === 2790, 'wide canvas uses four columns');
 
-for (const [w, h] of [
-	[1440, 900],
-	[375, 812]
-]) {
+for (const w of [1440, 375]) {
 	for (const n of [6, 8, 17]) {
-		const plane = layoutPlane(projects.slice(0, n), 300, w, h);
+		const plane = layoutPlane(projects.slice(0, n), 300, w);
 		ok(plane.cells.length === n, `one cell per project for n=${n}`);
 		ok(
 			plane.cells.every(
@@ -64,11 +60,11 @@ for (const [w, h] of [
 					Math.abs(c.y) <= plane.height / 2 &&
 					Math.abs(c.rot) <= (4 * Math.PI) / 180
 			),
-			`cells inside the plane for n=${n} at ${w}x${h}`
+			`cells inside the plane for n=${n} at ${w}px`
 		);
 		const keys = new Set(plane.cells.map((c) => `${Math.round(c.x / 50)}:${Math.round(c.y / 50)}`));
-		ok(keys.size === n, `no two cards share a spot for n=${n} at ${w}x${h}`);
-		ok(JSON.stringify(layoutPlane(projects.slice(0, n), 300, w, h)) === JSON.stringify(plane), `deterministic n=${n}`);
+		ok(keys.size === n, `no two cards share a spot for n=${n} at ${w}px`);
+		ok(JSON.stringify(layoutPlane(projects.slice(0, n), 300, w)) === JSON.stringify(plane), `deterministic n=${n}`);
 	}
 }
 

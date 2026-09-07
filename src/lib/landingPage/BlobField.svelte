@@ -3,8 +3,8 @@
 
 	/** @typedef {import('./blobScene.js').BlobSeed} BlobSeed */
 
-	/** @type {{ blobs: BlobSeed[], onsink?: (i: number) => void }} */
-	let { blobs, onsink = () => {} } = $props();
+	/** @type {{ blobs: BlobSeed[], onsink: (i: number) => void }} */
+	let { blobs, onsink } = $props();
 
 	let ready = $state(false);
 	/** @type {ReturnType<typeof import('./blobScene.js').createBlobScene> | undefined} */

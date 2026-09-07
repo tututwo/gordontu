@@ -326,24 +326,11 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 	}
 
 	/**
-	 * Conservative component-speed bound for the exact spring over [0, dt]. Its extrema occur at
-	 * either endpoint or where acceleration is zero; combining both axis bounds limits path travel.
-	 * @param {number} position
-	 * @param {number} speed
-	 * @param {number} target
-	 * @param {number} dt
-	 * @param {number} response
+	 * |v(t)| of the exact critical spring ≤ |v| + |v + ω·offset| / e for all t ≥ 0 — loose, so it only adds substeps.
+	 * @param {number} speed @param {number} offset position − target @param {number} response
 	 */
-	function springAxisSpeedBound(position, speed, target, dt, response) {
-		const slope = speed + response * (position - target);
-		/** @param {number} t */
-		const at = (t) => Math.abs((speed - response * slope * t) * Math.exp(-response * t));
-		let bound = Math.max(Math.abs(speed), at(dt));
-		if (Math.abs(slope) > 1e-12) {
-			const extremum = (slope + speed) / (response * slope);
-			if (extremum > 0 && extremum < dt) bound = Math.max(bound, at(extremum));
-		}
-		return bound;
+	function springSpeedBound(speed, offset, response) {
+		return Math.abs(speed) + Math.abs(speed + response * offset) / Math.E;
 	}
 
 	/**
@@ -555,20 +542,8 @@ export function createDrift(seeds, { random = Math.random } = {}) {
 				const ry = Math.min(EDGE * heldBlob.r, height / 2);
 				holdTargetX = Math.min(Math.max(tx, rx), width - rx);
 				holdTargetY = Math.min(Math.max(ty, ry), height - ry);
-				const speedBoundX = springAxisSpeedBound(
-					heldBlob.x,
-					hsx,
-					holdTargetX,
-					h,
-					holdResponse
-				);
-				const speedBoundY = springAxisSpeedBound(
-					heldBlob.y,
-					hsy,
-					holdTargetY,
-					h,
-					holdResponse
-				);
+				const speedBoundX = springSpeedBound(hsx, heldBlob.x - holdTargetX, holdResponse);
+				const speedBoundY = springSpeedBound(hsy, heldBlob.y - holdTargetY, holdResponse);
 				const smallestCore = blobs.reduce(
 					(smallest, blob) =>
 						blob.sink < 0 ? Math.min(smallest, COLLISION_EDGE * blob.r) : smallest,

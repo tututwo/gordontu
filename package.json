@@ -7,15 +7,13 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
-		"deps:check": "npm-check-updates --peer"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/kit": "^2.70.1",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@types/three": "^0.185.4",
-		"npm-check-updates": "^22.2.9",
 		"phosphor-svelte": "^3.1.0",
 		"svelte": "^5.56.6",
 		"svelte-check": "^4.7.3",

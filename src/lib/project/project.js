@@ -334,14 +334,14 @@ export function toOptimizedImage(source) {
 	return source.replace('/projects/', '/projects-optimized/').replace(/\.[^.]+$/, '.webp');
 }
 
-/** Every Project, newest first, seeded for the sketch renderers, slugged for its page. */
+/** Every Project, newest first (ISO dates sort as strings), seeded for the sketch renderers, slugged for its page. */
 export const projects = data
 	.map((project) => ({
 		...project,
 		seed: hashName(project.projectName),
 		slug: slugify(project.projectName)
 	}))
-	.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+	.sort((a, b) => b.date.localeCompare(a.date));
 
 if (new Set(projects.map((project) => project.slug)).size !== projects.length) {
 	throw new Error('Duplicate project slug — rename the colliding projectName');

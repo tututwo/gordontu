@@ -7,8 +7,6 @@ const ok = (condition, message) => {
 };
 
 class FakeNode {
-	/** @type {Record<string, string>} */
-	dataset = {};
 	style = {};
 	/** @type {Map<string, (event: any) => void>} */
 	listeners = new Map();
@@ -95,7 +93,6 @@ node.emit('pointercancel', { pointerId: 3, clientX: 120, clientY: 120 });
 const beforeWheel = pan.zoom;
 ok(node.emit('wheel', { deltaX: 0, deltaY: -100, deltaMode: 0, ctrlKey: false, clientX: 500, clientY: 400 }), 'wheel prevents page zoom/scroll');
 ok(pan.zoom > beforeWheel, 'vertical wheel zooms in');
-ok(node.dataset.galleryZoom === pan.zoom.toFixed(4), 'canvas dataset mirrors zoom state');
 
 node.emit('keydown', { key: '0' });
 ok(pan.zoom === 1 && pan.x === 0 && pan.y === 0, 'zero recenters pan and zoom');

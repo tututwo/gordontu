@@ -50,9 +50,9 @@
 		}
 	});
 
-	// The flip is the landing wall's drag/spring controller with two "cards": one card-width of
-	// drag is one half-turn, release springs to the nearest face, keys and clicks come free.
-	const flip = new WallMotion({ step: () => heroBox.w || 1, isMobile: () => true, count: () => 2 });
+	// The flip is the old landing wall's drag/spring controller: one card-width of drag is one
+	// half-turn, release springs to the nearest face, keys and clicks come free.
+	const flip = new WallMotion(() => heroBox.w || 1);
 
 	$effect(() => {
 		// Read the offset before the optional chain: on the first run `scene` is still loading and
@@ -93,7 +93,7 @@
 	function open(project) {
 		if (!scene) return;
 		selected = project;
-		flip.focusCard(0);
+		flip.reset();
 		scene.open(project);
 		heroBox = scene.heroBox();
 	}
@@ -104,7 +104,7 @@
 	function close() {
 		if (!selected) return;
 		selected = null;
-		flip.focusCard(0);
+		flip.reset();
 		scene?.close();
 		canvas?.focus({ preventScroll: true });
 	}
@@ -175,7 +175,7 @@
 				style:width="{heroBox.w}px"
 				style:height="{heroBox.h}px"
 				onclick={handleFlipClick}
-				{@attach (node) => flip.attach(/** @type {any} */ (node))}
+				{@attach flip.attach}
 				{@attach focusOnMount}
 			></button>
 			<div class="card-row">

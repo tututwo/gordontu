@@ -66,11 +66,11 @@ export function containScale(imageRatio, cardRatio) {
  * Odd rows shift half a step (checkerboard) and every card gets seed jitter and a ±4° tilt.
  * @param {{ seed: number }[]} projects
  * @param {number} cell
- * @param {number} viewportW @param {number} viewportH
+ * @param {number} viewportW
  * @returns {{ width: number, height: number, cells: { x: number, y: number, rot: number }[] }}
  *   `cells` are centred on the origin, so the plane spans ±width/2 × ±height/2.
  */
-export function layoutPlane(projects, cell, viewportW, viewportH) {
+export function layoutPlane(projects, cell, viewportW) {
 	const n = projects.length;
 	const low = Math.min(n, Math.max(2, Math.round(viewportW / cell)));
 	const high = Math.min(n, low + 1);

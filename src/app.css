@@ -9,9 +9,6 @@
 		--ink: #342943;
 		--muted-ink: #70677f;
 		--accent: #e94f87;
-		--accent-pressed: #cc3f70;
-		--accent-sun: #efa928;
-		--accent-cool: #356fbd;
 		--wash-blush: rgb(255 213 230 / 0.62);
 		--wash-sky: rgb(207 235 255 / 0.58);
 		--wash-mint: rgb(214 246 231 / 0.5);
@@ -19,9 +16,6 @@
 		--surface-solid: #fffefe;
 		--hairline: rgb(69 51 94 / 0.14);
 		--shadow-soft: rgb(104 70 128 / 0.14);
-		--wall-shadow: rgb(98 70 126 / 0.12);
-		--sketch-ink: var(--ink);
-		--sketch-line: rgb(52 41 67 / 0.72);
 		--sketch-line-soft: rgb(52 41 67 / 0.36);
 		--font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
 			sans-serif;

@@ -16,27 +16,23 @@ function clamp(value, minimum, maximum) {
 }
 
 /**
- * Drag, flick, spring, and keyboard motion along one axis of "cards". Born as the landing Project
- * wall's controller (removed in ADR-0003); today it drives the Postcard gallery's flip.
+ * Drag, flick, spring, and keyboard motion along one axis of whole steps. Born as the landing
+ * Project wall's controller (removed in ADR-0003); today it drives the Postcard gallery's flip,
+ * where one step is a half-turn.
  *
- * Interface: `offset` (position in project units), `isDragging`, `isMoving`,
- * `attach(node)` (stage attachment), `focusCard(virtualIndex)`, `moveBy(±1)` (spring one step).
- * Everything else — spring integration, velocity estimation, pointer capture,
- * post-drag click suppression — is implementation.
+ * Interface: `offset` (position in steps), `attach(node)`, `reset()`, `moveBy(±1)` (spring one
+ * step). Everything else — spring integration, velocity estimation, pointer capture, post-drag
+ * click suppression — is implementation.
  *
  * ponytail: integrator stays hand-rolled — svelte/motion's Spring is parameterized
  * differently and this feel is device-tuned; swap only after testing on real touch.
  */
 export class WallMotion {
-	// Track position in project units so a responsive step change cannot shift the active project.
+	// Track position in steps so a responsive step-size change cannot shift the active face.
 	offset = $state(0);
-	isDragging = $state(false);
-	isMoving = $state(false);
 
 	#step;
-	#isMobile;
-	#count;
-	#bounds;
+	#isDragging = false;
 
 	#animationFrame = 0;
 	#previousFrameTime = 0;
@@ -44,9 +40,6 @@ export class WallMotion {
 	#motionMode = 'idle';
 	#motionTarget = 0;
 	#motionVelocity = 0;
-	#dragFrame = 0;
-	/** @type {number | undefined} */
-	#pendingDragOffset;
 
 	/** @type {number | undefined} */
 	#pointerId;
@@ -56,40 +49,19 @@ export class WallMotion {
 	#pointerHistory = [];
 	#suppressClick = false;
 
-	/**
-	 * @param {{
-	 *   step: () => number,
-	 *   isMobile: () => boolean,
-	 *   count: () => number,
-	 *   bounds?: () => { min: number, max: number }
-	 * }} options
-	 *   Getters so the motion tracks the wall's responsive layout. Omit `bounds` for an
-	 *   infinite wall; give it and the offset rubber-bands at the edges and settles inside.
-	 */
-	constructor({ step, isMobile, count, bounds }) {
+	/** @param {() => number} step CSS px per step — a getter, so the motion tracks the responsive layout. */
+	constructor(step) {
 		this.#step = step;
-		this.#isMobile = isMobile;
-		this.#count = count;
-		this.#bounds = bounds;
 	}
 
-	/** @param {number} virtualIndex */
-	focusCard(virtualIndex) {
-		if (this.#pointerId !== undefined) return;
-		this.#setOffsetInstantly(this.#clampToBounds(-virtualIndex));
+	/** Snap to the first face. */
+	reset() {
+		this.#setOffsetInstantly(0);
 	}
 
-	/** @param {number} value */
-	#clampToBounds(value) {
-		const bounds = this.#bounds?.();
-		return bounds ? clamp(value, bounds.min, bounds.max) : value;
-	}
-
-	/** Beyond the bounds the pointer moves the deck at a third of its speed. @param {number} clientX */
+	/** @param {number} clientX */
 	#dragOffsetFor(clientX) {
-		const raw = this.#dragStartOffset + (clientX - this.#dragStartX) / this.#step();
-		const inside = this.#clampToBounds(raw);
-		return inside + (raw - inside) * 0.3;
+		return this.#dragStartOffset + (clientX - this.#dragStartX) / this.#step();
 	}
 
 	#stopFrameDriver() {
@@ -102,7 +74,6 @@ export class WallMotion {
 		this.#stopFrameDriver();
 		this.#motionMode = 'idle';
 		this.#motionVelocity = 0;
-		this.isMoving = this.isDragging;
 	}
 
 	#requestNextFrame() {
@@ -116,7 +87,6 @@ export class WallMotion {
 		this.#motionTarget = target;
 		this.#motionVelocity = initialVelocity;
 		this.#previousFrameTime = performance.now();
-		this.isMoving = true;
 		this.#requestNextFrame();
 	}
 
@@ -156,40 +126,9 @@ export class WallMotion {
 		this.#requestNextFrame();
 	};
 
-	/** @param {number} velocityPerSecond */
-	#projectRelease(velocityPerSecond) {
-		return (velocityPerSecond / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE));
-	}
-
-	/** @param {number} velocityPerSecond */
-	#releaseTarget(velocityPerSecond) {
-		const maximumTravel = this.#isMobile() ? 2 : 4;
-		const projectedTravel = clamp(
-			this.#projectRelease(velocityPerSecond),
-			-maximumTravel,
-			maximumTravel
-		);
-		return this.#clampToBounds(Math.round(this.offset + projectedTravel));
-	}
-
-	/** @param {number} value */
-	#queueDragOffset(value) {
-		this.#pendingDragOffset = value;
-		if (!this.#dragFrame) this.#dragFrame = requestAnimationFrame(this.#flushDragOffset);
-	}
-
-	#flushDragOffset = () => {
-		if (this.#dragFrame) cancelAnimationFrame(this.#dragFrame);
-		this.#dragFrame = 0;
-		if (this.#pendingDragOffset === undefined) return;
-		this.offset = this.#pendingDragOffset;
-		this.#pendingDragOffset = undefined;
-	};
-
-	#cancelDragFrame() {
-		if (this.#dragFrame) cancelAnimationFrame(this.#dragFrame);
-		this.#dragFrame = 0;
-		this.#pendingDragOffset = undefined;
+	/** Where a flick coasts to under DECELERATION_RATE, at most two steps away, snapped. @param {number} velocity steps/s */
+	#releaseTarget(velocity) {
+		return Math.round(this.offset + clamp((velocity / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE)), -2, 2));
 	}
 
 	/** @param {number} value */
@@ -200,7 +139,7 @@ export class WallMotion {
 
 	/** Ease onto the nearest step instead of teleporting — hard cuts read as glitches. */
 	#settleToNearest() {
-		const target = this.#clampToBounds(Math.round(this.offset));
+		const target = Math.round(this.offset);
 		if (prefersReducedMotion.current || target === this.offset) {
 			this.#setOffsetInstantly(target);
 		} else {
@@ -252,11 +191,10 @@ export class WallMotion {
 
 	/** @param {PointerEvent} event */
 	#handlePointerDown = (event) => {
-		if (this.#pointerId !== undefined || event.button !== 0 || this.#count() < 2) return;
-		// Pressing a coasting wall is a grab, not a click — swallow the click it produces.
-		this.#suppressClick = this.isMoving;
+		if (this.#pointerId !== undefined || event.button !== 0) return;
+		// Pressing a coasting face is a grab, not a click — swallow the click it produces.
+		this.#suppressClick = this.#motionMode === 'spring';
 		this.#finishMotion();
-		this.#cancelDragFrame();
 		this.#pointerId = event.pointerId;
 		this.#dragStartX = event.clientX;
 		this.#dragStartOffset = this.offset;
@@ -270,12 +208,11 @@ export class WallMotion {
 		const delta = event.clientX - this.#dragStartX;
 		this.#recordPointerSample(event.clientX, now);
 
-		if (!this.isDragging) {
+		if (!this.#isDragging) {
 			if (Math.abs(delta) <= DRAG_THRESHOLD) return;
-			this.isDragging = true;
-			this.isMoving = true;
+			this.#isDragging = true;
 			this.#suppressClick = true;
-			const target = /** @type {HTMLDivElement} */ (event.currentTarget);
+			const target = /** @type {HTMLElement} */ (event.currentTarget);
 			target.setPointerCapture(event.pointerId);
 			// Re-base at the threshold crossing so the accumulated hysteresis distance
 			// isn't applied as a one-frame jump — tracking starts 1:1 from the grab.
@@ -285,46 +222,41 @@ export class WallMotion {
 		}
 
 		event.preventDefault();
-		this.#queueDragOffset(this.#dragOffsetFor(event.clientX));
+		this.offset = this.#dragOffsetFor(event.clientX);
 	};
 
 	/** @param {PointerEvent} event */
 	#handlePointerEnd = (event) => {
 		const activePointerId = this.#pointerId;
 		if (activePointerId === undefined || event.pointerId !== activePointerId) return;
-		const wasDragging = this.isDragging;
+		const wasDragging = this.#isDragging;
 		const wasCancelled = event.type === 'pointercancel';
-		const target = /** @type {HTMLDivElement} */ (event.currentTarget);
+		const target = /** @type {HTMLElement} */ (event.currentTarget);
 
-		if (wasDragging) {
-			// The up event contributes position only, never a velocity sample — it often
-			// repeats the last move's x a few frames later, which reads as a stop and
-			// erases a real flick. (pointercancel coordinates are unreliable; skip them.)
-			if (!wasCancelled) this.#pendingDragOffset = this.#dragOffsetFor(event.clientX);
-			this.#flushDragOffset();
-		} else {
-			this.#cancelDragFrame();
-		}
+		// The up event contributes position only, never a velocity sample — it often
+		// repeats the last move's x a few frames later, which reads as a stop and
+		// erases a real flick. (pointercancel coordinates are unreliable; skip them.)
+		if (wasDragging && !wasCancelled) this.offset = this.#dragOffsetFor(event.clientX);
 
 		const releaseVelocity = clamp(
 			this.#getReleaseVelocity(),
 			-MAX_RELEASE_SPEED,
 			MAX_RELEASE_SPEED
 		);
-		this.isDragging = false;
+		this.#isDragging = false;
 		this.#pointerId = undefined;
 		if (target.hasPointerCapture(activePointerId)) target.releasePointerCapture(activePointerId);
 
 		if (wasDragging) {
 			// A cancelled drag keeps its momentum too — the browser reclassifying the
-			// gesture as a scroll shouldn't feel like the wall hit a wall.
+			// gesture as a scroll shouldn't feel like the face hit a wall.
 			if (prefersReducedMotion.current) {
 				this.#setOffsetInstantly(Math.round(this.offset));
 			} else {
 				this.#startSpring(this.#releaseTarget(releaseVelocity), releaseVelocity);
 			}
 		} else {
-			// Releasing a grabbed wall settles onto the nearest step; an idle press is
+			// Releasing a grabbed face settles onto the nearest step; an idle press is
 			// already on-step, so this is a no-op for plain clicks.
 			this.#settleToNearest();
 		}
@@ -335,13 +267,8 @@ export class WallMotion {
 	/** @param {PointerEvent} event */
 	#handleLostPointerCapture = (event) => {
 		if (event.pointerId !== this.#pointerId) return;
-		// Touch pointers are implicitly captured by the pointerdown target (a card), so
-		// promoting that capture to the stage fires a bubbled lostpointercapture from the
-		// card. Only a capture loss on the stage itself should abort the drag.
-		if (event.target !== event.currentTarget) return;
-		const wasDragging = this.isDragging;
-		this.#cancelDragFrame();
-		this.isDragging = false;
+		const wasDragging = this.#isDragging;
+		this.#isDragging = false;
 		this.#pointerId = undefined;
 		this.#pointerHistory = [];
 		if (wasDragging) this.#settleToNearest();
@@ -350,30 +277,26 @@ export class WallMotion {
 
 	/** Spring one step; -1 = next, +1 = previous. @param {number} direction */
 	moveBy(direction) {
-		const target = this.#clampToBounds(Math.round(this.offset) + direction);
+		const target = Math.round(this.offset) + direction;
 		if (prefersReducedMotion.current) this.#setOffsetInstantly(target);
 		else this.#startSpring(target, 0);
 	}
 
 	/** @param {KeyboardEvent} event */
 	#handleKeydown = (event) => {
-		const wall = /** @type {HTMLDivElement} */ (event.currentTarget);
 		if (event.key === 'ArrowRight') {
 			event.preventDefault();
-			wall.focus({ preventScroll: true });
 			this.moveBy(-1);
 		} else if (event.key === 'ArrowLeft') {
 			event.preventDefault();
-			wall.focus({ preventScroll: true });
 			this.moveBy(1);
 		} else if (event.key === 'Home') {
 			event.preventDefault();
-			wall.focus({ preventScroll: true });
-			this.#setOffsetInstantly(0);
+			this.reset();
 		}
 	};
 
-	/** @param {HTMLDivElement} node */
+	/** @param {HTMLElement} node */
 	attach = (node) => {
 		node.addEventListener('pointerdown', this.#handlePointerDown);
 		node.addEventListener('pointermove', this.#handlePointerMove);
@@ -381,14 +304,13 @@ export class WallMotion {
 		node.addEventListener('pointercancel', this.#handlePointerEnd);
 		node.addEventListener('lostpointercapture', this.#handleLostPointerCapture);
 		node.addEventListener('keydown', this.#handleKeydown);
-		// Post-drag clicks are swallowed here, on the stage, so cards need no click logic.
+		// Post-drag clicks are swallowed here, on the stage, so children need no click logic.
 		node.addEventListener('click', this.#handleClickCapture, true);
 
 		return () => {
-			this.#cancelDragFrame();
 			if (this.#pointerId !== undefined) {
-				this.offset = this.isDragging ? Math.round(this.offset) : this.#dragStartOffset;
-				this.isDragging = false;
+				this.offset = this.#isDragging ? Math.round(this.offset) : this.#dragStartOffset;
+				this.#isDragging = false;
 				this.#pointerId = undefined;
 				this.#pointerHistory = [];
 			}

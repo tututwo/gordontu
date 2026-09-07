@@ -1,8 +1,4 @@
-import { anchoredPan, clampZoom, wheelZoomRatio } from './viewTransform.js';
-
-// ponytail: threshold / capture / velocity-fit / click-suppression are copied from
-// src/lib/gallery/wallMotion.svelte.js and generalised to two axes; extract a shared
-// module once the wall stops changing. Inertia is exponential decay (no step to snap to).
+// ponytail: same pointer / velocity-fit / click-suppression as wallMotion.svelte.js on two axes; kept separate on purpose.
 const DECELERATION_RATE = 0.998; // per ms
 const MAX_RELEASE_SPEED = 4; // px per ms
 const POINTER_HISTORY_WINDOW = 110;
@@ -13,6 +9,43 @@ const RETURN_RATE = 0.99; // per ms, ease back inside after release
 
 /** @param {number} value @param {number} minimum @param {number} maximum */
 const clamp = (value, minimum, maximum) => Math.min(Math.max(value, minimum), maximum);
+
+/** Minimum and maximum gallery scale. */
+export const MIN_ZOOM = 0.55;
+export const MAX_ZOOM = 2.5;
+
+/** @param {number} zoom */
+export const clampZoom = (zoom) => clamp(zoom, MIN_ZOOM, MAX_ZOOM);
+
+/**
+ * Keep the same world point under a moving screen-space anchor while zooming.
+ * `pan`, `from`, and `to` are all measured from the viewport centre in CSS pixels.
+ *
+ * @param {{ x: number, y: number }} pan
+ * @param {{ x: number, y: number }} from
+ * @param {{ x: number, y: number }} to
+ * @param {number} ratio next zoom / starting zoom
+ */
+export function anchoredPan(pan, from, to, ratio) {
+	return {
+		x: to.x - ratio * (from.x - pan.x),
+		y: to.y - ratio * (from.y - pan.y)
+	};
+}
+
+/**
+ * Normalise mouse wheels, precision trackpads, and ctrl+wheel trackpad pinches into a zoom ratio.
+ * Exponential scaling makes equal wheel distances feel equal at every zoom level.
+ *
+ * @param {number} deltaY
+ * @param {number} deltaMode WheelEvent.DOM_DELTA_PIXEL / LINE / PAGE
+ * @param {boolean} ctrlKey Chromium/WebKit expose trackpad pinch as ctrl+wheel
+ */
+export function wheelZoomRatio(deltaY, deltaMode, ctrlKey) {
+	const unit = deltaMode === 1 ? 0.05 : deltaMode === 2 ? 1 : 0.002;
+	const exponent = clamp(-deltaY * unit * (ctrlKey ? 10 : 1), -0.5, 0.5);
+	return 2 ** exponent;
+}
 
 /**
  * Drag / flick / wheel / pinch / arrow-key navigation of a bounded plane.
@@ -96,18 +129,6 @@ export class Pan {
 		this.y = clamp(this.y, -y, y);
 	}
 
-	#syncState() {
-		if (!this.#node) return;
-		this.#node.dataset.galleryZoom = this.zoom.toFixed(4);
-		this.#node.dataset.galleryPanX = this.x.toFixed(2);
-		this.#node.dataset.galleryPanY = this.y.toFixed(2);
-	}
-
-	#changed() {
-		this.#syncState();
-		this.#onchange();
-	}
-
 	/**
 	 * Rubber band: past an edge the finger still moves the plane, just with growing resistance,
 	 * so the plane never feels like it hit a wall. @param {number} value @param {number} limit
@@ -151,13 +172,13 @@ export class Pan {
 		this.x = 0;
 		this.y = 0;
 		this.zoom = 1;
-		this.#changed();
+		this.#onchange();
 	}
 
 	/** Re-apply the current scene bounds, for example after resize or relayout. */
 	constrain() {
 		this.#clamp();
-		this.#changed();
+		this.#onchange();
 	}
 
 	/** @param {number} dx @param {number} dy */
@@ -167,7 +188,7 @@ export class Pan {
 			this.x += dx;
 			this.y += dy;
 			this.#clamp();
-			this.#changed();
+			this.#onchange();
 			return;
 		}
 		// An impulse that coasts exactly (dx, dy) under the same decay as a flick.
@@ -180,7 +201,7 @@ export class Pan {
 	zoomAt(clientX, clientY, nextZoom) {
 		if (!this.#node || this.#locked()) return;
 		this.stop();
-		if (this.#setZoom(clientX, clientY, nextZoom)) this.#changed();
+		if (this.#setZoom(clientX, clientY, nextZoom)) this.#onchange();
 	}
 
 	/** @param {number} clientX @param {number} clientY @param {number} nextZoom */
@@ -218,7 +239,7 @@ export class Pan {
 		this.#velocityX *= decay;
 		this.#velocityY *= decay;
 		const outside = this.#settleEdges(dt);
-		this.#changed();
+		this.#onchange();
 		if (!outside && Math.hypot(this.#velocityX, this.#velocityY) < 0.02) {
 			this.#velocityX = 0;
 			this.#velocityY = 0;
@@ -304,7 +325,7 @@ export class Pan {
 		this.#pinchStartAnchor = this.#relativePoint(node, midpoint);
 		for (const [id] of entries) this.#capture(node, id);
 		node.style.cursor = 'grabbing';
-		this.#changed();
+		this.#onchange();
 	}
 
 	/** @param {HTMLElement} node */
@@ -327,7 +348,7 @@ export class Pan {
 		this.y = nextPan.y - offset.y;
 		this.zoom = zoom;
 		this.#clamp();
-		this.#changed();
+		this.#onchange();
 	}
 
 	/** Continue as a one-finger drag after either finger leaves a pinch. @param {HTMLElement} node */
@@ -355,7 +376,7 @@ export class Pan {
 			this.#pointerHistory = [];
 			node.style.cursor = '';
 		}
-		this.#changed();
+		this.#onchange();
 	}
 
 	/** @param {PointerEvent} event */
@@ -422,7 +443,7 @@ export class Pan {
 
 		event.preventDefault();
 		this.#dragTo(dx, dy);
-		this.#changed();
+		this.#onchange();
 	};
 
 	/** Follow the finger, rubber-banding past the plane's edges. @param {number} dx @param {number} dy */
@@ -476,7 +497,7 @@ export class Pan {
 				this.#velocityY = speedY * scale;
 				this.#startCoast();
 			}
-			this.#changed();
+			this.#onchange();
 		} else if (!this.#suppressTap && !wasCancelled) {
 			this.#ontap(event);
 		}
@@ -513,7 +534,7 @@ export class Pan {
 			const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerWidth : 1;
 			this.x -= event.deltaX * unit;
 			this.#clamp();
-			this.#changed();
+			this.#onchange();
 			return;
 		}
 		if (
@@ -523,7 +544,7 @@ export class Pan {
 				this.zoom * wheelZoomRatio(event.deltaY, event.deltaMode, event.ctrlKey)
 			)
 		) {
-			this.#changed();
+			this.#onchange();
 		}
 	};
 
@@ -553,7 +574,7 @@ export class Pan {
 		const rect = this.#node.getBoundingClientRect();
 		const clientX = gesture.clientX ?? rect.left + rect.width / 2;
 		const clientY = gesture.clientY ?? rect.top + rect.height / 2;
-		if (this.#setZoom(clientX, clientY, this.#gestureStartZoom * (gesture.scale ?? 1))) this.#changed();
+		if (this.#setZoom(clientX, clientY, this.#gestureStartZoom * (gesture.scale ?? 1))) this.#onchange();
 	};
 
 	/** @param {Event} event */
@@ -597,7 +618,6 @@ export class Pan {
 	/** @param {HTMLElement} node */
 	attach = (node) => {
 		this.#node = node;
-		this.#syncState();
 		node.addEventListener('pointerdown', this.#handlePointerDown);
 		node.addEventListener('pointermove', this.#handlePointerMove);
 		node.addEventListener('pointerup', this.#handlePointerEnd);
@@ -619,9 +639,6 @@ export class Pan {
 			this.#pinchIds = [];
 			this.#pointerHistory = [];
 			node.style.cursor = '';
-			delete node.dataset.galleryZoom;
-			delete node.dataset.galleryPanX;
-			delete node.dataset.galleryPanY;
 			if (this.#node === node) this.#node = undefined;
 			node.removeEventListener('pointerdown', this.#handlePointerDown);
 			node.removeEventListener('pointermove', this.#handlePointerMove);

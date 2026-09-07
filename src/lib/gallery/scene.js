@@ -39,10 +39,10 @@ const CARD_PAPER = 0xfffdf9;
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Project[]} projects
- * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize?: (box: { w: number, h: number }) => void }} options
+ * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: { w: number, h: number }) => void }} options
  *   `pan` is sampled every frame (screen px, +y down); `onready` fires once textures are in.
  */
-export function createScene(canvas, projects, { pan, reduced, onready, onheroresize = () => {} }) {
+export function createScene(canvas, projects, { pan, reduced, onready, onheroresize }) {
 	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.setClearColor(0x000000, 0);
@@ -57,7 +57,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	let height = 1;
 	let cell = 300;
 	let homeY = 0;
-	let plane = layoutPlane(projects, cell, width, height);
+	let plane = layoutPlane(projects, cell, width);
 	/** @type {Card[]} */
 	const cards = [];
 	let revealStart = Infinity;
@@ -130,7 +130,6 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		mesh.userData.card = card;
 		cards.push(card);
 		const load = loadTexture(toOptimizedImage(project.projectImgSource))
-			.catch(() => loadTexture(project.projectImgSource))
 			.then((texture) => {
 				if (disposed) return texture.dispose();
 				texture.colorSpace = THREE.SRGBColorSpace;
@@ -170,7 +169,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		camera.updateProjectionMatrix();
 		cell = cellSize(width);
 		homeY = cell * 0.18;
-		plane = layoutPlane(projects, cell, width, height);
+		plane = layoutPlane(projects, cell, width);
 		for (const card of cards) place(card);
 		pan.constrain();
 		if (heroCard) {

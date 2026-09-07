@@ -1,11 +1,8 @@
 <script>
 	import '../app.css';
-	import Analytics from '$lib/Analytics.svelte';
 
 	let { children } = $props();
 </script>
-
-<Analytics />
 
 <div class="site-shell">
 	<svg class="paper-texture" aria-hidden="true" focusable="false">
@@ -107,10 +104,6 @@
 			animation: none;
 			transform: none;
 			will-change: auto;
-		}
-
-		:global(*) {
-			scroll-behavior: auto !important;
 		}
 	}
 </style>
