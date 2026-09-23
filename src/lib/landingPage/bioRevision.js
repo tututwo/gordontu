@@ -22,11 +22,14 @@ export function bioRevision({ reduced }) {
 			const box = node.getBoundingClientRect();
 			svg.replaceChildren();
 			let total = 0;
-			strokes = [...del.getClientRects()].map((rect) => {
-				// From the mockup: the stroke enters at 40% of the highlight's height, leaves at 72%,
-				// and runs half an em past its end.
+			const rects = [...del.getClientRects()];
+			strokes = rects.map((rect, i) => {
+				// From the mockup: the stroke enters at 40% of the highlight's height, leaves at 72%, and
+				// runs half an em past the end of the list (not past a line break, where it would poke
+				// into the margin).
+				const overshoot = i === rects.length - 1 ? rect.height * 0.35 : 0;
 				const x0 = rect.left - box.left;
-				const x1 = rect.right - box.left + rect.height * 0.35;
+				const x1 = rect.right - box.left + overshoot;
 				const y0 = rect.top - box.top + rect.height * 0.4;
 				const y1 = rect.top - box.top + rect.height * 0.72;
 				const path = document.createElementNS(SVG, 'path');

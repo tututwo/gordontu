@@ -250,7 +250,8 @@
 		display: inline-block;
 		margin: 0 -0.2em;
 		padding: 0 0.2em;
-		color: #7b7979;
+		/* The mockup's #7b7979 was 4.3:1 on white; this is the nearest grey that clears 4.5:1. */
+		color: #737373;
 		font-weight: 400;
 		line-height: 1.3;
 	}

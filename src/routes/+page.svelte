@@ -59,7 +59,7 @@
 			{#each socials as { label, href, Icon, weight } (href)}
 				<li>
 					<a {href} target="_blank" rel="noreferrer" aria-label={label}>
-						<Icon size="0.75em" {weight} aria-hidden="true" />
+						<Icon size="0.9em" {weight} aria-hidden="true" />
 					</a>
 				</li>
 			{/each}
@@ -68,7 +68,7 @@
 		<nav aria-label="Site">
 			<a href={resolve('/about')}>about</a>
 			<!-- ponytail: no destination yet; becomes a link once a projects page exists. -->
-			<span>projects</span>
+			<span class="soon" title="Coming soon">projects</span>
 			<a href={resolve('/blog')}>writing</a>
 		</nav>
 	</div>
@@ -88,8 +88,9 @@
 	}
 
 	/*
-	 * Measured from docs/landing-page.png read as a 2× export: a 16px headline, 12px bio, 12.8px nav
-	 * in a 531px column. Every size below is in em of this 16px, so it all scales from here.
+	 * Proportions from docs/landing-page.png, scaled up so the bio reads at body size (16px, not the
+	 * mockup's 12px). Every size below is in em of this one value, and it is in rem so a visitor's
+	 * browser text size scales the whole page with it.
 	 */
 	.landing {
 		position: relative;
@@ -100,12 +101,13 @@
 		padding: 4em 1em;
 		color: #000;
 		font-family: var(--font-sans);
-		font-size: 16px;
+		font-size: 1.25rem;
 	}
 
+	/* ~75 characters of bio per line. */
 	.intro {
 		width: 100%;
-		max-width: 33.2em;
+		max-width: 30em;
 	}
 
 	a {
@@ -118,10 +120,17 @@
 		outline-offset: 2px;
 	}
 
+	/* Press feedback lands on pointer-down, not on the navigation that follows. */
+	a:active {
+		opacity: 0.55;
+	}
+
+	/* Leading stays loose because the Category link frames and the avatar sit inline in these lines. */
 	h1 {
 		margin: 0;
 		font-size: 1em;
 		font-weight: 600;
+		letter-spacing: -0.015em;
 		line-height: 1.8;
 	}
 
@@ -133,10 +142,10 @@
 
 	.bio {
 		position: relative;
-		margin: 1.667em 0 0;
+		margin: 1.6em 0 0;
 		color: #707070;
-		font-size: 0.75em;
-		line-height: 2;
+		font-size: 0.8em;
+		line-height: 1.8;
 	}
 
 	.logo {
@@ -215,12 +224,11 @@
 
 	.socials {
 		display: flex;
-		margin: 1.275em 0 0 -0.39em;
+		margin: 1.275em 0 0 -0.32em;
 		padding: 0;
 		list-style: none;
 	}
 
-	/* 24px targets (WCAG 2.5.8); the mockup packs them a little tighter. */
 	.socials a {
 		display: grid;
 		place-items: center;
@@ -230,21 +238,43 @@
 		transition: color 160ms var(--ease-out);
 	}
 
+	/* Fingers get 44px targets (Apple's minimum); the icons keep their size and spread a little. */
+	@media (pointer: coarse) {
+		.socials {
+			margin-left: -0.68em;
+		}
+
+		.socials a {
+			width: 2.2em;
+			height: 2.2em;
+		}
+	}
+
 	.socials a:hover {
 		color: #000;
 	}
 
+	/* #767676 is the lightest grey that still reads at 4.5:1 on white; the mockup's #9a9a9a did not. */
 	nav {
 		display: flex;
 		gap: 1.33em;
-		margin-top: 2.28em;
-		color: #9a9a9a;
+		margin-top: 2.2em;
+		color: #767676;
 		font-size: 0.8em;
 		line-height: 1.5;
 	}
 
+	/* Padding grows the tap target to 44px without moving the text. */
 	nav a {
+		margin: -0.625em 0;
+		padding: 0.625em 0;
 		transition: color 160ms var(--ease-out);
+	}
+
+	/* Not a link yet, so it must not look like one. */
+	.soon {
+		color: #bdbdbd;
+		cursor: default;
 	}
 
 	nav a:hover {
