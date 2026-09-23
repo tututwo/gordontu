@@ -1,6 +1,5 @@
 <script>
 	import { resolve } from '$app/paths';
-	import { prefersReducedMotion } from 'svelte/motion';
 	import GithubLogoIcon from 'phosphor-svelte/lib/GithubLogoIcon';
 	import LinkedinLogoIcon from 'phosphor-svelte/lib/LinkedinLogoIcon';
 	import XLogoIcon from 'phosphor-svelte/lib/XLogoIcon';
@@ -16,7 +15,8 @@
 		return { href: resolve('/[category]', { category: slug }), label: label.toLowerCase() };
 	}
 
-	const typed = [...'I use AI across my toolkit to design and build interactive 2D&3D experiences.'];
+	const sentence = 'I use AI across my toolkit to design and build interactive 2D&3D experiences.';
+	const typed = [...sentence];
 
 	const socials = /** @type {const} */ ([
 		{ label: 'X', href: 'https://x.com/_tuyukun', Icon: XLogoIcon, weight: 'regular' },
@@ -44,14 +44,19 @@
 			designed and built with taste and AI.
 		</h1>
 
-		<p class="bio" {@attach bioRevision({ reduced: prefersReducedMotion.current })}>
+		<p class="bio" {@attach bioRevision}>
 			I’m a design engineer based in the Bay Area. I’ve worked on design systems and AI workflows at
-			<img class="logo" src="/landing/visa.png" alt="" width="32" height="32" /> VISA turned
+			<img class="logo" src="/landing/visa.png" alt="" width="32" height="32" /> VISA and turned
 			complex research into visualization tools for
 			<img class="logo" src="/landing/yale.png" alt="" width="32" height="32" /> Yale and
 			<img class="logo" src="/landing/berkeley.png" alt="" width="32" height="32" /> UC Berkeley.
 			<del>I&nbsp;use d3.js, three.js+GLSL/TSL, React&amp;Svelte, QGIS, Blender etc..</del>
-			<ins>{#each typed as char}<span class="char">{char}</span>{/each}</ins>
+			<!-- Read once as a sentence; the per-letter copy is only for the typing. -->
+			<ins
+				><span class="sr-only">{sentence}</span><span aria-hidden="true"
+					>{#each typed as char}<span class="char">{char}</span>{/each}</span
+				></ins
+			>
 			<svg class="scratch" aria-hidden="true"></svg>
 		</p>
 
@@ -182,6 +187,18 @@
 		animation: blink 1s steps(1) infinite;
 	}
 
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
 	.scratch {
 		position: absolute;
 		inset: 0;
@@ -198,14 +215,37 @@
 		stroke-dasharray: 1;
 	}
 
-	/* The Bio revision's start state, held only while the script that plays it can run. */
+	/*
+	 * The Bio revision's start state, held only while the script that plays it can run. If that
+	 * script never arrives, a zero-length animation shows the finished revision after 5 s; the
+	 * script marks the paragraph `revising` on arrival and takes over.
+	 */
 	@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
 		del {
-			background-color: transparent;
+			background-color: rgb(236 236 236 / 0);
+			animation: bio-failsafe-del 0s 5s forwards;
 		}
 
 		.char {
 			opacity: 0;
+			animation: bio-failsafe-char 0s 5s forwards;
+		}
+
+		.bio:global(.revising) :is(del, .char) {
+			animation: none;
+		}
+	}
+
+	@keyframes bio-failsafe-del {
+		to {
+			background-color: #ececec;
+			text-decoration-line: line-through;
+		}
+	}
+
+	@keyframes bio-failsafe-char {
+		to {
+			opacity: 1;
 		}
 	}
 

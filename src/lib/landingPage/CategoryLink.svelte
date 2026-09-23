@@ -14,9 +14,9 @@
 
 	/**
 	 * The uikit-expt card hover as deployed at uikit-expt.vercel.app (commit 6f34d27), in that card's
-	 * pixels: the bracket box grows from inset 0
-	 * to -6, the icon's padding springs from 12 to 6, the label's black bar grows as its right edge
-	 * springs from 100% to 0%, the icon turns while lit and springs back to rest when released.
+	 * pixels: the bracket box grows from inset 0 to -6, the icon's padding springs from 12 to 6, the
+	 * label's black bar grows as its right edge springs from 100% to 0%, the icon turns while lit and
+	 * springs back to rest when released, and its edges switch to violet at once.
 	 * Values reach the DOM as CSS custom properties and the icon as a three.js redraw.
 	 * @param {Shape} shape
 	 */
@@ -25,8 +25,12 @@
 			const canvas = /** @type {HTMLCanvasElement} */ (node.querySelector('canvas'));
 			const inset = new Spring(0);
 			const pad = new Spring(12);
-			const wipe = new Spring(100);
 			const spin = new Spring(0);
+			// The reference springs the bar's '100%' → '0%' as a string, which react-spring runs as a
+			// 0→1 progress between the value it is at and the new goal, restarted on every retarget with
+			// its (normalised) velocity kept, so a reversal turns straight round instead of coasting on.
+			const wipe = { from: 100, to: 100, t: new Spring(1) };
+			const wipeValue = () => wipe.from + (wipe.to - wipe.from) * wipe.t.value;
 			let pointer = false;
 			let focus = false;
 			let lit = false;
@@ -38,8 +42,7 @@
 
 			function draw() {
 				node.style.setProperty('--inset', String(inset.value));
-				node.style.setProperty('--pad', String(pad.value));
-				node.style.setProperty('--wipe', String(wipe.value));
+				node.style.setProperty('--wipe', String(wipeValue()));
 				// 68 = the 70 frame inside its 1px border; the content box is that minus inset and padding.
 				icon?.render({ angle: spin.value, inner: 68 - 2 * inset.value - 2 * pad.value, lit });
 			}
@@ -50,7 +53,7 @@
 				last = now;
 				let moving = inset.advance(dt);
 				moving = pad.advance(dt) || moving;
-				moving = wipe.advance(dt) || moving;
+				moving = wipe.t.advance(dt) || moving;
 				if (lit) {
 					spin.value = (spin.value + dt * SPIN) % 360;
 					spin.velocity = SPIN;
@@ -68,11 +71,16 @@
 				lit = on;
 				inset.to(on ? -6 : 0);
 				pad.to(on ? 6 : 12);
-				wipe.to(on ? 0 : 100);
+				wipe.from = wipeValue();
+				wipe.to = on ? 0 : 100;
+				const velocity = wipe.t.velocity;
+				wipe.t.set(0);
+				wipe.t.velocity = velocity;
+				wipe.t.to(1);
 				// Released, the turn springs back to 0 from wherever it got to, unwinding like the reference.
 				if (!on) spin.to(0);
 				if (prefersReducedMotion.current) {
-					for (const spring of [inset, pad, wipe]) spring.set(spring.target);
+					for (const spring of [inset, pad, wipe.t]) spring.set(spring.target);
 					spin.set(0);
 					draw();
 					return;
@@ -93,11 +101,27 @@
 			node.addEventListener('pointerleave', onleave);
 			node.addEventListener('focus', onfocus);
 			node.addEventListener('blur', onblur);
+			// From here the effect is the focus indicator; a link focused before hydration picks it up now.
+			node.classList.add('enhanced');
+			onfocus();
 
-			const observer = new ResizeObserver(() => {
+			const redraw = () => {
 				icon?.resize();
 				if (!frame) draw();
-			});
+			};
+			const observer = new ResizeObserver(redraw);
+			// Zoom or a move to a denser screen changes devicePixelRatio but not the canvas's CSS size.
+			/** @type {MediaQueryList | undefined} */
+			let density;
+			const watchDensity = () => {
+				density?.removeEventListener('change', ondensity);
+				density = matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
+				density.addEventListener('change', ondensity);
+			};
+			const ondensity = () => (watchDensity(), redraw());
+			watchDensity();
+			// three restores a lost context but draws nothing until asked.
+			canvas.addEventListener('webglcontextrestored', redraw);
 
 			// three is loaded here, not at the top, so the landing's first paint ships no WebGL.
 			import('./wireframeIcon.js')
@@ -105,8 +129,7 @@
 					if (disposed) return;
 					icon = createWireframeIcon(canvas, shape);
 					observer.observe(canvas);
-					icon.resize();
-					draw();
+					redraw();
 					ready = true;
 				})
 				.catch((error) => {
@@ -118,10 +141,13 @@
 				disposed = true;
 				cancelAnimationFrame(frame);
 				observer.disconnect();
+				density?.removeEventListener('change', ondensity);
+				canvas.removeEventListener('webglcontextrestored', redraw);
 				node.removeEventListener('pointerenter', onenter);
 				node.removeEventListener('pointerleave', onleave);
 				node.removeEventListener('focus', onfocus);
 				node.removeEventListener('blur', onblur);
+				node.classList.remove('enhanced');
 				icon?.dispose();
 				ready = false;
 			};
@@ -133,7 +159,7 @@
 	<span class="frame" aria-hidden="true">
 		<span class="corners"><span></span><span></span><span></span><span></span></span>
 		<canvas class={{ ready }}></canvas>
-	</span><span class="label">{label}<span class="bar" aria-hidden="true">{label}</span></span>
+	</span><span class="label">{label}<span class="bar" data-label={label} aria-hidden="true"></span></span>
 </a>
 
 <style>
@@ -145,7 +171,6 @@
 		 */
 		--u: calc(1.75em / 70);
 		--inset: 0;
-		--pad: 12;
 		--wipe: 100;
 		color: inherit;
 		text-decoration: none;
@@ -153,8 +178,15 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 
+	/* A plain ring until the effect is attached; then the effect is the indicator. Transparent, not
+	   none, so forced-colors mode still draws it. */
 	.category-link:focus-visible {
-		outline: none;
+		outline: 2px solid currentColor;
+		outline-offset: 2px;
+	}
+
+	.category-link:global(.enhanced):focus-visible {
+		outline-color: transparent;
 	}
 
 	.frame {
@@ -164,7 +196,8 @@
 		width: calc(var(--u) * 70);
 		height: calc(var(--u) * 70);
 		margin-right: 0.375em;
-		border: calc(var(--u) * 1) solid rgb(229 229 229 / 0.25);
+		/* The reference's 25% #e5e5e5 composites to ~239 in its WebGL panel; this matches it on white. */
+		border: calc(var(--u) * 1) solid rgb(229 229 229 / 0.62);
 		vertical-align: middle;
 	}
 
@@ -174,9 +207,10 @@
 	}
 
 	/*
-	 * The reference's Corner: an 8px box holding a 2×8 bar and then an 8×2 bar in a flex row, so the
-	 * second bar overhangs to 10px; the box sits 1px out over the frame's border and is turned 0°,
-	 * 90°, 180° or 270° about its centre for each corner.
+	 * The reference's Corner: an 8px box holding a 2×8 bar and an 8×2 bar in a flex row. They
+	 * overflow it, so yoga shrinks both by their share: a 1.6-wide upright and a 6.4-long arm, 8
+	 * across in all. The box sits 1px out over the frame's border and is turned 0°, 90°, 180° or 270°
+	 * about its centre for each corner.
 	 */
 	.corners span {
 		position: absolute;
@@ -194,13 +228,13 @@
 
 	.corners span::before {
 		left: 0;
-		width: calc(var(--u) * 2);
+		width: calc(var(--u) * 1.6);
 		height: 100%;
 	}
 
 	.corners span::after {
-		left: calc(var(--u) * 2);
-		width: 100%;
+		left: calc(var(--u) * 1.6);
+		width: calc(var(--u) * 6.4);
 		height: calc(var(--u) * 2);
 	}
 
@@ -256,7 +290,8 @@
 		line-height: 1.3;
 	}
 
-	/* The black bar is a white-on-black copy of the label, revealed from the left. */
+	/* The black bar is a white-on-black copy of the label, revealed from the left. The copy is
+	   generated content so find-in-page and copy see the name once. */
 	.bar {
 		position: absolute;
 		inset: 0;
@@ -264,5 +299,9 @@
 		color: #fff;
 		background: #000;
 		clip-path: inset(0 calc(var(--wipe) * 1%) 0 0);
+	}
+
+	.bar::before {
+		content: attr(data-label);
 	}
 </style>

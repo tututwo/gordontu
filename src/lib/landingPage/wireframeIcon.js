@@ -83,7 +83,6 @@ const TO_RAD = Math.PI / 180;
 export function createWireframeIcon(canvas, shape) {
 	const def = shapes[shape];
 	const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true });
-	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 	const camera = new OrthographicCamera(-HALF_VIEW, HALF_VIEW, HALF_VIEW, -HALF_VIEW, 1, 1000);
 	camera.position.z = 500;
@@ -119,8 +118,9 @@ export function createWireframeIcon(canvas, shape) {
 	scene.add(pivot);
 
 	return {
-		/** Match the drawing buffer to the canvas's CSS size (it follows the headline's font size). */
+		/** Match the drawing buffer to the canvas's CSS size and the screen's current density. */
 		resize() {
+			renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 			renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
 		},
 
@@ -143,6 +143,8 @@ export function createWireframeIcon(canvas, shape) {
 			for (const geometry of geometries) geometry.dispose();
 			material.dispose();
 			renderer.dispose();
+			// dispose() keeps the context alive until GC; three landing visits would pile up contexts.
+			renderer.forceContextLoss();
 		}
 	};
 }
