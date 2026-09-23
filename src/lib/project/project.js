@@ -13,25 +13,25 @@
 
 /**
  * Canonical Project categories — `value` is stored on each Project (never rename it),
- * `slug` is the URL form (`/charts`); `label` and `description` feed the Landing nav, the
+ * `slug` is the URL form (`/charts`); `label` and `description` feed the landing's Category links, the
  * gallery chrome and each category page's meta.
  */
 export const categories = [
 	{
 		value: 'charts',
-		label: 'Charts',
+		label: 'Visual stories',
 		slug: 'charts',
 		description: 'Charts that turn complex systems into clear, memorable stories.'
 	},
 	{
 		value: 'maps',
-		label: 'Maps',
+		label: 'Interactive maps',
 		slug: 'maps',
 		description: 'Spatial stories shaped through data, terrain, and careful craft.'
 	},
 	{
 		value: 'code creatively',
-		label: 'Creative coding',
+		label: 'Web tools',
 		slug: 'creative-code',
 		description: 'Interactive experiments built with Svelte, Three.js, D3, and GLSL.'
 	}
