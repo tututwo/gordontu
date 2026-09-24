@@ -3,9 +3,10 @@ import { Spring } from '../spring.js';
 import { lineGlsl, smoothstep } from './stage.js';
 
 /**
- * visual stories: a pop-up book. At rest a closed book lies cover-up. Lit, it opens into a V on its
+ * visual stories: a pop-up book. At rest a closed book lies cover-up. Lit, it opens almost flat on its
  * spine, and five cubes of different sizes push up through the gutter one after another, then drift
- * above the spread in two rows and melt into one another and apart like metaballs, on a fixed
+ * well above the spread, spread out in depth as well as along it, and melt into one another and
+ * apart like metaballs, on a fixed
  * seven-second script so every in-between state reads. The cubes are raymarched (rounded boxes joined
  * by a smooth union, cut off at page level) in the same canvas: where the surface is still a cube's
  * own it gets a hairline at the cube's edges like the boxes, where cubes have melted together only
@@ -22,24 +23,24 @@ const HALF = 0.1;
 const WIDE = 0.66;
 /** Open this far, the halves have thinned to sheets. */
 const SHEET = 0.6;
-/** Open, the top half turns over and the bottom half tilts back: a symmetric 124° V. */
-const TURN = (152 * Math.PI) / 180;
-const TILT = (28 * Math.PI) / 180;
+/** Open, the top half turns over and the bottom half tilts back: a shallow, symmetric 152° V. */
+const TURN = (166 * Math.PI) / 180;
+const TILT = (14 * Math.PI) / 180;
 
 /** Reference px per unit, closed and open (the open spread and its cubes stay inside the lit brackets). */
-const SCALE_CLOSED = 64;
-const SCALE_OPEN = 54;
+const SCALE_CLOSED = 48;
+const SCALE_OPEN = 60;
 
 /**
  * Cubes, biggest to smallest: half-size, bob period (s) and phase, and the order they rise in: the
  * two small ones of the high row first, so each clears the gutter before the next comes up past it.
  */
 const CUBES = [
-	{ half: 0.1, bob: 1.3, phase: 0, order: 3 },
-	{ half: 0.085, bob: 1.7, phase: 2, order: 2 },
-	{ half: 0.07, bob: 1.5, phase: 4, order: 4 },
-	{ half: 0.06, bob: 1.9, phase: 1, order: 0 },
-	{ half: 0.05, bob: 1.4, phase: 3, order: 1 }
+	{ half: 0.125, bob: 1.3, phase: 0, order: 3 },
+	{ half: 0.105, bob: 1.7, phase: 2, order: 2 },
+	{ half: 0.088, bob: 1.5, phase: 4, order: 4 },
+	{ half: 0.075, bob: 1.9, phase: 1, order: 0 },
+	{ half: 0.062, bob: 1.4, phase: 3, order: 1 }
 ];
 /** Once the spread is half open, a cube pops up this often (ms). */
 const STAGGER = 90;
@@ -49,17 +50,18 @@ const MELT = 0.1;
 const BOB = 0.02;
 
 /**
- * Where the cubes float, [position along the spine, height above the gutter] for each, biggest first:
- * a low row of three and a high row of two between them. Apart, faces are more than the melt radius
- * apart (and the bob), so edges stay crisp.
+ * Where the cubes float, [along the spine, height above the gutter, out across it] for each, biggest
+ * first: a low row of three, staggered behind and in front of the spine, and a high pair above them,
+ * placed so that from the icon's 45° view no cube hides behind another. Apart, faces are more than
+ * the melt radius apart (and the bob), so edges stay crisp.
  */
-const APART = [[-0.27, 0.2], [0.03, 0.22], [0.3, 0.2], [-0.1, 0.52], [0.17, 0.52]];
+const APART = [[-0.21, 0.33, -0.18], [-0.07, 0.34, 0.19], [0.3, 0.34, 0.17], [-0.03, 0.67, -0.1], [0.25, 0.67, -0.1]];
 /** Two pairs fuse, a high cube dropping onto a low one at each end, as the middle one rises between them. */
-const PAIRS = [[-0.25, 0.2], [0.02, 0.5], [0.27, 0.2], [-0.2, 0.35], [0.24, 0.32]];
+const PAIRS = [[-0.2, 0.34, -0.12], [0.1, 0.71, -0.1], [0.27, 0.34, 0.14], [-0.19, 0.53, -0.12], [0.26, 0.48, 0.14]];
 /** All five in one blob. */
-const ALL = [[-0.1, 0.22], [0.05, 0.27], [0.14, 0.2], [-0.07, 0.38], [0.08, 0.4]];
+const ALL = [[-0.08, 0.38, -0.04], [0.08, 0.4, 0.06], [0.16, 0.34, -0.06], [-0.04, 0.56, 0.02], [0.1, 0.56, -0.02]];
 /** New partners: the two biggest below, the two smallest above; the third waits apart. */
-const CROSS = [[-0.2, 0.2], [-0.03, 0.22], [0.3, 0.2], [-0.05, 0.5], [0.06, 0.49]];
+const CROSS = [[-0.18, 0.35, -0.08], [0, 0.37, 0.04], [0.3, 0.36, 0.17], [-0.06, 0.66, -0.04], [0.06, 0.66, 0.02]];
 /** The goo script, 7 s: [time, positions]. Apart; two pairs; one blob; new pairs; apart; hold. */
 const SCRIPT = /** @type {[number, number[][]][]} */ ([
 	[0, APART],
@@ -83,7 +85,7 @@ function scripted(t) {
 		const [t1, b] = SCRIPT[k];
 		if (at <= t1) {
 			const e = 0.5 - 0.5 * Math.cos((Math.PI * (at - t0)) / (t1 - t0));
-			return a.map(([x, y], i) => [x + (b[i][0] - x) * e, y + (b[i][1] - y) * e]);
+			return a.map((from, i) => from.map((v, axis) => v + (b[i][axis] - v) * e));
 		}
 	}
 	return APART;
@@ -265,8 +267,8 @@ export function createBookIcon(stage) {
 	book.add(bottom, top);
 
 	// The cubes live in a box of space above the gutter; its front faces start the rays.
-	const room = stage.own(new BoxGeometry(SPINE + 0.2, 0.72, 0.5));
-	room.translate(0, 0.35, 0);
+	const room = stage.own(new BoxGeometry(SPINE + 0.2, 0.98, 0.72));
+	room.translate(0, 0.47, 0);
 	const cubes = CUBES.map(() => new Vector4());
 	const goo = stage.material(
 		gooFragment,
@@ -333,15 +335,17 @@ export function createBookIcon(stage) {
 			stage.pivot.scale.setScalar(SCALE_CLOSED + (SCALE_OPEN - SCALE_CLOSED) * p);
 			// Keep it centred: closed it lies to one side of the spine, open it straddles it, and risen
 			// cubes add height.
-			book.position.set(0, -0.12 * risen, -(WIDE / 2) * (1 - p));
+			book.position.set(0, -0.23 * risen, -(WIDE / 2) * (1 - p));
 
 			CUBES.forEach((c, i) => {
 				const lift = lifts[i].value;
-				const [x0, y0] = APART[i];
+				const [x0, y0, z0] = APART[i];
 				const x = x0 + (at[i][0] - x0) * amount;
 				const height = y0 + (at[i][1] - y0) * amount + BOB * Math.sin((2 * Math.PI * t) / c.bob + c.phase) * amount;
-				// Up through the gutter: from just below the page to its hover height.
-				cubes[i].set(x, -c.half + (height + c.half) * lift, 0, c.half);
+				const z = z0 + (at[i][2] - z0) * amount;
+				// Up through the gutter: from just below the page to its hover height, drifting out to
+				// its place in front of or behind the spine as it goes.
+				cubes[i].set(x, -c.half + (height + c.half) * lift, z * lift, c.half);
 			});
 			// Sunk to a sliver in the gutter, the cubes are gone.
 			gooMesh.visible = risen > 0.03;

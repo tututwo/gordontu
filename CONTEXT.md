@@ -29,7 +29,7 @@ One of the three links set into the landing headline, one per Project category: 
 _Avoid_: Button, pill, chip, card
 
 **Bio revision**:
-The about bio's self-correction, played on every arrival: its second sentence first reads plainly as a tool list ("I use d3.js, three.js…"); then a grey highlight and a strikethrough sweep across the list together in one left-to-right stroke (if the list wraps, the stroke runs on from line to line in reading order, like a pen crossing out part of one sentence), and "Claude Code, Codex & Jev across my toolkit…" is typed in after it, so the sentence now reads "I use Claude Code, Codex & Jev…". Styled like a suggested edit, but in grey only. Reduced motion shows the finished revision at once.
+The about bio's self-correction, played on every arrival: its second sentence first reads plainly as a tool list ("I use d3.js, three.js…"); then a grey highlight and a strikethrough sweep across the list together in one left-to-right stroke (if the list wraps, the stroke runs on from line to line in reading order, like a pen crossing out part of one sentence), and "Claude Code, Codex & Jev across my toolkit…" is typed in after it, so the sentence now reads "I use Claude Code, Codex & Jev…". Styled like a suggested edit, but in grey only. A beat (1.5 s) after it, the same caret types out the bio's last line, the afterthought "Oh I practice Chen&Yang style Taiji and acoustic guitar.". Reduced motion shows the finished revision and that line at once.
 _Avoid_: Typo, draft, tracked change
 
 **Postcard gallery**:

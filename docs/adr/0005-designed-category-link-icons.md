@@ -18,4 +18,6 @@ Rejected for making room: parting the lines below to let the card in (shipped br
 
 Each has its own verb (unfold, open, reflow) and its own kind of motion (hinges and a flowing field, organic goo, rigid glide and snap), so the three read as a set rather than one idea three times. Open states ease down in scale to stay inside the lit brackets; reduced motion shows one chosen still of the lit state.
 
+**Amended 2026-09-24.** The book opens flatter, to a 152° V, and its cubes are a quarter bigger and float higher, spread in depth as well as along the spine: each keyframe of the goo script places them in three dimensions, chosen so that from the 45°/45° view no cube hides behind another while they are apart. The book is drawn at 48 px per unit closed and 60 open, so the wider spread still meets its brackets.
+
 Rejected: modelling the icons in Blender and loading glTF (the edge ink needs box UVs, and it would add files to fetch for shapes made of a few boxes); marching-cubes metaballs (no crisp cube edges while apart); CSS 3D (see ADR-0004). For web tools, a design panel also weighed a window whose slider knobs get adjusted, drag handles steering a data cube, and a stack of tiles dealt into a sliding-puzzle grid; the reflow won because it is the one that is unmistakably *web*.
