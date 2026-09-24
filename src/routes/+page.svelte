@@ -5,6 +5,7 @@
 	import XLogoIcon from 'phosphor-svelte/lib/XLogoIcon';
 	import CategoryLink from '$lib/landingPage/CategoryLink.svelte';
 	import { bioRevision } from '$lib/landingPage/bioRevision.js';
+	import { headlineFlow } from '$lib/landingPage/headlineFlow.js';
 	import { categories } from '$lib/project/project.js';
 
 	/** @param {string} slug */
@@ -14,6 +15,28 @@
 		);
 		return { href: resolve('/[category]', { category: slug }), label: label.toLowerCase() };
 	}
+
+	/**
+	 * The headline, one piece per word, so each can glide on its own when a Category link's icon grows
+	 * and the sentence makes room for it (see headlineFlow.js). `space` is the space before a piece.
+	 * @typedef {import('$lib/landingPage/icons/index.js').Shape} Shape
+	 * @typedef {{ word: string, space: boolean } | { avatar: true, space: boolean } | { slug: string, shape: Shape, space: boolean }} Piece
+	 */
+	/** @param {string} text @param {boolean} [space] @returns {Piece[]} */
+	const words = (text, space = true) => text.split(' ').map((word, i) => ({ word, space: space || i > 0 }));
+	/** @type {Piece[]} */
+	const headline = [
+		...words('I’m Gordon.', false),
+		{ avatar: true, space: true },
+		...words('I make your data easier to understand and use through'),
+		{ slug: 'maps', shape: 'map', space: true },
+		{ word: ',', space: false },
+		{ slug: 'charts', shape: 'book', space: true },
+		{ word: ',', space: false },
+		...words('and'),
+		{ slug: 'creative-code', shape: 'tools', space: true },
+		...words('designed and built with taste and AI.')
+	];
 
 	const sentence = 'I use AI across my toolkit to design and build interactive 2D&3D experiences.';
 	const typed = [...sentence];
@@ -35,13 +58,16 @@
 
 <div class="landing">
 	<div class="intro">
-		<h1>
-			I’m Gordon. <img class="avatar" src="/landing/avatar.png" alt="" width="134" height="134" />
-			I make your data easier to understand and use through
-			<CategoryLink {...category('maps')} shape="cubes" />,
-			<CategoryLink {...category('charts')} shape="columns" />, and
-			<CategoryLink {...category('creative-code')} shape="cube" />
-			designed and built with taste and AI.
+		<h1 {@attach headlineFlow}>
+			{#each headline as piece}{#if piece.space}{' '}{/if}{#if 'word' in piece}<span class="word"
+						>{piece.word}</span
+					>{:else if 'avatar' in piece}<img
+						class="avatar"
+						src="/landing/avatar.png"
+						alt=""
+						width="134"
+						height="134"
+					/>{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
 		</h1>
 
 		<p class="bio" {@attach bioRevision}>
@@ -137,6 +163,11 @@
 		font-weight: 600;
 		letter-spacing: -0.015em;
 		line-height: 1.8;
+	}
+
+	/* Inline-block so each word can be moved on its own; it wraps exactly as plain text would. */
+	.word {
+		display: inline-block;
 	}
 
 	.avatar {
