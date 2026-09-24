@@ -97,13 +97,9 @@
 	 */
 	/* Clipped, so the avatar's glasses, carried past the end of the page, do not make it longer. */
 	.landing {
-		position: relative;
-		z-index: 1;
 		min-height: 100svh;
 		padding: max(4em, 12vh) 1em 4em;
 		overflow: clip;
-		color: #000;
-		font-family: var(--font-sans);
 		font-size: 1.25rem;
 	}
 
@@ -116,6 +112,7 @@
 	a {
 		color: inherit;
 		text-decoration: none;
+		transition: color 160ms var(--ease-out);
 	}
 
 	a:focus-visible {
@@ -176,7 +173,6 @@
 		width: 1.5em;
 		height: 1.5em;
 		color: #838383;
-		transition: color 160ms var(--ease-out);
 	}
 
 	/* Fingers get 44px targets (Apple's minimum); the icons keep their size and spread a little. */
@@ -189,10 +185,6 @@
 			width: 2.2em;
 			height: 2.2em;
 		}
-	}
-
-	.socials a:hover {
-		color: #000;
 	}
 
 	hr {
@@ -217,13 +209,13 @@
 		padding: 0.625em 0;
 		text-underline-offset: 0.3em;
 		text-decoration-thickness: 1px;
-		transition: color 160ms var(--ease-out);
 	}
 
 	nav a[aria-current='page'] {
 		text-decoration-line: underline;
 	}
 
+	.socials a:hover,
 	nav a:hover {
 		color: #000;
 	}

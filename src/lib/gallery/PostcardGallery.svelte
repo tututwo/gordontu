@@ -71,7 +71,6 @@
 					onheroresize: (box) => (heroBox = box)
 				});
 				scene = created;
-				pan.constrain();
 			});
 			return () => {
 				disposed = true;
@@ -94,7 +93,6 @@
 		selected = project;
 		flip.reset();
 		scene.open(project);
-		heroBox = scene.heroBox();
 	}
 
 	/** Keyboard users land on the flip target as soon as a card opens. @param {HTMLElement} node */
@@ -163,7 +161,7 @@
 	}
 </script>
 
-<svelte:window onkeydown={(event) => event.key === 'Escape' && selected && close()} />
+<svelte:window onkeydown={(event) => event.key === 'Escape' && close()} />
 
 <div class={['gallery', { open: selected !== null }]}>
 	<!-- Keyed: a section switch disposes the WebGL context, and a lost context can't host a new renderer. -->
@@ -187,7 +185,7 @@
 
 	<!-- Tooltips follow a mouse or the keyboard; a finger taps straight through. -->
 	<nav
-		class="tool-rail"
+		class="tool-rail frosted"
 		aria-label="Gallery navigation"
 		onpointerover={(event) => event.pointerType === 'mouse' && showTip(event.target)}
 		onpointerleave={(event) => event.pointerType === 'mouse' && hideTip()}
@@ -264,7 +262,7 @@
 	<!-- Keyed so it closes again after changing section (the component instance survives navigation). -->
 	{#key category.slug}
 	<details class="project-index bottom-chrome">
-		<summary aria-label="Open the project index">
+		<summary class="frosted" aria-label="Open the project index">
 			<ListIcon size={18} weight="regular" aria-hidden="true" />
 			<span class="summary-label">Project index</span>
 			<span class="summary-count">{projects.length}</span>
@@ -272,7 +270,7 @@
 				<CaretDownIcon size={14} weight="bold" aria-hidden="true" />
 			</span>
 		</summary>
-		<nav aria-label="{category.label} projects">
+		<nav class="frosted" aria-label="{category.label} projects">
 			<div class="index-heading">
 				<strong>{category.label}</strong>
 				<span>Select a postcard</span>
@@ -290,10 +288,10 @@
 
 	<div class="gallery-status bottom-chrome">
 		<details class="help">
-			<summary aria-label="How to use the gallery">
+			<summary class="frosted" aria-label="How to use the gallery">
 				<QuestionIcon size={18} weight="regular" aria-hidden="true" />
 			</summary>
-			<div class="help-popover">
+			<div class="help-popover frosted">
 				<strong>Explore the canvas</strong>
 				<p>Drag or use the arrow keys to move. Scroll, pinch, or use + / − to zoom.</p>
 				<span>Press 0 or use Recenter to return home.</span>
@@ -338,11 +336,7 @@
 		outline-offset: -4px;
 	}
 
-	.tool-rail,
-	.project-index summary,
-	.project-index nav,
-	.help summary,
-	.help-popover {
+	.frosted {
 		border: 1px solid var(--hairline);
 		background: rgb(255 255 255 / 0.82);
 		box-shadow: 0 8px 24px rgb(0 0 0 / 0.06);
@@ -807,11 +801,7 @@
 	}
 
 	@media (prefers-reduced-transparency: reduce) {
-		.tool-rail,
-		.project-index summary,
-		.project-index nav,
-		.help summary,
-		.help-popover {
+		.frosted {
 			background: #fff;
 			backdrop-filter: none;
 			-webkit-backdrop-filter: none;
@@ -819,11 +809,7 @@
 	}
 
 	@media (prefers-contrast: more) {
-		.tool-rail,
-		.project-index summary,
-		.project-index nav,
-		.help summary,
-		.help-popover {
+		.frosted {
 			border-color: var(--ink);
 		}
 	}

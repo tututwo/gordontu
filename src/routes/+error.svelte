@@ -13,8 +13,6 @@
 
 <style>
 	.hero {
-		display: grid;
-		justify-items: center;
 		padding: clamp(2rem, 4.6vh, 2.75rem) 1.25rem 0;
 		text-align: center;
 	}

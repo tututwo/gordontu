@@ -1,4 +1,5 @@
 import { BoxGeometry, Group, Mesh, Vector3, Vector4 } from 'three';
+import { sineInOut } from 'svelte/easing';
 import { Spring } from '../spring.js';
 import { lineGlsl, smoothstep } from './stage.js';
 
@@ -84,7 +85,7 @@ function scripted(t) {
 		const [t0, a] = SCRIPT[k - 1];
 		const [t1, b] = SCRIPT[k];
 		if (at <= t1) {
-			const e = 0.5 - 0.5 * Math.cos((Math.PI * (at - t0)) / (t1 - t0));
+			const e = sineInOut((at - t0) / (t1 - t0));
 			return a.map((from, i) => from.map((v, axis) => v + (b[i][axis] - v) * e));
 		}
 	}
@@ -260,10 +261,7 @@ export function createBookIcon(stage) {
 	bottomGlued[1].y = 1;
 	topGlued[0].y = 1;
 	const halves = looks.map((look) => stage.box([SPINE, HALF, WIDE], [0, 0, WIDE / 2], look));
-	const bottom = new Group();
-	bottom.add(halves[0]);
-	const top = new Group();
-	top.add(halves[1]);
+	const [bottom, top] = halves.map((half) => new Group().add(half));
 	book.add(bottom, top);
 
 	// The cubes live in a box of space above the gutter; its front faces start the rays.

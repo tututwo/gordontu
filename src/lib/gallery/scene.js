@@ -28,7 +28,6 @@ const CAPTION = 96;
  * @property {THREE.MeshBasicMaterial} material opacity = reveal × ghost
  * @property {THREE.MeshBasicMaterial} backingMaterial opaque silhouette beneath transparent art
  * @property {number} ratio width / height, the image's own
- * @property {{ w: number, h: number }} size
  */
 
 /**
@@ -38,7 +37,8 @@ const CAPTION = 96;
  * @param {HTMLCanvasElement} canvas
  * @param {Project[]} projects
  * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: { w: number, h: number, y: number }) => void }} options
- *   `pan` is sampled every frame (screen px, +y down); `onready` fires once textures are in.
+ *   `pan` is sampled every frame (screen px, +y down); `onready` fires once textures are in;
+ *   `onheroresize` gets the open card's box at rest when it opens and on every resize.
  */
 export function createScene(canvas, projects, { pan, reduced, onready, onheroresize }) {
 	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
@@ -120,7 +120,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		mesh.add(art);
 		scene.add(mesh);
 		/** @type {Card} */
-		const card = { project, mesh, material, backingMaterial, ratio: DEFAULT_CARD_RATIO, size: cardSize(cell) };
+		const card = { project, mesh, material, backingMaterial, ratio: DEFAULT_CARD_RATIO };
 		mesh.userData.card = card;
 		cards.push(card);
 		const load = loadTexture(toOptimizedImage(project.projectImgSource))
@@ -146,10 +146,10 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		plane = layoutPlane(projects, cell, width, cards.map((card) => cardSize(1, card.ratio).h));
 		for (const [index, card] of cards.entries()) {
 			const spot = plane.cells[index];
-			card.size = cardSize(cell, card.ratio);
+			const { w, h } = cardSize(cell, card.ratio);
 			card.mesh.position.set(spot.x, spot.y, 0);
 			card.mesh.rotation.z = spot.rot;
-			card.mesh.scale.set(card.size.w, card.size.h, 1);
+			card.mesh.scale.set(w, h, 1);
 		}
 		pan.constrain();
 	}
@@ -300,11 +300,9 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		if (!resizePending) resizePending = requestAnimationFrame(() => ((resizePending = 0), resize()));
 	});
 	observer.observe(canvas);
-	/** @param {Event} event */
-	const onContextLost = (event) => event.preventDefault();
-	const onContextRestored = () => wake();
-	canvas.addEventListener('webglcontextlost', onContextLost);
-	canvas.addEventListener('webglcontextrestored', onContextRestored);
+	const listeners = new AbortController();
+	canvas.addEventListener('webglcontextlost', (event) => event.preventDefault(), { signal: listeners.signal });
+	canvas.addEventListener('webglcontextrestored', wake, { signal: listeners.signal });
 
 	resize();
 	// Reveal once every texture has settled (loaded or fell back), not one by one, laid out for the
@@ -351,25 +349,22 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		open(project) {
 			const card = cards.find((c) => c.project === project);
 			if (!card) return;
+			settleClosed();
 			heroCard = card;
-			closing = false;
 			setCameraDistance(PERSPECTIVE * heroBoxFor(card).w);
 			syncCamera();
 			heroFrom = {
 				x: card.mesh.position.x,
 				y: card.mesh.position.y,
 				rot: card.mesh.rotation.z,
-				w: card.size.w,
-				h: card.size.h
+				w: card.mesh.scale.x,
+				h: card.mesh.scale.y
 			};
 			heroTo = heroTargetFor(card);
+			onheroresize(heroBoxFor(card));
 			heroFront.material.map = card.material.map;
 			heroFront.material.color.set(card.material.map ? 0xffffff : PLACEHOLDER);
 			heroFront.material.needsUpdate = true;
-			heroBackTexture?.dispose();
-			heroBackTexture = undefined;
-			heroBack.material.map = null;
-			heroBack.material.needsUpdate = true;
 			hero.rotation.y = 0;
 			hero.visible = true;
 			loadBackFont(tokens).then(() => {
@@ -394,11 +389,6 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			wake();
 		},
 
-		/** CSS-pixel box of the opened card at rest, for the DOM hit target and caption. */
-		heroBox() {
-			return heroCard ? heroBoxFor(heroCard) : { w: 0, h: 0, y: 0 };
-		},
-
 		wake,
 
 		dispose() {
@@ -406,8 +396,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			if (frame) cancelAnimationFrame(frame);
 			if (resizePending) cancelAnimationFrame(resizePending);
 			observer.disconnect();
-			canvas.removeEventListener('webglcontextlost', onContextLost);
-			canvas.removeEventListener('webglcontextrestored', onContextRestored);
+			listeners.abort();
 			for (const card of cards) {
 				card.material.map?.dispose();
 				card.material.dispose();

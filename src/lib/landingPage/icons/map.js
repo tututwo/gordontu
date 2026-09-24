@@ -100,13 +100,10 @@ export function createMapIcon(stage) {
 	const map = new Group();
 	stage.pivot.add(map);
 
-	const printed = [0, 1, 2].map((panel) =>
-		stage.material(contourFragment, {
-			uPanel: { value: panel },
-			uTime: { value: 0 },
-			uWipe: { value: 0 }
-		})
-	);
+	// The field's clock and the wipe, shared by the three printed faces.
+	const uTime = { value: 0 };
+	const uWipe = { value: 0 };
+	const printed = [0, 1, 2].map((panel) => stage.material(contourFragment, { uPanel: { value: panel }, uTime, uWipe }));
 	// Panel k hangs from hinge k at its -z end and holds hinge k + 1 at its +z end; each side of a
 	// hinge draws half its line.
 	const glued = printed.map((face, k) => {
@@ -115,18 +112,13 @@ export function createMapIcon(stage) {
 		plus.z = k < 2 ? 1 : 0;
 		return [minus, plus];
 	});
-	const panels = printed.map((face) => {
-		const mesh = stage.box([T, H, W], [0, 0, 0], face);
-		map.add(mesh);
-		return mesh;
-	});
+	const panels = printed.map((face) => stage.box([T, H, W], [0, 0, 0], face));
 	// Folded, the three panels are drawn as the one block they look like: their seams would sit a
 	// pixel apart and smear into a dark bar.
 	const block = stage.box([3 * T, H, W]);
-	map.add(block);
+	map.add(...panels, block);
 
 	const open = new Spring(0);
-	let time = 0;
 
 	/**
 	 * Z-fold chain: panel k hangs from hinge k and points along yaw a_k. Folded (p = 0) the
@@ -173,13 +165,10 @@ export function createMapIcon(stage) {
 			const moving = open.advance(dt);
 			const wipe = smoothstep(WIPE_FROM, 1, open.value);
 			// Reduced motion: one still, open frame (the field as it stands at 1.2 s).
-			if (reduced) time = 1200;
-			else if (wipe > 0) time += dt;
+			if (reduced) uTime.value = 1200;
+			else if (wipe > 0) uTime.value += dt;
+			uWipe.value = wipe;
 			pose(Math.max(0, (open.value - TAIL) / (1 - TAIL)));
-			for (const face of printed) {
-				face.uniforms.uTime.value = time;
-				face.uniforms.uWipe.value = wipe;
-			}
 			return moving || (lit && !reduced);
 		}
 	};

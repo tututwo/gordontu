@@ -197,13 +197,6 @@ export class Pan {
 		this.#startCoast();
 	}
 
-	/** Zoom around a viewport position in client coordinates. @param {number} clientX @param {number} clientY @param {number} nextZoom */
-	zoomAt(clientX, clientY, nextZoom) {
-		if (!this.#node || this.#locked()) return;
-		this.stop();
-		if (this.#setZoom(clientX, clientY, nextZoom)) this.#onchange();
-	}
-
 	/** @param {number} clientX @param {number} clientY @param {number} nextZoom */
 	#setZoom(clientX, clientY, nextZoom) {
 		if (!this.#node) return false;
@@ -305,8 +298,7 @@ export class Pan {
 
 	/** @param {HTMLElement} node */
 	#beginPinch(node) {
-		const entries = [...this.#pointers.entries()].slice(0, 2);
-		if (entries.length < 2) return;
+		const entries = [...this.#pointers.entries()];
 		this.stop();
 		this.#clamp();
 		this.isPinching = true;
@@ -355,7 +347,6 @@ export class Pan {
 	#finishPinch(node) {
 		this.isPinching = false;
 		this.#pinchIds = [];
-		this.#pinchStartDistance = 1;
 		const remaining = [...this.#pointers.entries()][0];
 		if (remaining) {
 			const [id, point] = remaining;
@@ -586,17 +577,12 @@ export class Pan {
 	/** @param {KeyboardEvent} event */
 	#handleKeydown = (event) => {
 		if (this.#locked()) return;
-		const target = /** @type {HTMLElement} */ (event.currentTarget);
-		if (event.key === '+' || event.key === '=') {
+		const zoomBy = { '+': 1.2, '=': 1.2, '-': 1 / 1.2, _: 1 / 1.2 }[event.key];
+		if (zoomBy) {
 			event.preventDefault();
-			const rect = target.getBoundingClientRect();
-			this.zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, this.zoom * 1.2);
-			return;
-		}
-		if (event.key === '-' || event.key === '_') {
-			event.preventDefault();
-			const rect = target.getBoundingClientRect();
-			this.zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, this.zoom / 1.2);
+			this.stop();
+			const rect = /** @type {HTMLElement} */ (event.currentTarget).getBoundingClientRect();
+			if (this.#setZoom(rect.left + rect.width / 2, rect.top + rect.height / 2, this.zoom * zoomBy)) this.#onchange();
 			return;
 		}
 		if (event.key === '0') {
@@ -618,16 +604,18 @@ export class Pan {
 	/** @param {HTMLElement} node */
 	attach = (node) => {
 		this.#node = node;
-		node.addEventListener('pointerdown', this.#handlePointerDown);
-		node.addEventListener('pointermove', this.#handlePointerMove);
-		node.addEventListener('pointerup', this.#handlePointerEnd);
-		node.addEventListener('pointercancel', this.#handlePointerEnd);
-		node.addEventListener('lostpointercapture', this.#handleLostPointerCapture);
-		node.addEventListener('wheel', this.#handleWheel, { passive: false });
-		node.addEventListener('gesturestart', this.#handleGestureStart, { passive: false });
-		node.addEventListener('gesturechange', this.#handleGestureChange, { passive: false });
-		node.addEventListener('gestureend', this.#handleGestureEnd, { passive: false });
-		node.addEventListener('keydown', this.#handleKeydown);
+		const listeners = new AbortController();
+		const { signal } = listeners;
+		node.addEventListener('pointerdown', this.#handlePointerDown, { signal });
+		node.addEventListener('pointermove', this.#handlePointerMove, { signal });
+		node.addEventListener('pointerup', this.#handlePointerEnd, { signal });
+		node.addEventListener('pointercancel', this.#handlePointerEnd, { signal });
+		node.addEventListener('lostpointercapture', this.#handleLostPointerCapture, { signal });
+		node.addEventListener('wheel', this.#handleWheel, { signal, passive: false });
+		node.addEventListener('gesturestart', this.#handleGestureStart, { signal, passive: false });
+		node.addEventListener('gesturechange', this.#handleGestureChange, { signal, passive: false });
+		node.addEventListener('gestureend', this.#handleGestureEnd, { signal, passive: false });
+		node.addEventListener('keydown', this.#handleKeydown, { signal });
 		return () => {
 			this.stop();
 			for (const pointerId of this.#pointers.keys()) this.#release(node, pointerId);
@@ -640,16 +628,7 @@ export class Pan {
 			this.#pointerHistory = [];
 			node.style.cursor = '';
 			if (this.#node === node) this.#node = undefined;
-			node.removeEventListener('pointerdown', this.#handlePointerDown);
-			node.removeEventListener('pointermove', this.#handlePointerMove);
-			node.removeEventListener('pointerup', this.#handlePointerEnd);
-			node.removeEventListener('pointercancel', this.#handlePointerEnd);
-			node.removeEventListener('lostpointercapture', this.#handleLostPointerCapture);
-			node.removeEventListener('wheel', this.#handleWheel);
-			node.removeEventListener('gesturestart', this.#handleGestureStart);
-			node.removeEventListener('gesturechange', this.#handleGestureChange);
-			node.removeEventListener('gestureend', this.#handleGestureEnd);
-			node.removeEventListener('keydown', this.#handleKeydown);
+			listeners.abort();
 		};
 	};
 }

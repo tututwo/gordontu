@@ -12,7 +12,10 @@
 			Arial, sans-serif;
 		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
+		min-width: 320px;
+		background: var(--paper);
 		color: var(--ink);
+		color-scheme: light;
 		font-family: var(--font-sans);
 		font-synthesis: none;
 		font-variant-numeric: tabular-nums;
@@ -21,18 +24,9 @@
 		-moz-osx-font-smoothing: grayscale;
 	}
 
-	html {
-		min-width: 320px;
-		background: var(--paper);
-		color-scheme: light;
-	}
-
 	body {
-		min-width: 320px;
 		min-height: 100vh;
 		margin: 0;
-		background: var(--paper);
-		color: var(--ink);
 	}
 
 	button,

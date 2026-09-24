@@ -72,7 +72,6 @@ const JUMP = 2;
  *   labelWidth: number,
  *   split: HTMLElement | null,
  *   splitBox: DOMRect,
- *   splitX: number,
  *   cuts: Cut[],
  *   labelCuts: Cut[],
  *   restLine: number,
@@ -114,11 +113,10 @@ export function headlineFlow(h1) {
 	let pretext;
 	/** @type {Unit[]} */
 	let units = [];
-	/** Per rest line: the top of its words, and whether it holds a link's frame (1) or not (0). */
+	/** Per rest line: the top of its words; and whether the last line holds a link's frame (1) or not (0). */
 	/** @type {number[]} */
 	let anchors = [];
-	/** @type {number[]} */
-	let framed = [];
+	let framed = 0;
 	/**
 	 * A line of words is this tall and its letters start `textTop` down it; a frame on it starts
 	 * `frameTop` down it (above it: negative) and adds `drop` below it.
@@ -161,7 +159,7 @@ export function headlineFlow(h1) {
 
 	/** Line `k`'s words' top, and past the last line, where a line the stream runs onto would have them. */
 	const anchorOf = (/** @type {number} */ k) =>
-		k < anchors.length ? anchors[k] : anchors[anchors.length - 1] + lineHeight + drop * framed[framed.length - 1] + (k - anchors.length) * lineHeight;
+		k < anchors.length ? anchors[k] : anchors[anchors.length - 1] + lineHeight + drop * framed + (k - anchors.length) * lineHeight;
 
 	/** @param {string} text @param {string} font @param {number} letterSpacing */
 	function measureText(text, font, letterSpacing) {
@@ -282,7 +280,6 @@ export function headlineFlow(h1) {
 				labelWidth: 0,
 				split: null,
 				splitBox: new DOMRect(rect.left - box.left, rect.top - box.top, rect.width, rect.height),
-				splitX: 0,
 				cuts: [],
 				labelCuts: [],
 				restLine: 0,
@@ -309,7 +306,6 @@ export function headlineFlow(h1) {
 				// Not lit, it may split between its frame and its name, or inside its name.
 				unit.split = label;
 				unit.splitBox = new DOMRect(l.left - rect.left, l.top - rect.top, l.width, l.height);
-				unit.splitX = unit.labelX;
 				unit.cuts = [{ at: unit.labelX, from: unit.labelX, head: f.width, tail: unit.labelX + barWidth, word: false }, ...cutsOf(label, rect.left)];
 				// Lit, its name stays whole but for breaking between its words at the window's edge.
 				unit.labelCuts = cutsOf(label, l.left).filter((c) => c.word);
@@ -332,7 +328,6 @@ export function headlineFlow(h1) {
 			if (i && unit.restX <= list[i - 1].restX + 1) line++;
 			unit.restLine = line;
 		});
-		const lines = Array.from({ length: line + 1 }, (_, k) => list.filter((unit) => unit.restLine === k));
 
 		// Lines are anchored by their words' tops, which share the line's baseline. A word is an inline
 		// block as tall as the line-height, so it spans a line that holds nothing taller; its letters
@@ -350,7 +345,7 @@ export function headlineFlow(h1) {
 			textTop = range.getBoundingClientRect().top - r.top;
 		}
 		// A frame is taller than a line of words, so the browser opens its line up below it.
-		framed = lines.map((members) => +members.some((unit) => unit.link));
+		framed = +list.some((unit) => unit.restLine === line && unit.link);
 		drop = 0;
 		for (const unit of list) {
 			const f = unit.frame;
@@ -369,18 +364,17 @@ export function headlineFlow(h1) {
 		// Between these inline blocks the browser's space is a fraction of a pixel wider than Pretext's.
 		// Each spaced item carries the difference; a line's first item draws no space, so every line is
 		// given that much back as slack.
-		let space = em / 4;
+		wordSpace = em / 4;
 		let spaceDrift = 0;
 		const pair = list.findIndex((unit, i) => i > 0 && unit.restLine === list[i - 1].restLine && list[i - 1].els.length === 1);
 		if (pair > 0) {
 			const prev = list[pair - 1];
-			space = list[pair].restX - prev.restX - prev.els[0].getBoundingClientRect().width;
-			spaceDrift = space - measureSpace(fontOf(h1), spacing);
+			wordSpace = list[pair].restX - prev.restX - prev.els[0].getBoundingClientRect().width;
+			spaceDrift = wordSpace - measureSpace(fontOf(h1), spacing);
 		}
 		for (const unit of list) if (unit.item.text.startsWith(' ')) unit.item.extraWidth = (unit.item.extraWidth ?? 0) + spaceDrift;
-		wordSpace = space;
 		// Each unit keeps its rest space from the one before; one that began a line takes a plain space.
-		list.forEach((unit, i) => (unit.space = i && unit.restLine === list[i - 1].restLine ? unit.restX - list[i - 1].right : space));
+		list.forEach((unit, i) => (unit.space = i && unit.restLine === list[i - 1].restLine ? unit.restX - list[i - 1].right : wordSpace));
 
 		units = list;
 		followers = /** @type {HTMLElement[]} */ ([...(h1.parentElement?.children ?? [])]).filter(
@@ -687,10 +681,10 @@ export function headlineFlow(h1) {
 				// Split, it shows the letters before the cut; its copy shows those after, where they went.
 				// (A lit label's cuts are from its own left.)
 				const cut = p.cut;
-				const origin = (bright ? unit.labelX : 0) - unit.splitX;
+				const origin = bright ? 0 : -unit.labelX;
 				unit.split.style.clipPath = cut ? `inset(-1em ${unit.splitBox.width - cut.at - origin}px -1em -1em)` : '';
 				if (cut) {
-					gx = p.tail - (unit.restX + unit.splitX + origin + cut.tail);
+					gx = p.tail - (unit.restX + unit.labelX + origin + cut.tail);
 					gy = anchorOf(p.tailLine) - anchors[unit.restLine];
 					const twin = twinOf(unit);
 					twin.style.clipPath = `inset(-1em -1em -1em ${cut.from + origin}px)`;

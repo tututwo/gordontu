@@ -37,8 +37,6 @@ export class WallMotion {
 
 	#animationFrame = 0;
 	#previousFrameTime = 0;
-	/** @type {'idle' | 'spring'} */
-	#motionMode = 'idle';
 	#motionTarget = 0;
 	#motionVelocity = 0;
 
@@ -78,45 +76,26 @@ export class WallMotion {
 		return this.#dragStartOffset + (clientX - this.#dragStartX) / this.#step();
 	}
 
-	#stopFrameDriver() {
+	#finishMotion() {
 		if (this.#animationFrame) cancelAnimationFrame(this.#animationFrame);
 		this.#animationFrame = 0;
-		this.#previousFrameTime = 0;
-	}
-
-	#finishMotion() {
-		this.#stopFrameDriver();
-		this.#motionMode = 'idle';
 		this.#motionVelocity = 0;
-	}
-
-	#requestNextFrame() {
-		if (!this.#animationFrame) this.#animationFrame = requestAnimationFrame(this.#updateMotion);
 	}
 
 	/** @param {number} target @param {number} initialVelocity */
 	#startSpring(target, initialVelocity) {
-		this.#stopFrameDriver();
-		this.#motionMode = 'spring';
+		this.#finishMotion();
 		this.#motionTarget = target;
 		this.#motionVelocity = initialVelocity;
 		this.#previousFrameTime = performance.now();
-		this.#requestNextFrame();
+		this.#animationFrame = requestAnimationFrame(this.#updateMotion);
 	}
 
 	/** @param {number} time */
 	#updateMotion = (time) => {
 		this.#animationFrame = 0;
-		let remainingSeconds = Math.min(
-			Math.max((time - this.#previousFrameTime) / 1000, 0),
-			MAX_ELAPSED_TIME
-		);
+		let remainingSeconds = clamp((time - this.#previousFrameTime) / 1000, 0, MAX_ELAPSED_TIME);
 		this.#previousFrameTime = time;
-
-		if (this.#motionMode !== 'spring') {
-			this.#finishMotion();
-			return;
-		}
 
 		while (remainingSeconds > 0) {
 			const deltaSeconds = Math.min(remainingSeconds, MAX_FRAME_DELTA);
@@ -137,7 +116,7 @@ export class WallMotion {
 			}
 		}
 
-		this.#requestNextFrame();
+		this.#animationFrame = requestAnimationFrame(this.#updateMotion);
 	};
 
 	/** Where a flick coasts to under DECELERATION_RATE, at most two steps away, snapped. @param {number} velocity steps/s */
@@ -207,7 +186,7 @@ export class WallMotion {
 	#handlePointerDown = (event) => {
 		if (this.#pointerId !== undefined || event.button !== 0) return;
 		// Pressing a coasting face is a grab, not a click — swallow the click it produces.
-		this.#suppressClick = this.#motionMode === 'spring';
+		this.#suppressClick = this.#animationFrame !== 0;
 		this.#finishMotion();
 		this.#pointerId = event.pointerId;
 		this.#dragStartX = event.clientX;
@@ -312,14 +291,16 @@ export class WallMotion {
 
 	/** @param {HTMLElement} node */
 	attach = (node) => {
-		node.addEventListener('pointerdown', this.#handlePointerDown);
-		node.addEventListener('pointermove', this.#handlePointerMove);
-		node.addEventListener('pointerup', this.#handlePointerEnd);
-		node.addEventListener('pointercancel', this.#handlePointerEnd);
-		node.addEventListener('lostpointercapture', this.#handleLostPointerCapture);
-		node.addEventListener('keydown', this.#handleKeydown);
+		const listeners = new AbortController();
+		const { signal } = listeners;
+		node.addEventListener('pointerdown', this.#handlePointerDown, { signal });
+		node.addEventListener('pointermove', this.#handlePointerMove, { signal });
+		node.addEventListener('pointerup', this.#handlePointerEnd, { signal });
+		node.addEventListener('pointercancel', this.#handlePointerEnd, { signal });
+		node.addEventListener('lostpointercapture', this.#handleLostPointerCapture, { signal });
+		node.addEventListener('keydown', this.#handleKeydown, { signal });
 		// Post-drag clicks are swallowed here, on the stage, so children need no click logic.
-		node.addEventListener('click', this.#handleClickCapture, true);
+		node.addEventListener('click', this.#handleClickCapture, { capture: true, signal });
 
 		return () => {
 			if (this.#pointerId !== undefined) {
@@ -329,13 +310,7 @@ export class WallMotion {
 				this.#pointerHistory = [];
 			}
 			this.#finishMotion();
-			node.removeEventListener('pointerdown', this.#handlePointerDown);
-			node.removeEventListener('pointermove', this.#handlePointerMove);
-			node.removeEventListener('pointerup', this.#handlePointerEnd);
-			node.removeEventListener('pointercancel', this.#handlePointerEnd);
-			node.removeEventListener('lostpointercapture', this.#handleLostPointerCapture);
-			node.removeEventListener('keydown', this.#handleKeydown);
-			node.removeEventListener('click', this.#handleClickCapture, true);
+			listeners.abort();
 		};
 	};
 }

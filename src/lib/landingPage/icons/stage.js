@@ -31,6 +31,18 @@ const HALF_VIEW = 140;
 const LINE = 1;
 const black = new Color().setHSL(0, 0, 0.09, SRGBColorSpace);
 
+/** On-screen measures, after `uniform float uPixel` (in a fragment shader, also `uniform mat4 modelViewMatrix`). */
+export const screenGlsl = /* glsl */ `
+// A direction of the model on screen, in device px.
+vec2 onScreen(vec3 v) {
+	return (modelViewMatrix * vec4(v, 0.0)).xy / uPixel;
+}
+
+// How far v reaches across a line running along "along", in device px.
+float across(vec2 v, vec2 along) {
+	return abs(v.x * along.y - v.y * along.x) / max(length(along), 1e-6);
+}`;
+
 /**
  * For a box (a scaled unit cube): its position in the cube, its face's normal, and for each axis
  * whether the face on its + side faces us, how wide the faces across that axis's edges are on
@@ -44,16 +56,7 @@ varying vec3 vNormal;
 varying vec3 vFacing;
 varying vec3 vNear;
 varying vec3 vOwn;
-
-// An axis of the box on screen, in device px.
-vec2 onScreen(vec3 axis) {
-	return (modelViewMatrix * vec4(axis, 0.0)).xy / uPixel;
-}
-
-// How far v reaches across a line running along "along".
-float across(vec2 v, vec2 along) {
-	return abs(v.x * along.y - v.y * along.x) / max(length(along), 1e-6);
-}
+${screenGlsl}
 
 void main() {
 	vUv = uv;

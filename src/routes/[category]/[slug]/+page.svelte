@@ -5,11 +5,7 @@
 	/** @type {import('./$types').PageProps} */
 	let { data } = $props();
 
-	let date = $derived(
-		new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' }).format(
-			new Date(`${data.project.date}T00:00:00`)
-		)
-	);
+	let date = $derived(new Date(`${data.project.date}T00:00:00`).toLocaleDateString('en', { month: 'long', year: 'numeric' }));
 </script>
 
 <svelte:head>
@@ -125,7 +121,6 @@
 	img {
 		display: block;
 		width: 100%;
-		height: auto;
 		margin-top: 1.9em;
 		background: #f4f4f4;
 		outline: 1px solid rgb(0 0 0 / 0.06);

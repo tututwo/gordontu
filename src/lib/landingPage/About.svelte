@@ -146,7 +146,8 @@
 		position: relative;
 	}
 
-	del {
+	del,
+	ins {
 		text-decoration: none;
 	}
 
@@ -168,10 +169,6 @@
 		position: absolute;
 		inset: 0;
 		background: var(--paper);
-	}
-
-	ins {
-		text-decoration: none;
 	}
 
 	.char {

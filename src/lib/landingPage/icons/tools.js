@@ -1,6 +1,7 @@
 import { BufferGeometry, Float32BufferAttribute, Group, Mesh, Vector2 } from 'three';
+import { cubicInOut, sineInOut } from 'svelte/easing';
 import { Spring } from '../spring.js';
-import { lineGlsl } from './stage.js';
+import { lineGlsl, screenGlsl } from './stage.js';
 
 /**
  * web tools: a responsive browser window. At rest it is a blank landscape window standing upright,
@@ -38,11 +39,6 @@ const HYSTERESIS = 0.02;
 /** Reference px per unit: the window stands about as tall as the other icons, desktop or phone. */
 const SCALE = 64;
 
-/** @param {number} x */
-const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-/** @param {number} x */
-const easeSine = (x) => 0.5 - 0.5 * Math.cos(Math.PI * x);
-
 /**
  * How narrow the window is (0 desktop, 1 phone) at `ms` since it lit up: a first squeeze once the
  * cards are out, then hold phone, widen, hold desktop, narrow — one wrap every 2.5 s.
@@ -50,12 +46,12 @@ const easeSine = (x) => 0.5 - 0.5 * Math.cos(Math.PI * x);
  */
 function squeezeAt(ms) {
 	if (ms < 150) return 0;
-	if (ms < 700) return easeInOut((ms - 150) / 550);
+	if (ms < 700) return cubicInOut((ms - 150) / 550);
 	const u = (ms - 700) % 5000;
 	if (u < 1600) return 1;
-	if (u < 2500) return 1 - easeSine((u - 1600) / 900);
+	if (u < 2500) return 1 - sineInOut((u - 1600) / 900);
 	if (u < 4100) return 0;
-	return easeSine((u - 4100) / 900);
+	return sineInOut((u - 4100) / 900);
 }
 
 /**
@@ -167,6 +163,7 @@ uniform float uDesktop;
 varying vec3 vLocal;
 varying float vWall;
 ${lineGlsl}
+${screenGlsl}
 
 float roundRect(vec2 p, vec2 size, float r) {
 	vec2 q = abs(p) - size + r;
@@ -177,16 +174,6 @@ float roundRect(vec2 p, vec2 size, float r) {
 vec2 outward(vec2 p, vec2 size, float r) {
 	vec2 q = abs(p) - size + r;
 	return sign(p) * (min(q.x, q.y) > 0.0 ? normalize(q) : (q.x > q.y ? vec2(1.0, 0.0) : vec2(0.0, 1.0)));
-}
-
-// A direction of the slab on screen, in device px.
-vec2 onScreen(vec3 v) {
-	return (modelViewMatrix * vec4(v, 0.0)).xy / uPixel;
-}
-
-// How far a screen vector reaches across a screen direction, in device px.
-float across(vec2 v, vec2 w) {
-	return abs(v.x * w.y - v.y * w.x) / max(length(w), 1e-6);
 }
 
 // How much a direction of the slab turns towards the camera.
@@ -207,7 +194,7 @@ void main() {
 	if (vWall > 0.5) {
 		// The wall: its rims, where the screen (or the back) turns the corner into it...
 		float rate = max(length(vec2(dFdx(vLocal.x), dFdy(vLocal.x))), 1e-6);
-		float front = sign(vLocal.x) * normalize(normalMatrix[0]).z;
+		float front = sign(vLocal.x) * facing(vec3(1.0, 0.0, 0.0));
 		ink = inside((uDepth * 0.5 - abs(vLocal.x)) / rate, share(front, 1e3, uDepth / rate, 0.0));
 		// ...where it turns away round a corner, its silhouette: a whole line on this side of the line
 		// down the corner where it faces neither way, if the corner has one (one wall beside it faces
@@ -226,10 +213,8 @@ void main() {
 	} else {
 		// The outline, shared with the wall where it is in view (as wide as it shows on screen).
 		vec2 out2 = outward(p, uHalf, uRadius);
-		float front = normalize(normalMatrix * vec3(0.0, out2.y, out2.x)).z;
-		vec2 depth = onScreen(vec3(uDepth, 0.0, 0.0));
-		vec2 along = onScreen(vec3(0.0, out2.x, -out2.y));
-		float wall = abs(depth.x * along.y - depth.y * along.x) / max(length(along), 1e-6);
+		float front = facing(vec3(0.0, out2.y, out2.x));
+		float wall = across(onScreen(vec3(uDepth, 0.0, 0.0)), onScreen(vec3(0.0, out2.x, -out2.y)));
 		ink = inside(pixels(-roundRect(p, uHalf, uRadius)), share(front, wall, 1e3, 0.0));
 		if (vLocal.x < 0.0) {
 			// The screen side: a title bar across the top of a window...
@@ -319,8 +304,7 @@ export function createToolsIcon(stage) {
 			const hidden = outs.every((s) => s.value <= 0);
 			if (lit) {
 				// Lit, it tracks the script closely, a new goal every frame.
-				squeeze.from = squeeze.value;
-				squeeze.target = squeezeAt(clock);
+				squeeze.to(squeezeAt(clock));
 			} else if (hidden && squeeze.target !== 0) {
 				// Unlit, once the cards have sunk it glides home and comes to rest.
 				squeeze.to(0);
@@ -354,8 +338,8 @@ export function createToolsIcon(stage) {
 			const rects = layout(w, h, size('margin'), size('head'), size('foot'), shown);
 
 			let settled = true;
-			cards.forEach((card, i) => {
-				slots[i].forEach((s, k) => {
+			slots.forEach((slot, i) => {
+				slot.forEach((s, k) => {
 					if (s.target !== rects[i][k]) s.to(rects[i][k]);
 					// Hidden cards follow the window exactly; so does everything at first placement.
 					if (!placed || reduced || outs[i].value <= SUNK + 0.001) s.set(rects[i][k]);

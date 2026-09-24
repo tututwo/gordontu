@@ -55,8 +55,6 @@
 	let grab = null;
 	/** Held this near the top or bottom of the window, they scroll the page on (px). */
 	const EDGE = 64;
-	/** @type {HTMLElement} */
-	let avatar;
 
 	/** How far off the face they are, 0–1: they turn and grow as they go, and the face starts. */
 	const off = $derived(Math.min(1, Math.hypot(glasses.current.x, glasses.current.y) / Math.hypot(OFF.x, OFF.y)));
@@ -69,7 +67,8 @@
 	const look = $derived(Math.max(-1, Math.min(1, glasses.current.x / OFF.x)));
 
 	// Where the lenses are, for the text they read: each centre carried through the glasses' transform.
-	$effect(() => {
+	/** @param {HTMLElement} avatar */
+	function aim(avatar) {
 		const { x, y } = glasses.current;
 		if (off < 0.01) {
 			lenses.circles = [];
@@ -88,7 +87,7 @@
 				r: (RIM - STROKE / 2) * s * zoom
 			};
 		});
-	});
+	}
 
 	/** @param {{ x: number, y: number }} to */
 	const move = (to) => glasses.set(to, { instant: prefersReducedMotion.current });
@@ -146,7 +145,7 @@
 <span
 	class="avatar"
 	aria-hidden="true"
-	bind:this={avatar}
+	{@attach aim}
 	style:--off={off}
 	onpointerdown={press}
 	onpointermove={drag}

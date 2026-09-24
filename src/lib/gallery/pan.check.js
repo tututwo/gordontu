@@ -22,11 +22,6 @@ class FakeNode {
 		this.listeners.set(type, listener);
 	}
 
-	/** @param {string} type */
-	removeEventListener(type) {
-		this.listeners.delete(type);
-	}
-
 	/** @param {number} id */
 	setPointerCapture(id) {
 		this.captured.add(id);

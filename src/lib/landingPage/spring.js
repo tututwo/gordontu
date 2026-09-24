@@ -5,12 +5,12 @@ export class Spring {
 	/** Velocity in units per millisecond; carried across retargets like react-spring's `lastVelocity`. */
 	velocity = 0;
 
-	/** @param {number} value @param {{ tension?: number, friction?: number, mass?: number }} [config] */
-	constructor(value, { tension = 170, friction = 26, mass = 1 } = {}) {
+	/** @param {number} value @param {{ tension?: number, friction?: number }} [config] */
+	constructor(value, { tension = 170, friction = 26 } = {}) {
 		this.value = value;
 		this.from = value;
 		this.target = value;
-		this.config = { tension, friction, mass };
+		this.config = { tension, friction };
 	}
 
 	/** @param {number} target */
@@ -27,7 +27,7 @@ export class Spring {
 
 	/** Advance by `dt` ms; returns whether the spring is still moving. @param {number} dt */
 	advance(dt) {
-		const { tension, friction, mass } = this.config;
+		const { tension, friction } = this.config;
 		const { from, target } = this;
 		const precision =
 			from === target
@@ -43,8 +43,7 @@ export class Spring {
 				this.set(target);
 				return false;
 			}
-			const acceleration =
-				(-tension * 0.000001 * (value - target) - friction * 0.001 * velocity) / mass;
+			const acceleration = -tension * 0.000001 * (value - target) - friction * 0.001 * velocity;
 			velocity += acceleration;
 			value += velocity;
 		}

@@ -17,10 +17,10 @@ export function cellSize(viewportWidth) {
 
 /**
  * Every card has the same long edge whatever its proportions, so an image's aspect never moves the grid.
- * @param {number} cell @param {number} [ratio=DEFAULT_CARD_RATIO] width / height
+ * @param {number} cell @param {number} ratio width / height
  * @returns {{ w: number, h: number }}
  */
-export function cardSize(cell, ratio = DEFAULT_CARD_RATIO) {
+export function cardSize(cell, ratio) {
 	const long = cell * CARD_FILL;
 	return ratio >= 1 ? { w: long, h: long / ratio } : { w: long * ratio, h: long };
 }
@@ -41,17 +41,10 @@ export function layoutPlane(projects, cell, viewportW, heights = []) {
 	const n = projects.length;
 	const low = Math.min(n, Math.max(2, Math.round(viewportW / cell)));
 	const high = Math.min(n, low + 1);
-	let cols = low;
-	let bestFill = -1;
-	for (let candidate = low; candidate <= Math.min(high, n); candidate += 1) {
-		const remainder = n % candidate;
-		const fill = remainder === 0 ? 1 : remainder / candidate;
-		if (fill > bestFill) {
-			bestFill = fill;
-			cols = candidate;
-		}
-	}
-	const rows = Math.max(1, Math.ceil(n / cols));
+	/** How full the last row is with `c` columns (a full row is 1). @param {number} c */
+	const lastRowFill = (c) => (n % c) / c || 1;
+	const cols = lastRowFill(high) > lastRowFill(low) ? high : low;
+	const rows = Math.ceil(n / cols);
 	// Odd rows overhang by half a cell (checkerboard), so the plane is that much wider.
 	const rowWidth = cols * cell;
 	const width = rowWidth + (rows > 1 ? cell / 2 : 0);

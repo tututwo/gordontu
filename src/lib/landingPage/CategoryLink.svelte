@@ -20,7 +20,7 @@
 	 * itself does when lit is its own (see icons/). Values reach the DOM as CSS custom properties and
 	 * the icon as a three.js redraw.
 	 */
-	const inset = new Spring(0);
+	const pop = new Spring(0);
 	/** Lit, the whole icon — brackets and drawing — doubles in size. */
 	const zoom = new Spring(1);
 	// The reference springs the bar's '100%' → '0%' as a string, which react-spring runs as a
@@ -51,19 +51,18 @@
 
 	/** Paint the current state, advancing the icon by `dt` ms; true while the icon wants frames. */
 	function draw(dt = 0) {
-		link.style.setProperty('--inset', String(inset.value));
 		link.style.setProperty('--zoom', String(zoom.value));
-		link.style.setProperty('--pop', String(-inset.value));
+		link.style.setProperty('--pop', String(pop.value));
 		// While it is magnified, this link sits above the other two.
 		link.style.zIndex = zoom.value > 1.001 ? '2' : '';
 		// Tell the headline, which makes room for the card (see headlineFlow.js), and whether it is
 		// on its way in or out.
-		const news = `${zoom.value} ${inset.value} ${wipeValue()} ${lit}`;
+		const news = `${zoom.value} ${pop.value} ${wipeValue()} ${lit}`;
 		if (news !== told) {
 			told = news;
 			// `full` is the lit card's side in card px, so the headline plans for the size it will reach.
 			const full = (70 + 2 * POP) * LIT_ZOOM;
-			const detail = { zoom: zoom.value, pop: -inset.value, bar: 1 - wipeValue() / 100, on: lit, full };
+			const detail = { zoom: zoom.value, pop: pop.value, bar: 1 - wipeValue() / 100, on: lit, full };
 			link.dispatchEvent(new CustomEvent('iconzoom', { bubbles: true, detail }));
 		}
 		link.style.setProperty('--wipe', String(wipeValue()));
@@ -74,7 +73,7 @@
 	function tick(now) {
 		const dt = Math.max(0, Math.min(64, now - last));
 		last = now;
-		let moving = inset.advance(dt);
+		let moving = pop.advance(dt);
 		moving = zoom.advance(dt) || moving;
 		moving = wipe.t.advance(dt) || moving;
 		moving = draw(dt) || moving;
@@ -91,16 +90,14 @@
 		const on = hovered || focused || tapped;
 		if (on === lit) return;
 		lit = on;
-		inset.to(on ? -POP : 0);
+		pop.to(on ? POP : 0);
 		zoom.to(on ? LIT_ZOOM : 1);
 		wipe.from = wipeValue();
 		wipe.to = on ? 0 : 100;
-		const velocity = wipe.t.velocity;
-		wipe.t.set(0);
-		wipe.t.velocity = velocity;
+		wipe.t.value = 0;
 		wipe.t.to(1);
 		if (prefersReducedMotion.current) {
-			for (const spring of [inset, zoom, wipe.t]) spring.set(spring.target);
+			for (const spring of [pop, zoom, wipe.t]) spring.set(spring.target);
 			draw();
 			return;
 		}
@@ -227,7 +224,6 @@
 		 * half as big again as the mockup's 1.75em.
 		 */
 		--u: calc(2.625em / 70);
-		--inset: 0;
 		--pop: 0;
 		--zoom: 1;
 		--wipe: 100;
@@ -280,7 +276,7 @@
 
 	.corners {
 		position: absolute;
-		inset: calc(var(--u) * var(--inset));
+		inset: calc(-1 * var(--u) * var(--pop));
 		opacity: clamp(0, calc(var(--pop) / 3), 1);
 	}
 
