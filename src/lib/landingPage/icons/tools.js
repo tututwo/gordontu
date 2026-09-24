@@ -1,5 +1,6 @@
 import { BufferGeometry, Float32BufferAttribute, Group, Mesh, Vector2 } from 'three';
 import { Spring } from '../spring.js';
+import { lineGlsl } from './stage.js';
 
 /**
  * web tools: a responsive browser window. At rest it is a blank landscape window standing upright,
@@ -14,10 +15,12 @@ import { Spring } from '../spring.js';
 
 /**
  * Window: width (along the screen, z), height, card margin, corner radius, and the band at the top
- * and foot of the screen the cards keep clear of (a title bar; an island, a home indicator).
+ * and foot of the screen the cards keep clear of (a title bar; an island, a home indicator). The
+ * margin is more than PROUD: seen from here, a card as far in as it stands out would draw its edge
+ * on the window's own.
  */
 const DESKTOP = { w: 0.9, h: 0.72, margin: 0.1, radius: 0.03, head: 0.17, foot: 0 };
-const PHONE = { w: 0.47, h: 0.96, margin: 0.07, radius: 0.08, head: 0.13, foot: 0.12 };
+const PHONE = { w: 0.47, h: 0.96, margin: 0.1, radius: 0.08, head: 0.13, foot: 0.12 };
 const DEPTH = 0.08;
 /** Cards: thickness; how far they stand proud of the screen lit, and sit behind it hidden. */
 const CARD = 0.06;
@@ -141,19 +144,20 @@ attribute float aSide;
 attribute float aWall;
 varying vec3 vLocal;
 varying float vWall;
-varying vec3 vNormal;
 
 void main() {
 	vec2 p = aCorner * (uHalf - uRadius) + aDir * uRadius;
 	vLocal = vec3(aSide * uDepth * 0.5, p.y, p.x);
 	vWall = aWall;
-	vNormal = normalize(normalMatrix * (aWall > 0.5 ? vec3(0.0, aDir.y, aDir.x) : vec3(aSide, 0.0, 0.0)));
 	gl_Position = projectionMatrix * modelViewMatrix * vec4(vLocal, 1.0);
 }`;
 
 const slabFragment = /* glsl */ `
+// three sets these for every program; the fragment stage declares them to measure the wall on screen.
+uniform mat4 modelViewMatrix;
+uniform mat3 normalMatrix;
 uniform vec3 uInk;
-uniform float uStrength;
+uniform float uPixel;
 uniform vec2 uHalf;
 uniform float uRadius;
 uniform float uDepth;
@@ -162,46 +166,78 @@ uniform float uTitle;
 uniform float uDesktop;
 varying vec3 vLocal;
 varying float vWall;
-varying vec3 vNormal;
+${lineGlsl}
 
 float roundRect(vec2 p, vec2 size, float r) {
 	vec2 q = abs(p) - size + r;
 	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
-// Ink along where d is 0: full there, gone uStrength pixels away, like the boxes' edges.
-float line(float d) {
-	return 1.0 - clamp(abs(d) / (fwidth(d) * uStrength + 1e-6), 0.0, 1.0);
+// The outline's outward direction nearest p, (z, y).
+vec2 outward(vec2 p, vec2 size, float r) {
+	vec2 q = abs(p) - size + r;
+	return sign(p) * (min(q.x, q.y) > 0.0 ? normalize(q) : (q.x > q.y ? vec2(1.0, 0.0) : vec2(0.0, 1.0)));
 }
 
-// Ink along a level stroke of the face (a distance with no sign has no derivative on the line, so the
-// pixel is measured across it instead).
+// A direction of the slab on screen, in device px.
+vec2 onScreen(vec3 v) {
+	return (modelViewMatrix * vec4(v, 0.0)).xy / uPixel;
+}
+
+// How far a screen vector reaches across a screen direction, in device px.
+float across(vec2 v, vec2 w) {
+	return abs(v.x * w.y - v.y * w.x) / max(length(w), 1e-6);
+}
+
+// How much a direction of the slab turns towards the camera.
+float facing(vec3 n) {
+	return (normalMatrix * n).z;
+}
+
+// A level stroke of the face, one line wide (a distance with no sign has no derivative on the line,
+// so the pixel is measured across it instead).
 float stroke(vec2 p, vec2 centre, float reach) {
 	float d = length(vec2(max(abs(p.x - centre.x) - reach, 0.0), p.y - centre.y));
-	return 1.0 - clamp(d / (fwidth(p.y) * uStrength + 1e-6), 0.0, 1.0);
+	return centred(d / length(vec2(dFdx(p.y), dFdy(p.y))));
 }
 
 void main() {
+	vec2 p = vLocal.zy;
 	float ink;
 	if (vWall > 0.5) {
-		// The wall: its rims, and where it turns away round a corner, its outline.
-		ink = line(uDepth * 0.5 - abs(vLocal.x));
-		float facing = vNormal.z;
-		ink = max(ink, 1.0 - clamp(abs(facing) / (fwidth(facing) * uStrength + 1e-6), 0.0, 1.0));
-		// The title bar's seam carries on across the side.
-		ink = max(ink, uDesktop * line(vLocal.y - (uHalf.y - uTitle)));
+		// The wall: its rims, where the screen (or the back) turns the corner into it...
+		float rate = max(length(vec2(dFdx(vLocal.x), dFdy(vLocal.x))), 1e-6);
+		float front = sign(vLocal.x) * normalize(normalMatrix[0]).z;
+		ink = inside((uDepth * 0.5 - abs(vLocal.x)) / rate, share(front, 1e3, uDepth / rate, 0.0));
+		// ...where it turns away round a corner, its silhouette: a whole line on this side of the line
+		// down the corner where it faces neither way, if the corner has one (one wall beside it faces
+		// the camera, the other away), measured to on screen. Exact, where a derivative of the normal
+		// smudges a corner only a pixel or two round.
+		vec2 corner = abs(p) - uHalf + uRadius;
+		vec2 quadrant = sign(p);
+		vec2 turn = vec2(facing(vec3(0.0, 0.0, 1.0)), facing(vec3(0.0, 1.0, 0.0))) * quadrant;
+		if (corner.x > 0.0 && corner.y > 0.0 && turn.x * turn.y <= 0.0) {
+			vec2 edge = normalize(turn.y >= 0.0 ? vec2(turn.y, -turn.x) : vec2(-turn.y, turn.x));
+			vec2 off = uRadius * (normalize(corner) - edge) * quadrant;
+			ink = max(ink, inside(across(onScreen(vec3(0.0, off.y, off.x)), onScreen(vec3(1.0, 0.0, 0.0))), uLine));
+		}
+		// ...and the title bar's seam carried on across the side.
+		ink = max(ink, uDesktop * centred(pixels(vLocal.y - (uHalf.y - uTitle))));
 	} else {
-		vec2 p = vLocal.zy;
-		ink = line(roundRect(p, uHalf, uRadius));
+		// The outline, shared with the wall where it is in view (as wide as it shows on screen).
+		vec2 out2 = outward(p, uHalf, uRadius);
+		float front = normalize(normalMatrix * vec3(0.0, out2.y, out2.x)).z;
+		vec2 depth = onScreen(vec3(uDepth, 0.0, 0.0));
+		vec2 along = onScreen(vec3(0.0, out2.x, -out2.y));
+		float wall = abs(depth.x * along.y - depth.y * along.x) / max(length(along), 1e-6);
+		ink = inside(pixels(-roundRect(p, uHalf, uRadius)), share(front, wall, 1e3, 0.0));
 		if (vLocal.x < 0.0) {
 			// The screen side: a title bar across the top of a window...
-			ink = max(ink, uDesktop * line(p.y - (uHalf.y - uTitle)));
-			// ...or a phone's screen inside its bezel, an island at its top, a home indicator at its foot.
+			ink = max(ink, uDesktop * centred(pixels(p.y - (uHalf.y - uTitle))));
+			// ...or a phone's island at its top and home indicator at its foot.
 			float phone = 1.0 - uDesktop;
-			float bezel = 0.03;
-			ink = max(ink, phone * line(roundRect(p, uHalf - bezel, uRadius - bezel)));
-			ink = max(ink, phone * line(roundRect(p - vec2(0.0, uHalf.y - bezel - 0.045), vec2(0.07, 0.02), 0.02)));
-			ink = max(ink, phone * stroke(p, vec2(0.0, -uHalf.y + bezel + 0.035), 0.08));
+			ink = max(ink, phone * centred(pixels(roundRect(p - vec2(0.0, uHalf.y - 0.075), vec2(0.07, 0.02), 0.02))));
+			ink = max(ink, phone * stroke(p, vec2(0.0, -uHalf.y + 0.065), 0.08));
 		}
 	}
 	gl_FragColor = vec4(mix(vec3(1.0), uInk, ink), 1.0);

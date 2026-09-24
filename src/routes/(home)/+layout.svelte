@@ -143,13 +143,24 @@
 		opacity: 0.55;
 	}
 
-	/* Leading stays loose because the Category link frames and the avatar sit inline in these lines. */
+	/*
+	 * Every line is the same height: the Category link icons overhang their lines instead of stretching
+	 * them, so this line-height alone spaces the headline. It is loose because the icons (2.625em)
+	 * overhang it: at 2 they clear each other and the text around them. On a phone two icons can start
+	 * consecutive lines, one above the other, so lines there are a little further apart.
+	 */
 	h1 {
 		margin: 0;
 		font-size: 1em;
 		font-weight: 400;
 		letter-spacing: -0.015em;
-		line-height: 1.2;
+		line-height: 2;
+	}
+
+	@media (max-width: 30em) {
+		h1 {
+			line-height: 2.4;
+		}
 	}
 
 	/* Inline-block so each word can be moved on its own; it wraps exactly as plain text would. */

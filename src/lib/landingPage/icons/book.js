@@ -1,6 +1,6 @@
 import { BoxGeometry, Group, Mesh, Vector3, Vector4 } from 'three';
 import { Spring } from '../spring.js';
-import { smoothstep } from './stage.js';
+import { lineGlsl, smoothstep } from './stage.js';
 
 /**
  * visual stories: a pop-up book. At rest a closed book lies cover-up. Lit, it opens into a V on its
@@ -14,11 +14,14 @@ import { smoothstep } from './stage.js';
 
 /**
  * Book length along the spine (long enough that no cube ever hangs off the end), thickness of each
- * half, width spine to fore-edge: a thin book, nearly as wide as it is long, so it opens on a big spread.
+ * half closed, width spine to fore-edge: a thin book, nearly as wide as it is long, so it opens on a
+ * big spread. Opening, the halves thin to sheets, so the spread is drawn in single lines.
  */
 const SPINE = 0.82;
 const HALF = 0.1;
 const WIDE = 0.66;
+/** Open this far, the halves have thinned to sheets. */
+const SHEET = 0.6;
 /** Open, the top half turns over and the bottom half tilts back: a symmetric 124° V. */
 const TURN = (152 * Math.PI) / 180;
 const TILT = (28 * Math.PI) / 180;
@@ -102,7 +105,6 @@ const gooFragment = /* glsl */ `
 uniform mat4 projectionMatrix;
 uniform mat4 modelViewMatrix;
 uniform vec3 uInk;
-uniform float uStrength;
 uniform vec4 uCubes[${CUBES.length}];
 uniform float uMelt;
 uniform float uPixel;
@@ -111,8 +113,10 @@ uniform vec3 uPageBottom;
 uniform vec3 uPageTop;
 varying vec3 vLocal;
 varying vec3 vDir;
+${lineGlsl}
 
 const float ROUND = 0.015;
+const vec2 EDGE_ON = vec2(0.4, 0.7);
 
 float cube(vec3 p, int i) {
 	vec3 d = abs(p - uCubes[i].xyz) - vec3(uCubes[i].w - ROUND);
@@ -140,6 +144,14 @@ float aboveBook(vec3 p) {
 // ...and cut off where they meet the pages, so they rise through the gutter.
 float scene(vec3 p) {
 	return max(melted(p), -aboveBook(p));
+}
+
+// How much the surface near p is still cube i's own (1) rather than a melted neck (0): a hard,
+// pixel-thin test of how far the melt has pulled it off the cube, so necks never get fractional
+// cube edges. Measured against the melted surface there, not the point itself, so the march's own
+// error doesn't break a cube's edges into dots.
+float owned(vec3 p, int i, float surface) {
+	return 1.0 - smoothstep(0.0, uPixel * 0.3, cube(p, i) - surface);
 }
 
 vec3 normalAt(vec3 p) {
@@ -170,47 +182,67 @@ void main() {
 	vec4 clip = projectionMatrix * modelViewMatrix * vec4(at, 1.0);
 	gl_FragDepth = clip.z / clip.w * 0.5 + 0.5 - (onPage ? 2e-5 : 0.0);
 
-	// How much the surface here is still one cube's own (1) rather than a melted neck (0): a hard,
-	// pixel-thin test, so necks never get fractional cube edges.
-	float owned = 0.0;
-	for (int i = 0; i < ${CUBES.length}; i++) {
-		owned = max(owned, 1.0 - smoothstep(0.0, uPixel * 0.3, abs(cube(at, i))));
-	}
-
+	// Every line here is a whole line wide: there is no second face to draw half of it, since the
+	// surface is found per pixel.
+	float surface = melted(at);
+	float cubed = 0.0;
+	for (int i = 0; i < ${CUBES.length}; i++) cubed = max(cubed, owned(at, i, surface));
 	if (!hit) {
-		// Just outside the silhouette. Along a cube this only anti-aliases its own edge line; along a
-		// melted neck, which has no edge, it is the outline itself.
-		float d = nearest / uPixel;
-		float fringe = mix(1.0 - smoothstep(0.65, 1.3, d), 1.0 - smoothstep(0.0, 0.6, d), owned);
+		// Just outside the silhouette, the outer half of its line: the ray's closest pass is its
+		// distance from it, on screen.
+		float fringe = centred(nearest / uPixel);
 		if (fringe <= 0.0) discard;
 		gl_FragColor = vec4(uInk, fringe);
 		return;
 	}
-
 	vec3 n = normalAt(at);
-	float facing = dot(n, -dir);
-	// Where a neck turns edge-on, carry the outline a pixel or so inside too.
-	float outline = (1.0 - owned) * (1.0 - clamp(facing / (fwidth(facing) * uStrength + 1e-4), 0.0, 1.0));
 
-	// Edges of whichever cube the point still belongs to, as wide as the boxes' ink. The distance to
-	// the nearest edge is exact (UV derivatives break up along a raymarched edge), divided by how many
-	// units a pixel covers across this face to keep it a hairline.
-	float edges = 0.0;
+	// Along a melted neck, which has no edge, the silhouette's inner half: the mirror of the fringe.
+	// How deep the ray gets inside the blob before it comes out again, or is deeper than the line
+	// reaches, is how far in from the silhouette it is; only where the surface is turning edge-on,
+	// for a ray running along the crease where two cubes melt together stays as shallow.
+	float neck = 0.0;
+	float edgeOn = 1.0 - smoothstep(EDGE_ON.x, EDGE_ON.y, abs(dot(n, dir)));
+	if (cubed < 1.0 && edgeOn > 0.0) {
+		float deepest = 0.0;
+		float s = t;
+		for (int k = 0; k < 24; k++) {
+			float d = melted(vLocal + dir * s);
+			if (d > 0.0 && deepest < 0.0) break;
+			deepest = min(deepest, d);
+			if (deepest < -(0.5 * uLine + 0.5) * uPixel) break;
+			s += max(-d, 0.3 * uPixel);
+		}
+		neck = (1.0 - cubed) * edgeOn * centred(deepest / uPixel);
+	}
+
+	// Edges of whichever cube the point still belongs to, measured exactly on screen (derivatives
+	// break up along a raymarched edge): the distance from the line down the middle of the nearest
+	// edge's rounding, in the plane across the edge, as the two faces there turn to the camera.
+	float edges = neck;
 	for (int i = 0; i < ${CUBES.length}; i++) {
 		// Only a cube's own surface: in a melted neck the surface pulls away from every cube.
-		float own = 1.0 - smoothstep(0.0, uPixel * 0.3, abs(cube(at, i)));
+		float own = owned(at, i, surface);
 		if (own <= 0.0) continue;
+		// Distances in to the three face planes: the nearest edge runs along the axis of the largest.
 		vec3 gap = uCubes[i].w - abs(at - uCubes[i].xyz);
-		// Of the distances to the three face planes, the smallest is the face we are on; the middle
-		// one is the distance to that face's nearest edge, measured to the middle of its rounding.
-		float edge = gap.x + gap.y + gap.z - min(gap.x, min(gap.y, gap.z)) - max(gap.x, max(gap.y, gap.z));
-		edge = max(0.0, edge - ROUND * 0.29);
-		edges = max(edges, own * (1.0 - clamp(edge / (uPixel * uStrength), 0.0, 1.0)));
+		vec3 along = step(max(gap.x, max(gap.y, gap.z)), gap);
+		vec3 across = (1.0 - along) * (ROUND * 0.29 - gap);
+		vec3 facing = (1.0 - along) * sign(at - uCubes[i].xyz) * -dir;
+		float edge = length(cross(across, facing)) / sqrt(max(1.0 - dot(dir * dir, along), 1e-4));
+		edges = max(edges, own * centred(edge / uPixel));
 	}
-	// Where the page cuts the cubes, only the rim is inked: the line where a cube meets the page.
-	float cut = onPage ? 1.0 - clamp(-melted(at) / (uPixel * uStrength), 0.0, 1.0) : 0.0;
 
-	gl_FragColor = vec4(mix(vec3(1.0), uInk, max(max(outline, edges), cut)), 1.0);
+	// Where the page cuts the cubes, only the rim is inked: the line where a cube meets the page,
+	// measured up the cube's side from the page (and, on the cut face, in from the cube's side).
+	vec3 page = dot(at, uPageBottom) < dot(at, uPageTop) ? uPageBottom : uPageTop;
+	vec3 rim = cross(n, page);
+	float up = aboveBook(at) / max(length(rim), 1e-3);
+	float slant = dot(normalize(rim + 1e-6), dir);
+	up *= abs(dot(n, dir)) / sqrt(max(1.0 - slant * slant, 1e-4));
+	float cut = centred(max(up, -surface) / uPixel);
+
+	gl_FragColor = vec4(mix(vec3(1.0), uInk, max(edges, cut)), 1.0);
 }`;
 
 /** @param {import('./stage.js').Stage} stage @returns {import('./stage.js').Icon} */
@@ -218,11 +250,18 @@ export function createBookIcon(stage) {
 	const book = new Group();
 	stage.pivot.add(book);
 
-	// The spine runs along x through the origin at page level; both halves reach out towards +z.
+	// The spine runs along x through the origin at page level; both halves reach out towards +z, the
+	// bottom one below the page, the top one above it. Their pages lie against each other closed, so
+	// each draws half the seam between them; open, so do their spine ends, the gutter.
+	const looks = [stage.inked(), stage.inked()];
+	const [bottomGlued, topGlued] = looks.map((look) => /** @type {Vector3[]} */ (look.uniforms.uGlued.value));
+	bottomGlued[1].y = 1;
+	topGlued[0].y = 1;
+	const halves = looks.map((look) => stage.box([SPINE, HALF, WIDE], [0, 0, WIDE / 2], look));
 	const bottom = new Group();
-	bottom.add(stage.box([SPINE, HALF, WIDE], [0, -HALF / 2, WIDE / 2]));
+	bottom.add(halves[0]);
 	const top = new Group();
-	top.add(stage.box([SPINE, HALF, WIDE], [0, HALF / 2, WIDE / 2]));
+	top.add(halves[1]);
 	book.add(bottom, top);
 
 	// The cubes live in a box of space above the gutter; its front faces start the rays.
@@ -279,6 +318,12 @@ export function createBookIcon(stage) {
 			const at = scripted(t);
 
 			const p = Math.min(1, Math.max(0, open.value));
+			const thick = Math.max(1e-4, HALF * (1 - smoothstep(0, SHEET, p)));
+			halves.forEach((half, i) => {
+				half.scale.y = thick;
+				half.position.y = ((i ? 1 : -1) * thick) / 2;
+			});
+			bottomGlued[0].z = topGlued[0].z = p;
 			top.rotation.x = -TURN * open.value;
 			bottom.rotation.x = -TILT * open.value;
 			// The page faces' normals into the air: the bottom half's top face and the top half's

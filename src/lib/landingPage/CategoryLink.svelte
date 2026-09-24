@@ -9,10 +9,14 @@
 
 	let ready = $state(false);
 
+	/** Lit, the icon grows to this many times its size, and its brackets pop out this far (card px). */
+	const LIT_ZOOM = 1.5;
+	const POP = 6;
+
 	/**
 	 * The uikit-expt card hover as deployed at uikit-expt.vercel.app (commit 6f34d27), in that card's
 	 * pixels: the bracket box grows from inset 0 to -6, the label's black bar grows as its right edge
-	 * springs from 100% to 0%, and the icon's ink switches to violet at once. What the icon itself
+	 * springs from 100% to 0%. (The reference's ink turned violet; here it stays black.) What the icon itself
 	 * does when lit is its own (see icons/).
 	 * Values reach the DOM as CSS custom properties and the icon as a three.js redraw.
 	 * @param {Shape} shape
@@ -50,7 +54,9 @@
 				const news = `${zoom.value} ${inset.value} ${wipeValue()} ${lit}`;
 				if (news !== told) {
 					told = news;
-					const detail = { zoom: zoom.value, pop: -inset.value, bar: 1 - wipeValue() / 100, on: lit };
+					// `full` is the lit card's side in card px, so the headline plans for the size it will reach.
+					const full = (70 + 2 * POP) * LIT_ZOOM;
+					const detail = { zoom: zoom.value, pop: -inset.value, bar: 1 - wipeValue() / 100, on: lit, full };
 					node.dispatchEvent(new CustomEvent('iconzoom', { bubbles: true, detail }));
 				}
 				node.style.setProperty('--wipe', String(wipeValue()));
@@ -72,8 +78,8 @@
 				const on = pointer || focus;
 				if (on === lit) return;
 				lit = on;
-				inset.to(on ? -6 : 0);
-				zoom.to(on ? 1.5 : 1);
+				inset.to(on ? -POP : 0);
+				zoom.to(on ? LIT_ZOOM : 1);
 				wipe.from = wipeValue();
 				wipe.to = on ? 0 : 100;
 				const velocity = wipe.t.velocity;
@@ -209,9 +215,10 @@
 		display: inline-block;
 		width: calc(var(--u) * 70);
 		height: calc(var(--u) * 70);
-		/* The frame is taller than a line: a little room above and below, so icons on consecutive
-		   lines never touch bracket to bracket. */
-		margin: 0.0em 0.5em 0.15em 0;
+		/* The frame is taller than a line of text. It overhangs its line rather than stretching it (its
+		   box counts as 1em tall), so a line holding an icon is as tall as any other and the headline's
+		   line-height alone sets its spacing. */
+		margin: calc((1em - var(--u) * 70) / 2) 0.5em calc((1em - var(--u) * 70) / 2) 0;
 		vertical-align: middle;
 	}
 
@@ -225,7 +232,8 @@
 	.box {
 		position: absolute;
 		inset: 0;
-		background: rgb(255 255 255 / calc(var(--zoom) - 1));
+		/* The page's own colour, so it only shows where it hides a letter sliding out from under it. */
+		background: color-mix(in srgb, var(--paper, #fff) clamp(0%, calc((var(--zoom) - 1) * 2000%), 100%), transparent);
 		transform: scale(var(--zoom));
 	}
 
@@ -328,14 +336,14 @@
 		transform: translateX(calc(((70 + 2 * var(--pop)) * var(--zoom) - 70) * var(--u)));
 	}
 
-	/* The bar reaches 0.2em past the text (the reference's paddingX 4) without pushing the comma away. */
+	/* The black bar reaches `--bar` past the text either side; the negative margin gives that room back,
+	   so the name and the comma after it sit exactly where plain text would. */
 	.label {
+		--bar: 0.1em;
 		position: relative;
 		display: inline-block;
-		margin: 0 -0.2em;
-		padding: 0 0.1em;
-		/* The mockup's #7b7979 was 4.3:1 on white; this is the nearest grey that clears 4.5:1. */
-
+		margin: 0 calc(-1 * var(--bar));
+		padding: 0 var(--bar);
 		font-weight: 400;
 		line-height: 1.3;
 	}

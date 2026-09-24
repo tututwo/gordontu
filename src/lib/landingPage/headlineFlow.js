@@ -36,10 +36,8 @@
 
 /** Space kept from the window's edge, in em. */
 const EDGE = 1;
-/** The label's black bar reaches this far past its text (CategoryLink's .label padding), in em. */
-const BAR = 0.2;
-/** A lit card's side in reference-card units: CategoryLink's 70 frame, brackets popped by 6, doubled. */
-const LIT = (70 + 2 * 6) * 2;
+/** A cut opens over at least this much of its card's growth, so the letters slide rather than jump. */
+const OPEN = 0.6;
 /** Space kept between a card and the page below, in em. */
 const CLEAR = 0.5;
 /** A word that jumps to another line fades out over this much card growth before it, and in after, in em. */
@@ -90,7 +88,7 @@ const JUMP = 2;
  * @typedef {{ line: number, x: number, cut: Cut | null, tail: number, tailLine: number, labelLine: number, labelX: number }} Place
  */
 
-/** A lit card as placed: its top-left, its side now and at rest, and the margin after its frame. @typedef {{ x: number, y: number, side: number, rest: number, margin: number }} Card */
+/** A lit card as placed: its top-left, its side now, at rest and lit, and the margin after its frame. @typedef {{ x: number, y: number, side: number, rest: number, full: number, margin: number }} Card */
 
 /**
  * What a card cuts out of a line, from `a` to `b`, opened `s` of the way (0–1); for frames only, or
@@ -132,6 +130,8 @@ export function headlineFlow(h1) {
 	/** The page below's top at rest. */
 	let nextTop = Infinity;
 	let width = 0;
+	/** How far a label's black bar reaches past its text (CategoryLink's .label padding), in px. */
+	let barWidth = 0;
 	/** The browser's space between two words. */
 	let wordSpace = 4;
 	/** How far the stream may run: to the window's edge, less a margin. */
@@ -141,7 +141,8 @@ export function headlineFlow(h1) {
 	/** @type {HTMLElement[]} */
 	let followers = [];
 	/** Magnification, bracket pop, how far its black bar has wiped (0–1) and whether it is on its way in, of each lit link, by unit index. */
-	/** @type {Map<number, { zoom: number, pop: number, bar: number, on: boolean }>} */
+	/** And the side it grows to lit, in card px (of CategoryLink's 70 px frame). */
+	/** @type {Map<number, { zoom: number, pop: number, bar: number, on: boolean, full: number }>} */
 	const lit = new Map();
 	/** Split elements' copies, made the first time each splits and dropped when nothing is lit. */
 	/** @type {Map<HTMLElement, HTMLElement>} */
@@ -296,6 +297,7 @@ export function headlineFlow(h1) {
 				const f = frameEl.getBoundingClientRect();
 				const l = label.getBoundingClientRect();
 				const name = label.firstChild?.textContent ?? '';
+				barWidth = parseFloat(getComputedStyle(label).paddingRight) || 0;
 				unit.link = el;
 				unit.label = label;
 				unit.frame = new DOMRect(f.left - box.left, f.top - box.top, f.width, f.height);
@@ -308,7 +310,7 @@ export function headlineFlow(h1) {
 				unit.split = label;
 				unit.splitBox = new DOMRect(l.left - rect.left, l.top - rect.top, l.width, l.height);
 				unit.splitX = unit.labelX;
-				unit.cuts = [{ at: unit.labelX, from: unit.labelX, head: f.width, tail: unit.labelX + BAR * em, word: false }, ...cutsOf(label, rect.left)];
+				unit.cuts = [{ at: unit.labelX, from: unit.labelX, head: f.width, tail: unit.labelX + barWidth, word: false }, ...cutsOf(label, rect.left)];
 				// Lit, its name stays whole but for breaking between its words at the window's edge.
 				unit.labelCuts = cutsOf(label, l.left).filter((c) => c.word);
 				// The label's negative margins cancel its padding, so the link is as wide as frame plus name.
@@ -399,21 +401,25 @@ export function headlineFlow(h1) {
 	/**
 	 * What the cards cut out of line `k`: from a word space before each card's left edge to its frame's
 	 * margin after its right, so the lines it cuts keep the spacing of its own. A cut through the line's
-	 * letters opens as the card comes down towards them, and is fully open when it gets there; a card
-	 * that stops short of the letters but would reach a frame on the line cuts it for frames only.
+	 * letters opens as the card comes down towards them, fully open when it gets there if it has room to
+	 * open first; where lines sit close, so that a card is on the letters almost as soon as it grows, it
+	 * opens over a stretch of the card's growth all the same, and the letters it is on slide out from
+	 * under it (the card is opaque) rather than jump. A card that stops short of the letters but would
+	 * reach a frame on the line cuts it for frames only.
 	 * @param {number} k @param {Card[]} cards
 	 */
 	function carve(k, cards) {
 		/** @type {Block[]} */
 		const blocks = [];
 		for (const c of cards) {
-			const full = (c.rest * LIT) / 70;
+			// How far the card has grown towards its lit size, and how far it must grow to reach the band.
+			const growth = Math.max(1, c.full - c.rest);
+			const grown = (c.side - c.rest) / growth;
 			for (const frame of [false, true]) {
 				const top = anchorOf(k) + (frame ? frameTop : textTop);
-				if (c.y + full <= top) continue;
-				// Shut until the card has come a third of the way down, then eased open: so a card just setting
-				// out, or creeping back to rest, leaves no stray gap in a word.
-				const s = smoothstep(0.3, 1, (c.side - c.rest) / Math.max(1, top - c.y - c.rest));
+				if (c.y + c.full <= top) continue;
+				const reach = Math.max(0, (top - c.y - c.rest) / growth);
+				const s = smoothstep(Math.max(0, reach - OPEN), Math.max(reach, OPEN), grown);
 				blocks.push({ a: c.x - wordSpace, b: c.x + c.side + c.margin, s, frame, done: false });
 			}
 		}
@@ -421,7 +427,7 @@ export function headlineFlow(h1) {
 	}
 
 	/** How far a lit label's black bar nudges what follows it: only once it reaches past the text. @param {number} i */
-	const barNow = (i) => Math.max(0, BAR * em - (1 - (lit.get(i)?.bar ?? 0)) * units[i].labelWidth);
+	const barNow = (i) => Math.max(0, barWidth - (1 - (lit.get(i)?.bar ?? 0)) * units[i].labelWidth);
 
 	/**
 	 * Lay the sentence out round cards of the given sides (of lit links, by unit index). Lines keep
@@ -529,10 +535,11 @@ export function headlineFlow(h1) {
 				// A lit link: its card, grown, stays where it is on its line; its label goes after it, whole
 				// but for breaking between its words at the edge.
 				const f = place(unit.frameOuter + side - unit.frame.width, unit.space, 0, [], 0, true);
-				cards.push({ x: f.x, y: unit.frame.y + anchorOf(f.line) - anchors[unit.restLine], side, rest: unit.frame.width, margin: unit.frameOuter - unit.frame.width });
+				const full = (unit.frame.width * (lit.get(i)?.full ?? 70)) / 70;
+				cards.push({ x: f.x, y: unit.frame.y + anchorOf(f.line) - anchors[unit.restLine], side, rest: unit.frame.width, full, margin: unit.frameOuter - unit.frame.width });
 				w = unit.right - unit.restX - unit.labelX + barNow(i);
 				cuts = unit.labelCuts;
-				const l = place(w, unit.labelX - unit.frameOuter, BAR * em, cuts);
+				const l = place(w, unit.labelX - unit.frameOuter, barWidth, cuts);
 				p = { ...f, cut: l.cut, tail: l.tail, tailLine: l.tailLine, labelLine: l.line, labelX: l.x };
 			}
 			out.push(p);
@@ -554,10 +561,10 @@ export function headlineFlow(h1) {
 	function sidesAt(t) {
 		/** @type {Map<number, number>} */
 		const sides = new Map();
-		for (const [i, { zoom, pop, on }] of lit) {
+		for (const [i, { zoom, pop, on, full }] of lit) {
 			const rest = units[i].frame?.width ?? 0;
 			const side = (rest * (70 + 2 * pop) * zoom) / 70;
-			const top = Math.max(side, (rest * LIT) / 70);
+			const top = Math.max(side, (rest * full) / 70);
 			sides.set(i, t === Infinity ? top : Math.min(Math.max(side + (on ? t : -t), rest), top));
 		}
 		return sides;
@@ -613,10 +620,10 @@ export function headlineFlow(h1) {
 		// further along their way, and back.
 		let ahead = 0;
 		let behind = 0;
-		for (const [i, { on }] of lit) {
+		for (const [i, { on, full }] of lit) {
 			const rest = units[i].frame?.width ?? 0;
 			const side = /** @type {number} */ (sides.get(i));
-			const top = (rest * LIT) / 70;
+			const top = (rest * full) / 70;
 			ahead = Math.max(ahead, on ? top - side : side - rest);
 			behind = Math.max(behind, on ? side - rest : top - side);
 		}
@@ -709,11 +716,11 @@ export function headlineFlow(h1) {
 
 	/** @param {Event} event */
 	function onzoom(event) {
-		const { zoom, pop, bar, on } = /** @type {CustomEvent<{ zoom: number, pop: number, bar: number, on: boolean }>} */ (event).detail;
+		const { zoom, pop, bar, on, full } = /** @type {CustomEvent<{ zoom: number, pop: number, bar: number, on: boolean, full: number }>} */ (event).detail;
 		const i = units.findIndex((unit) => unit.link === event.target);
 		if (i < 0) return;
 		if (zoom <= 1.0005 && pop <= 0.0005) lit.delete(i);
-		else lit.set(i, { zoom, pop, bar, on });
+		else lit.set(i, { zoom, pop, bar, on, full });
 		// In step with the card: the link tells us from inside its own frame, before it paints.
 		if (enabled) retarget();
 		if (!lit.size) {

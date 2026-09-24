@@ -21,7 +21,6 @@ export function createIcon(canvas, shape) {
 		resize: () => stage.resize(),
 		/** @param {number} dt @param {import('./stage.js').IconState} state */
 		frame(dt, state) {
-			stage.setLit(state.lit);
 			stage.setZoom(state.zoom);
 			const moving = icon.frame(dt, state);
 			stage.render();
