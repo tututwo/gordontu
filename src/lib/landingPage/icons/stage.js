@@ -36,7 +36,7 @@ const black = new Color().setHSL(0, 0, 0.09, SRGBColorSpace);
  * whether the face on its + side faces us, how wide the faces across that axis's edges are on
  * screen, and how wide this face is across them, in device px. All constant over a face.
  */
-export const vertexShader = /* glsl */ `
+const vertexShader = /* glsl */ `
 uniform float uPixel;
 varying vec2 vUv;
 varying vec3 vBox;
@@ -192,19 +192,12 @@ export function createStage(canvas) {
 
 	const edge = material(edgeFragment);
 
-	/**
-	 * A box material of its own, for boxes whose `uGlued` faces or render options differ.
-	 * @param {Partial<import('three').ShaderMaterialParameters>} [options]
-	 */
-	const inked = (options) => material(edgeFragment, {}, options);
-
 	return {
 		pivot,
-		camera,
-		renderer,
-		edge,
-		inked,
 		material,
+
+		/** A box material of its own, for boxes whose `uGlued` faces differ. */
+		inked: () => material(edgeFragment),
 
 		/**
 		 * A box of the given size at the given centre. The ink is measured on screen whatever the

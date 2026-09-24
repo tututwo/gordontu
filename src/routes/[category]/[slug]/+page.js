@@ -1,13 +1,8 @@
 import { error } from '@sveltejs/kit';
-import { categories, projects } from '$lib/project/project.js';
+import { categories, categorySlug, projects } from '$lib/project/project.js';
 
 /** @type {import('./$types').EntryGenerator} */
-export const entries = () =>
-	categories.flatMap((category) =>
-		projects
-			.filter((project) => project.category === category.value)
-			.map((project) => ({ category: category.slug, slug: project.slug }))
-	);
+export const entries = () => projects.map((project) => ({ category: categorySlug(project.category), slug: project.slug }));
 
 /** @type {import('./$types').PageLoad} */
 export function load({ params }) {

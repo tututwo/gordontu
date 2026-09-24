@@ -1,5 +1,6 @@
 <script>
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { devicePixelRatio } from 'svelte/reactivity/window';
 	import { Spring } from './spring.js';
 
 	/** @typedef {import('./icons/index.js').Shape} Shape */
@@ -8,9 +9,10 @@
 	let { href, label, shape } = $props();
 
 	let ready = $state(false);
+	let enhanced = $state(false);
 
 	/** Lit, the icon grows to this many times its size, and its brackets pop out this far (card px). */
-	const LIT_ZOOM = 1.5;
+	const LIT_ZOOM = 1.2;
 	const POP = 6;
 
 	/**
@@ -108,7 +110,7 @@
 			node.addEventListener('focus', onfocus);
 			node.addEventListener('blur', onblur);
 			// From here the effect is the focus indicator; a link focused before hydration picks it up now.
-			node.classList.add('enhanced');
+			enhanced = true;
 			onfocus();
 
 			// Also starts the loop if the icon arrives (or is resized) while the link is already lit.
@@ -120,19 +122,13 @@
 				}
 			};
 			const observer = new ResizeObserver(redraw);
-			// Zoom or a move to a denser screen changes devicePixelRatio but not the canvas's CSS size.
-			/** @type {MediaQueryList | undefined} */
-			let density;
-			const watchDensity = () => {
-				density?.removeEventListener('change', ondensity);
-				density = matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
-				density.addEventListener('change', ondensity);
-			};
-			const ondensity = () => (watchDensity(), redraw());
-			watchDensity();
-			// Turning reduced motion off while lit has to restart the icon's loop (and on, still it).
-			const motion = matchMedia('(prefers-reduced-motion: reduce)');
-			motion.addEventListener('change', redraw);
+			// Zoom or a move to a denser screen changes devicePixelRatio but not the canvas's CSS size, and
+			// turning reduced motion off while lit has to restart the icon's loop (and on, still it).
+			$effect(() => {
+				devicePixelRatio.current;
+				prefersReducedMotion.current;
+				if (icon) redraw();
+			});
 			// three restores a lost context but draws nothing until asked.
 			canvas.addEventListener('webglcontextrestored', redraw);
 
@@ -154,14 +150,12 @@
 				disposed = true;
 				cancelAnimationFrame(frame);
 				observer.disconnect();
-				density?.removeEventListener('change', ondensity);
-				motion.removeEventListener('change', redraw);
 				canvas.removeEventListener('webglcontextrestored', redraw);
 				node.removeEventListener('pointerenter', onenter);
 				node.removeEventListener('pointerleave', onleave);
 				node.removeEventListener('focus', onfocus);
 				node.removeEventListener('blur', onblur);
-				node.classList.remove('enhanced');
+				enhanced = false;
 				icon?.dispose();
 				ready = false;
 			};
@@ -169,7 +163,7 @@
 	}
 </script>
 
-<a class="category-link" {href} {@attach hoverEffect(shape)}>
+<a class={['category-link', { enhanced }]} {href} {@attach hoverEffect(shape)}>
 	<span class="frame" aria-hidden="true">
 		<span class="box"><span class="corners"><span></span><span></span><span></span><span></span></span></span>
 		<canvas class={{ ready }}></canvas>
@@ -205,7 +199,7 @@
 		outline-offset: 2px;
 	}
 
-	.category-link:global(.enhanced):focus-visible {
+	.category-link.enhanced:focus-visible {
 		outline-color: transparent;
 	}
 
