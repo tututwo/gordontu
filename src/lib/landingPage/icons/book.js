@@ -24,8 +24,8 @@ const TURN = (152 * Math.PI) / 180;
 const TILT = (28 * Math.PI) / 180;
 
 /** Reference px per unit, closed and open (the open spread and its cubes stay inside the lit brackets). */
-const SCALE_CLOSED = 56;
-const SCALE_OPEN = 44;
+const SCALE_CLOSED = 64;
+const SCALE_OPEN = 54;
 
 /**
  * Cubes, biggest to smallest: half-size, bob period (s) and phase, and the order they rise in: the

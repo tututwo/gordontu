@@ -160,9 +160,9 @@
 	h1 {
 		margin: 0;
 		font-size: 1em;
-		font-weight: 600;
+		font-weight: 400;
 		letter-spacing: -0.015em;
-		line-height: 1.8;
+		line-height: 1.2;
 	}
 
 	/* Inline-block so each word can be moved on its own; it wraps exactly as plain text would. */

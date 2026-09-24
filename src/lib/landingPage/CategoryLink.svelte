@@ -73,7 +73,7 @@
 				if (on === lit) return;
 				lit = on;
 				inset.to(on ? -6 : 0);
-				zoom.to(on ? 2 : 1);
+				zoom.to(on ? 1.5 : 1);
 				wipe.from = wipeValue();
 				wipe.to = on ? 0 : 100;
 				const velocity = wipe.t.velocity;
@@ -211,7 +211,7 @@
 		height: calc(var(--u) * 70);
 		/* The frame is taller than a line: a little room above and below, so icons on consecutive
 		   lines never touch bracket to bracket. */
-		margin: 0.15em 0.5em 0.15em 0;
+		margin: 0.0em 0.5em 0.15em 0;
 		vertical-align: middle;
 	}
 
@@ -333,9 +333,9 @@
 		position: relative;
 		display: inline-block;
 		margin: 0 -0.2em;
-		padding: 0 0.2em;
+		padding: 0 0.1em;
 		/* The mockup's #7b7979 was 4.3:1 on white; this is the nearest grey that clears 4.5:1. */
-		color: #737373;
+
 		font-weight: 400;
 		line-height: 1.3;
 	}

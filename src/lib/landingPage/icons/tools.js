@@ -33,7 +33,7 @@ const BREAK = 0.68;
 const HYSTERESIS = 0.02;
 
 /** Reference px per unit: the window stands about as tall as the other icons, desktop or phone. */
-const SCALE = 58;
+const SCALE = 72;
 
 /** @param {number} x */
 const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);

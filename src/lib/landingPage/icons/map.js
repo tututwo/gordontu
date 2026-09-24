@@ -27,8 +27,8 @@ const YAW_OPEN = (45 * Math.PI) / 180;
  * open it eases down so the spread sits inside the lit brackets (82 px) instead of touching the
  * label's bar.
  */
-const SCALE_FOLDED = 50;
-const SCALE_OPEN = 42;
+const SCALE_FOLDED = 64;
+const SCALE_OPEN = 54;
 
 /**
  * The fold completes over the first 4% of the spring's travel home, before its slow tail, so the
