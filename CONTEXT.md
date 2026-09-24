@@ -5,7 +5,7 @@ This context describes how Gordon's creative and technical work is presented to 
 ## Language
 
 **Project**:
-A published piece of Gordon's creative or technical work, with a title, image, destination, tools, category, Client, and date.
+A published piece of Gordon's creative or technical work, with a title, image, tools, category, Client, and date, and a web page of its own unless the Project is just its image.
 _Avoid_: Post, moment, photo
 
 **Client**:
@@ -21,7 +21,7 @@ How a Featured Project appears on the landing's projects tab: its image, then it
 _Avoid_: Row, tile, profile pic (for the image: that is Gordon's avatar)
 
 **Landing**:
-The home page and its three tabs, on plain white. A headline ("I'm Gordon", his avatar, then what he makes) names the three Project categories as Category links; below it come the social links (X, LinkedIn, GitHub), a rule, and a quiet text nav of tabs: about, projects, writing, each with its own URL (`/about`, `/projects`, `/writing`). Switching tabs changes only the panel below the nav; the headline stays put. The home URL opens on about, the grey bio that carries the Bio revision. projects shows the Featured Projects as Project cards, newest first, each leading to its Project page, then a View all link to the All projects Postcard gallery; writing is the Blog, a placeholder line until the first post.
+The home page and its three tabs, on plain white. A headline ("I'm Gordon", his avatar, then what he makes) names the three Project categories as Category links; below it come the social links (X, LinkedIn, GitHub), a rule, and a quiet text nav of tabs: about, projects, writing, each with its own URL (`/about`, `/projects`, `/writing`). Switching tabs changes only the panel below the nav; the headline stays put. The home URL opens on about, the grey bio that carries the Bio revision. projects shows the Featured Projects as Project cards, newest first, each opening its postcard in its category's Postcard gallery, then a View all link to the All projects Postcard gallery; writing is the Blog, a placeholder line until the first post.
 _Avoid_: Hero, landing nav, card deck, menu
 
 **Category link**:
@@ -37,8 +37,8 @@ The avatar's glasses, which come off. Pressing the avatar lifts them off to one 
 _Avoid_: Magnifier, lens tool, X-ray
 
 **Postcard gallery**:
-A page of Projects scattered once as postcards on a bounded plane you drag around. There is one per Project category, holding that category's Projects, and one titled All projects (`/all`), holding every Project mixed together, newest first; its tool rail reaches all four. Each postcard is its Project's image in its own proportions. One postcard can be opened (it flies to the centre; picking it from the project index does the same) and flipped to its back, a postcard's back set like a Project card (date, title, Client, tools, and the category as a stamp); its Details link leads to the Project page (`/<category>/<project slug>`, always the Project's own category). Opening or flipping never changes the URL.
-_Avoid_: Grid, wall, canvas, infinite canvas
+A page of Projects scattered once as postcards on a bounded plane you drag around. There is one per Project category, holding that category's Projects, and one titled All projects (`/all`), holding every Project mixed together, newest first; its tool rail reaches all four. Each postcard is its Project's image in its own proportions. One postcard can be opened (it flies to the centre; picking it from the project index does the same). Under it sit its title and year, a Flip for details button and Close; everything else about the Project is on its back, set like a Project card (date, title, Client, tools, the category as a stamp) and, for a Project with a web page of its own, addressed to it: Open project, on the address lines. An open postcard has its own URL, the gallery's plus the Project's slug (`/maps/<slug>`, `/all/<slug>`): opening one puts it in the address bar, closing takes it out, and arriving at it opens that postcard. Flipping never changes the URL.
+_Avoid_: Grid, wall, canvas, infinite canvas, Project page (there is none: a Project's URL is its open postcard)
 
 **Project category**:
 One of the portfolio's canonical groupings: Interactive maps, Visual stories, or Web tools. Each has its own page (`/maps`, `/charts`, `/creative-code` — the URLs keep the earlier names Maps, Charts, Creative coding), reached from the landing page or the gallery's section switcher. The stored `value` never changes; `slug` is the URL form.

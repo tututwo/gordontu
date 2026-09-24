@@ -1,6 +1,6 @@
 # gordontu
 
-Portfolio: a landing with about, projects and writing tabs, three postcard galleries, and a page per project. SvelteKit + three.js.
+Portfolio: a landing with about, projects and writing tabs, and postcard galleries (one per category, plus all projects) where each project opens at its own URL. SvelteKit + three.js.
 `CONTEXT.md` has the vocabulary, `docs/adr/` the decisions.
 
 ```bash

@@ -5,3 +5,5 @@ The category pages (`/charts`, `/maps`, `/creative-code`) show their projects as
 **Amended 2026-09-03.** ADR-0003 replaced the landing wall with the Blob field, so the landing now also loads three (still by dynamic import inside an attachment) and ADR-0001 is superseded.
 
 **Amended 2026-09-23.** ADR-0004 replaced the Blob field; the landing still loads three the same way, now only for the three Category link icons.
+
+**Amended 2026-09-24.** The Project pages are gone. A Project's URL is its gallery with its postcard open (`/<gallery>/<slug>`, one optional-slug route), so opening or closing a postcard now replaces the URL (a client-side navigation, so Back still leaves the gallery). Its details, and the Open project link for a Project with a web page, live on the postcard's back, drawn on the card with a real link laid over them.

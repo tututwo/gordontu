@@ -16,7 +16,7 @@
 <ul>
 	{#each featured as { projectName, projectImgSource, category, slug, date, client } (slug)}
 		<li>
-			<a class="card" href={resolve('/[category]/[slug]', { category: categorySlug(category), slug })}>
+			<a class="card" href={resolve('/[category]/[[slug]]', { category: categorySlug(category), slug })}>
 				<img src={toOptimizedImage(projectImgSource)} alt="" loading="lazy" decoding="async" />
 				<span>
 					<span class="title">{projectName}</span>
@@ -29,7 +29,7 @@
 	{/each}
 </ul>
 
-<a class="all" href={resolve('/[category]', { category: allProjects.slug })}>
+<a class="all" href={resolve('/[category]/[[slug]]', { category: allProjects.slug })}>
 	View all {projects.length} projects →
 </a>
 

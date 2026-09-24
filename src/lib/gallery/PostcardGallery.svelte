@@ -1,4 +1,5 @@
 <script>
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
@@ -10,14 +11,17 @@
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifoldIcon';
 	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
 	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFourIcon';
-	import { allProjects, categories, categorySlug } from '$lib/project/project.js';
+	import { allProjects, categories } from '$lib/project/project.js';
 	import { WallMotion } from './wallMotion.js';
 	import { Pan } from './pan.js';
 
 	/** @typedef {import('$lib/project/project.js').Project} Project */
 
-	/** @type {{ projects: Project[], category: (typeof categories)[number] }} */
-	let { projects, category } = $props();
+	/**
+	 * `opened` is the postcard the URL opens (`/maps/<slug>`).
+	 * @type {{ projects: Project[], category: (typeof categories)[number], opened?: Project | null }}
+	 */
+	let { projects, category, opened = null } = $props();
 
 	const icons = { all: SquaresFourIcon, maps: MapTrifoldIcon, charts: ChartBarIcon, 'creative-code': CodeIcon };
 	const categoryLinks = [allProjects, ...categories].map((section) => ({
@@ -28,7 +32,9 @@
 	let ready = $state(false);
 	/** @type {Project | null} */
 	let selected = $state.raw(null);
-	/** The open card at rest, CSS px; `y` is its centre's offset from the viewport's. */
+	/** Whether the open card shows its back: the face its flip is nearest. */
+	let back = $state(false);
+	/** @type {import('./scene.js').HeroBox} */
 	let heroBox = $state.raw({ w: 0, h: 0, y: 0 });
 	/** @type {HTMLCanvasElement | undefined} */
 	let canvas = $state();
@@ -53,46 +59,75 @@
 	// half-turn, release springs to the nearest face, keys and clicks come free.
 	const flip = new WallMotion(
 		() => heroBox.w || 1,
-		(offset) => scene?.setFlip(offset * Math.PI)
+		(offset) => {
+			scene?.setFlip(offset * Math.PI);
+			back = Math.round(offset) % 2 !== 0;
+		}
 	);
 
-	/** @param {Project[]} list */
-	function gallery(list) {
-		return (/** @type {HTMLCanvasElement} */ node) => {
-			let disposed = false;
-			/** @type {ReturnType<typeof import('./scene.js').createScene> | undefined} */
-			let created;
-			import('./scene.js').then(({ createScene }) => {
-				if (disposed) return;
-				created = createScene(node, list, {
-					pan,
-					reduced: () => prefersReducedMotion.current,
-					onready: () => (ready = true),
-					onheroresize: (box) => (heroBox = box)
-				});
-				scene = created;
+	/**
+	 * The scene, one per canvas. `projects` is read once three is in, untracked: the canvas is keyed by
+	 * category, so a new list always comes with a new canvas, and opening a postcard (which changes the
+	 * URL, and so the page's data) leaves the scene alone.
+	 * @param {HTMLCanvasElement} node
+	 */
+	function gallery(node) {
+		let disposed = false;
+		/** @type {ReturnType<typeof import('./scene.js').createScene> | undefined} */
+		let created;
+		import('./scene.js').then(({ createScene }) => {
+			if (disposed) return;
+			created = createScene(node, projects, {
+				pan,
+				reduced: () => prefersReducedMotion.current,
+				onready: () => {
+					ready = true;
+					if (opened) show(opened);
+				},
+				onheroresize: (box) => (heroBox = box)
 			});
-			return () => {
-				disposed = true;
-				created?.dispose();
-				scene = undefined;
-				ready = false;
-				selected = null;
-				pan.reset();
-			};
+			scene = created;
+		});
+		return () => {
+			disposed = true;
+			created?.dispose();
+			scene = undefined;
+			ready = false;
+			selected = null;
+			pan.reset();
 		};
 	}
 
-	/** @param {Project} project */
-	const projectPage = (project) =>
-		resolve('/[category]/[slug]', { category: categorySlug(project.category), slug: project.slug });
+	/** This gallery's URL, with `project`'s postcard open (`/maps/<slug>`) or none (`/maps`). @param {Project | null} project */
+	const urlFor = (project) => resolve('/[category]/[[slug]]', { category: category.slug, slug: project?.slug });
 
 	/** @param {Project} project */
-	function open(project) {
-		if (!scene) return;
+	function show(project) {
+		if (!ready || !scene) return;
 		selected = project;
 		flip.reset();
 		scene.open(project);
+	}
+
+	function hide() {
+		selected = null;
+		// The scene unwinds the card to its front on the way home; this only rewinds the controller.
+		scene?.close();
+		flip.reset();
+		canvas?.focus({ preventScroll: true });
+	}
+
+	/**
+	 * The URL follows the open postcard. Replaced, not pushed, so Back still leaves the gallery; the card
+	 * doesn't wait for it, and before the postcards are in, the gallery opens what the URL names once they are.
+	 * @param {Project | null} project
+	 */
+	const go = (project) => goto(urlFor(project), { replaceState: true, noScroll: true, keepFocus: true });
+
+	/** @param {Project} project */
+	function open(project) {
+		show(project);
+		go(project);
 	}
 
 	/** Keyboard users land on the flip target as soon as a card opens. @param {HTMLElement} node */
@@ -100,11 +135,8 @@
 
 	function close() {
 		if (!selected) return;
-		selected = null;
-		// The scene unwinds the card to its front on the way home; this only rewinds the controller.
-		scene?.close();
-		flip.reset();
-		canvas?.focus({ preventScroll: true });
+		hide();
+		go(null);
 	}
 
 	function resetView() {
@@ -119,12 +151,12 @@
 	}
 
 	/**
-	 * A plain click on an index entry opens its postcard, as tapping the card does; a modified click,
-	 * or one before the postcards are in, follows the link to the Project page.
+	 * A plain click on an index entry opens its postcard, as tapping the card does; a modified click
+	 * follows the link, to the same open postcard in a new tab.
 	 * @param {MouseEvent & { currentTarget: HTMLAnchorElement }} event @param {Project} project
 	 */
 	function pick(event, project) {
-		if (!ready || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		event.preventDefault();
 		/** @type {HTMLDetailsElement} */ (event.currentTarget.closest('details')).open = false;
 		open(project);
@@ -172,7 +204,7 @@
 			aria-label="{category.label} postcards. Drag or use the arrow keys to move; scroll, pinch, or use plus and minus to zoom; press zero to recenter; tap a card to open it."
 			onpointerdown={() => (closeOnClick = selected !== null)}
 			onclick={() => closeOnClick && close()}
-			{@attach gallery(projects)}
+			{@attach gallery}
 			{@attach pan.attach}
 		></canvas>
 	{/key}
@@ -199,7 +231,7 @@
 		{#each categoryLinks as section, index (section.value)}
 			<a
 				class="tool-button"
-				href={resolve('/[category]', { category: section.slug })}
+				href={resolve('/[category]/[[slug]]', { category: section.slug })}
 				aria-label={section.label}
 				aria-current={section.slug === category.slug ? 'page' : undefined}
 				data-tip={index + 1}
@@ -243,6 +275,21 @@
 				{@attach flip.attach}
 				{@attach focusOnMount}
 			></button>
+			{#if back && heroBox.link}
+				<!-- The back's Open project link is drawn on the card; this is the real one, laid over the words. -->
+				<a
+					class="back-link"
+					href={selected.projectLink}
+					target="_blank"
+					rel="external noreferrer"
+					draggable="false"
+					style:left="calc(50% + {heroBox.link.x - heroBox.w / 2}px)"
+					style:top="calc(50% + {heroBox.y - heroBox.h / 2 + heroBox.link.y}px)"
+					style:width="{heroBox.link.w}px"
+					style:height="{heroBox.link.h}px"
+				><span class="sr-only">Open project</span></a>
+			{/if}
+			<!-- Everything else about the Project is on the back, so the caption points there. -->
 			<div
 				class="caption"
 				style:top="calc(50% + {heroBox.y + heroBox.h / 2}px)"
@@ -251,8 +298,7 @@
 				<h2 id="open-title">{selected.projectName}</h2>
 				<span class="year">{selected.date.slice(0, 4)}</span>
 				<div class="actions">
-					<a href={projectPage(selected)}>Details →</a>
-					<a href={selected.projectLink} target="_blank" rel="external noreferrer">Open project ↗</a>
+					<button type="button" onclick={() => flip.moveBy(1)}>{back ? 'Flip to front' : 'Flip for details'}</button>
 					<button type="button" onclick={close}>Close</button>
 				</div>
 			</div>
@@ -276,7 +322,7 @@
 				<span>Select a postcard</span>
 			</div>
 			{#each projects as project, index (project.slug)}
-				<a href={projectPage(project)} onclick={(event) => pick(event, project)}>
+				<a href={urlFor(project)} onclick={(event) => pick(event, project)}>
 					<span>{String(index + 1).padStart(2, '0')}</span>
 					<strong>{project.projectName}</strong>
 					<span>{project.date.slice(0, 4)}</span>
@@ -505,7 +551,7 @@
 	}
 
 	/* Under the open card and as wide, set like a landing Project card: the title with its year at the
-	   right edge, then the links, the way out at the far end. On paper, like the landing's growing white
+	   right edge, then the flip, the way out at the far end. On paper, like the landing's growing white
 	   card that hides the words under it: the faded postcards pass behind the words, not through them. */
 	.caption {
 		position: absolute;
@@ -541,17 +587,13 @@
 	.actions {
 		display: flex;
 		grid-column: 1 / -1;
+		justify-content: space-between;
 		gap: 1.25rem;
 		margin-top: 0.375rem;
 	}
 
-	.actions button {
-		margin-left: auto;
-	}
-
 	/* Grey until pointed at, like the landing's links; padding grows the tap target to 44px without
 	   moving the text. */
-	.actions a,
 	.actions button {
 		margin-block: -0.6875rem;
 		padding: 0.6875rem 0;
@@ -564,9 +606,27 @@
 		transition: color 160ms var(--ease-out);
 	}
 
-	.actions a:hover,
 	.actions button:hover {
 		color: var(--ink);
+	}
+
+	/* Exactly over the words drawn on the back, padded to a 44px target without moving; it lights like
+	   an entry in the project index. */
+	.back-link {
+		position: absolute;
+		box-sizing: content-box;
+		margin: -0.8125rem -0.5rem;
+		padding: 0.8125rem 0.5rem;
+		border-radius: 0.5rem;
+		transition: background 140ms ease;
+	}
+
+	.back-link:hover {
+		background: rgb(0 0 0 / 0.05);
+	}
+
+	.back-link:active {
+		background: rgb(0 0 0 / 0.1);
 	}
 
 	.bottom-chrome {
@@ -734,7 +794,7 @@
 	.project-index summary:active,
 	.project-index nav a:active,
 	.help summary:active,
-	.actions :is(a, button):active {
+	.actions button:active {
 		opacity: 0.55;
 	}
 
@@ -742,7 +802,8 @@
 	.project-index summary:focus-visible,
 	.project-index nav a:focus-visible,
 	.help summary:focus-visible,
-	.actions :is(a, button):focus-visible {
+	.actions button:focus-visible,
+	.back-link:focus-visible {
 		outline: 2px solid var(--ink);
 		outline-offset: 2px;
 	}
@@ -752,7 +813,8 @@
 		.tool-button,
 		.index-caret,
 		.help summary,
-		.actions :is(a, button),
+		.actions button,
+		.back-link,
 		.bottom-chrome {
 			transition: none;
 		}

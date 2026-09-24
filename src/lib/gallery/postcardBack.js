@@ -60,12 +60,14 @@ function wrap(ctx, text, maxWidth, maxLines) {
 /**
  * The back of a postcard, set like the landing's Project cards and drawn at the open card's size in
  * device pixels, so it stays sharp: a letter on the left (date, title, client, tools), a hairline
- * down the middle, a stamp with the category and three address lines on the right. A portrait card
- * stacks the halves, letter on top.
+ * down the middle, a stamp with the category and three address lines on the right, addressed to the
+ * Project's web page if it has one. A portrait card stacks the halves, letter on top.
  * @param {import('../project/project.js').Project} project
  * @param {{ w: number, h: number }} box the open card, CSS px
  * @param {number} pixelRatio
  * @param {Record<string, string>} tokens from readTokens()
+ * @returns {{ texture: CanvasTexture, link: { x: number, y: number, w: number, h: number } | null }}
+ *   `link` is where the Open project link is drawn, card px from the top left of the back, if it is
  */
 export function backTexture(project, { w, h }, pixelRatio, tokens) {
 	const ink = tokens['--ink'] || '#000';
@@ -139,7 +141,7 @@ export function backTexture(project, { w, h }, pixelRatio, tokens) {
 		return { runs, height: y };
 	};
 	// Too long for the card: the type shrinks together, and rather than go below 70% it leaves off the
-	// tools, then the client (both are on the Project page). Smaller type never wraps to more lines.
+	// tools, then the client. Smaller type never wraps to more lines.
 	let typeset = set(1);
 	while (typeset.height * 0.7 > letter.h && sections.length > 1) {
 		sections = sections.slice(0, -1);
@@ -176,7 +178,8 @@ export function backTexture(project, { w, h }, pixelRatio, tokens) {
 
 	// Address lines at the bottom of that side, if there is room under the stamp.
 	const gap = Math.min(28, (address.h - stampH - 16) / 3);
-	if (gap >= 14) {
+	const lines = gap >= 14;
+	if (lines) {
 		ctx.strokeStyle = hairline;
 		ctx.beginPath();
 		for (let index = 0; index < 3; index += 1) {
@@ -187,7 +190,25 @@ export function backTexture(project, { w, h }, pixelRatio, tokens) {
 		ctx.stroke();
 	}
 
+	// A Project with a web page of its own is addressed to it: "Open project ↗" on the top address line
+	// (at the foot of that side when no lines fit), in the letter's value type, shrunk to fit a narrow
+	// side. A canvas can't be clicked, so PostcardGallery lays a real link over the box it returns.
+	let link = null;
+	if (project.projectLink) {
+		const text = 'Open project ↗';
+		ctx.font = `14px ${font}`;
+		ctx.letterSpacing = '0px';
+		const size = Math.min(14, (14 * address.w) / ctx.measureText(text).width);
+		ctx.font = `${size}px ${font}`;
+		const baseline = lines ? address.y + address.h - 2 * gap - size * 0.3 : address.y + address.h - size * 0.25;
+		ctx.fillStyle = ink;
+		ctx.textAlign = 'left';
+		ctx.textBaseline = 'alphabetic';
+		ctx.fillText(text, address.x, baseline);
+		link = { x: address.x, y: baseline - size, w: ctx.measureText(text).width, h: size * 1.25 };
+	}
+
 	const texture = new CanvasTexture(canvas);
 	texture.colorSpace = SRGBColorSpace;
-	return texture;
+	return { texture, link };
 }

@@ -22,6 +22,15 @@ const CAPTION = 96;
 /** @typedef {import('../project/project.js').Project} Project */
 
 /**
+ * @typedef {object} HeroBox the open card at rest, CSS px
+ * @property {number} w
+ * @property {number} h
+ * @property {number} y its centre's offset from the viewport's
+ * @property {{ x: number, y: number, w: number, h: number } | null} [link] where the Open project link
+ *   lies on its back, card px, once the back is drawn (null if it has none)
+ */
+
+/**
  * @typedef {object} Card
  * @property {Project} project
  * @property {THREE.Mesh} mesh the one postcard on the plane
@@ -36,9 +45,9 @@ const CAPTION = 96;
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Project[]} projects
- * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: { w: number, h: number, y: number }) => void }} options
+ * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: HeroBox) => void }} options
  *   `pan` is sampled every frame (screen px, +y down); `onready` fires once textures are in;
- *   `onheroresize` gets the open card's box at rest when it opens and on every resize.
+ *   `onheroresize` gets the open card's box when it opens, on every resize, and when its back is drawn.
  */
 export function createScene(canvas, projects, { pan, reduced, onready, onheroresize }) {
 	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
@@ -174,8 +183,9 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		relayout();
 		if (heroCard && !closing) {
 			heroTo = heroTargetFor(heroCard);
-			onheroresize(heroBoxFor(heroCard));
+			// Redrawing the back reports the box too, with its link where it now lies.
 			if (heroBackTexture) drawBack(heroCard);
+			else onheroresize(heroBoxFor(heroCard));
 		}
 		wake();
 	}
@@ -265,13 +275,16 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		};
 	}
 
-	/** Draw the open card's back at its size on screen. @param {Card} card */
+	/** Draw the open card's back at its size on screen, and report where its link lies. @param {Card} card */
 	function drawBack(card) {
 		heroBackTexture?.dispose();
-		heroBackTexture = backTexture(card.project, heroBoxFor(card), renderer.getPixelRatio(), tokens);
+		const box = heroBoxFor(card);
+		const back = backTexture(card.project, box, renderer.getPixelRatio(), tokens);
+		heroBackTexture = back.texture;
 		heroBackTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 		heroBack.material.map = heroBackTexture;
 		heroBack.material.needsUpdate = true;
+		onheroresize({ ...box, link: back.link });
 		wake();
 	}
 

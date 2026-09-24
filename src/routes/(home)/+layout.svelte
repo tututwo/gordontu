@@ -16,7 +16,7 @@
 		const { label } = /** @type {(typeof categories)[number]} */ (
 			categories.find((c) => c.slug === slug)
 		);
-		return { href: resolve('/[category]', { category: slug }), label: label.toLowerCase() };
+		return { href: resolve('/[category]/[[slug]]', { category: slug }), label: label.toLowerCase() };
 	}
 
 	/**

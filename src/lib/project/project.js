@@ -1,8 +1,9 @@
 /**
  * @typedef {Object} Project
  * @property {string} projectName
- * @property {string} projectLink
- * @property {string} projectImgSource
+ * @property {string} [projectLink] - the Project's own web page; absent when the Project is its image
+ * @property {string} projectImgSource - the image: an external URL, or its original's path (`/projects/…`),
+ *   of which only the webp copy is kept and served (toOptimizedImage)
  * @property {string[]} tools
  * @property {string} category
  * @property {string} date
@@ -10,7 +11,7 @@
  * @property {boolean} [featured] - shown as a Project card on the landing's projects tab
  * @property {number} seed - deterministic seed derived from projectName; the Postcard gallery
  *   scatters and tilts the Project's postcard from it, so it lands in the same spot on every visit
- * @property {string} slug - URL segment of the Project page (`/<category>/<slug>`), from projectName; unique
+ * @property {string} slug - URL segment of the Project's open postcard (`/<gallery>/<slug>`), from projectName; unique
  */
 
 /**
@@ -64,7 +65,6 @@ export function categorySlug(value) {
 const data = [
 	{
 		projectName: "Gas Is Everywhere in California. Fast Charging Isn't.",
-		projectLink: "/projects/Maps/isochrone-charging-stations.png",
 		projectImgSource: "/projects/Maps/isochrone-charging-stations.png",
 		tools: ["QGIS"],
 		category: "maps",
@@ -83,7 +83,6 @@ const data = [
 	},
 	{
 		projectName: "Poyang Lake Entered the Dry Season 100 Days Earlier",
-		projectLink: "/projects/Maps/map_poyang.png",
 		projectImgSource: "/projects/Maps/map_poyang.png",
 		tools: ["QGIS"],
 		category: "maps",
@@ -307,7 +306,6 @@ const data = [
 	},
 	{
 		projectName: "China Elevation",
-		projectLink: "/projects/Maps/map_elevation_ridge.png",
 		projectImgSource: "/projects/Maps/map_elevation_ridge.png",
 		tools: ["QGIS", "Adobe Illustrator"],
 		category: "maps",
@@ -315,7 +313,6 @@ const data = [
 	},
 	{
 		projectName: "Most buildings in Manhattan were built before 1960s",
-		projectLink: "/projects/Maps/map_Manhattan.png",
 		projectImgSource: "/projects/Maps/map_Manhattan_cover.png",
 		tools: ["QGIS"],
 		category: "maps",
@@ -331,7 +328,6 @@ const data = [
 	},
 	{
 		projectName: "The elevation of Jiangxi Province",
-		projectLink: "/projects/Maps/map_shuimomap_shuimo.png",
 		projectImgSource: "/projects/Maps/map_shuimomap_shuimo_cover.png",
 		tools: ["QGIS"],
 		category: "maps",
@@ -339,7 +335,6 @@ const data = [
 	},
 	{
 		projectName: "Two Dragons of China",
-		projectLink: "/projects/Maps/map_twodragons.png",
 		projectImgSource: "/projects/Maps/map_twodragons_cover.png",
 		tools: ["QGIS"],
 		category: "maps",
@@ -371,7 +366,7 @@ export function toOptimizedImage(source) {
 	return source.replace('/projects/', '/projects-optimized/').replace(/\.[^.]+$/, '.webp');
 }
 
-/** Every Project, newest first (ISO dates sort as strings), seeded for the postcard scatter, slugged for its page. */
+/** Every Project, newest first (ISO dates sort as strings), seeded for the postcard scatter, slugged for its URL. */
 export const projects = data
 	.map((project) => ({
 		...project,
