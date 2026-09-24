@@ -1,36 +1,19 @@
-@import "@fontsource-variable/newsreader";
-@import "@fontsource-variable/shantell-sans";
 @import "@fontsource-variable/inter";
 
 @layer base {
+	/* The landing's page, for every page: plain white, black, one grey, one hairline, one typeface. */
 	:root {
-		--paper: #fff9fb;
-		--paper-elevated: #fffefe;
-		--ink: #342943;
-		--muted-ink: #70677f;
-		--accent: #e94f87;
-		--wash-blush: rgb(255 213 230 / 0.62);
-		--wash-sky: rgb(207 235 255 / 0.58);
-		--wash-mint: rgb(214 246 231 / 0.5);
-		--surface: rgb(255 255 255 / 0.82);
-		--surface-solid: #fffefe;
-		--hairline: rgb(69 51 94 / 0.14);
-		--shadow-soft: rgb(104 70 128 / 0.14);
-		--sketch-line-soft: rgb(52 41 67 / 0.36);
-		--font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial,
-			sans-serif;
+		--paper: #fff;
+		--ink: #000;
+		/* The lightest grey that still reads at 4.5:1 on white. */
+		--muted-ink: #767676;
+		--hairline: #e3e3e3;
 		--font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
 			Arial, sans-serif;
-		--font-display: "Newsreader Variable", Georgia, serif;
-		--font-hand: "Shantell Sans Variable", cursive;
 		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-		--ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-		--shadow-material: 0 16px 42px rgb(101 70 128 / 0.09);
-		--press-in-duration: 100ms;
-		--press-out-duration: 160ms;
 
 		color: var(--ink);
-		font-family: var(--font-ui);
+		font-family: var(--font-sans);
 		font-synthesis: none;
 		font-variant-numeric: tabular-nums;
 		text-rendering: optimizeLegibility;
@@ -62,4 +45,16 @@
 
 * {
 	box-sizing: border-box;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
 }

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+	<style>
+		.g { color: #000 }
+		.corner { color: #1b3a6b }
+		@media (prefers-color-scheme: dark) {
+			.g { color: #fff }
+			.corner { color: #7ea4e0 }
+		}
+	</style>
+	<g class="g">
+		<path d="M16 6A11 11 0 1 0 27 17" fill="none" stroke="currentColor" stroke-width="6" />
+		<rect x="16" y="14" width="14" height="6" fill="currentColor" />
+	</g>
+	<path class="corner" d="M19 1H30V11H24V5H19Z" fill="currentColor" />
+</svg>

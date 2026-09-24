@@ -1,4 +1,4 @@
-// ponytail: same pointer / velocity-fit / click-suppression as wallMotion.svelte.js on two axes; kept separate on purpose.
+// ponytail: same pointer / velocity-fit / click-suppression as wallMotion.js on two axes; kept separate on purpose.
 const DECELERATION_RATE = 0.998; // per ms
 const MAX_RELEASE_SPEED = 4; // px per ms
 const POINTER_HISTORY_WINDOW = 110;

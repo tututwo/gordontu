@@ -94,18 +94,6 @@
 </div>
 
 <style>
-	/* On html so the html/body backgrounds (overscroll) turn white too, and the paper grain goes. */
-	:global(html:has(.landing)) {
-		--paper: #fff;
-		--wash-blush: transparent;
-		--wash-sky: transparent;
-		--wash-mint: transparent;
-	}
-
-	:global(html:has(.landing) .paper-texture) {
-		display: none;
-	}
-
 	/*
 	 * Proportions from docs/landing-page.png, scaled up so the bio reads at body size (16px, not the
 	 * mockup's 12px). Every size below is in em of this one value, and it is in rem so a visitor's

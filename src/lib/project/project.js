@@ -8,8 +8,8 @@
  * @property {string} date
  * @property {string} [client] - who it was made for, by name; absent means Self-initiated
  * @property {boolean} [featured] - shown as a Project card on the landing's projects tab
- * @property {number} seed - deterministic sketch seed derived from projectName; the postcard
- *   back's rough.js drawing is seeded from it so a Project reads as one object
+ * @property {number} seed - deterministic seed derived from projectName; the Postcard gallery
+ *   scatters and tilts the Project's postcard from it, so it lands in the same spot on every visit
  * @property {string} slug - URL segment of the Project page (`/<category>/<slug>`), from projectName; unique
  */
 
@@ -347,8 +347,8 @@ const data = [
 	},
 ];
 
-/** Deterministic seed for the sketch renderers. @param {string} value */
-export function hashName(value) {
+/** Deterministic seed for the postcard scatter. @param {string} value */
+function hashName(value) {
 	let result = 0;
 	for (let index = 0; index < value.length; index += 1) {
 		result = (result * 31 + value.charCodeAt(index)) >>> 0;
@@ -371,7 +371,7 @@ export function toOptimizedImage(source) {
 	return source.replace('/projects/', '/projects-optimized/').replace(/\.[^.]+$/, '.webp');
 }
 
-/** Every Project, newest first (ISO dates sort as strings), seeded for the sketch renderers, slugged for its page. */
+/** Every Project, newest first (ISO dates sort as strings), seeded for the postcard scatter, slugged for its page. */
 export const projects = data
 	.map((project) => ({
 		...project,

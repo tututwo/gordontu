@@ -21,9 +21,8 @@
 
 	h1 {
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: clamp(3rem, 3.45vw, 3.7rem);
-		font-weight: 440;
+		font-weight: 400;
 		letter-spacing: -0.035em;
 		line-height: 0.99;
 	}

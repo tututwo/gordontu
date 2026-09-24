@@ -3,18 +3,12 @@
  * World units are CSS pixels; +x right, +y up (three convention); the plane is centred on the origin.
  */
 
-/** The three display proportions available to a gallery card (width / height). */
-export const CARD_RATIOS = Object.freeze({
-	a4: 595 / 842,
-	instagram: 1080 / 1350,
-	macbookAir: 1280 / 832
-});
-export const DEFAULT_CARD_RATIO = CARD_RATIOS.instagram;
-const CARD_RATIO_OPTIONS = Object.values(CARD_RATIOS);
+/** A card takes its image's own proportions (width / height); this is only for an image that never loads. */
+export const DEFAULT_CARD_RATIO = 4 / 3;
 /** Card footprint inside its cell. */
 const CARD_FILL = 0.8;
-/** Row pitch as a fraction of the cell. */
-const ROW_PITCH = 1.15;
+/** Space under a row's tallest card, as a fraction of the cell. */
+const ROW_GAP = 0.35;
 
 /** Cell pitch from viewport width — one knob for how big the postcards read. @param {number} viewportWidth */
 export function cellSize(viewportWidth) {
@@ -22,41 +16,13 @@ export function cellSize(viewportWidth) {
 }
 
 /**
- * Pick the card whose proportion loses the least relative area when fitting an image.
- * Log distance makes the comparison symmetric for portrait and landscape ratios.
- * @param {number} imageRatio width / height
- */
-export function closestCardRatio(imageRatio) {
-	if (!Number.isFinite(imageRatio) || imageRatio <= 0) return DEFAULT_CARD_RATIO;
-	return CARD_RATIO_OPTIONS.reduce((best, candidate) => {
-		const candidateDistance = Math.abs(Math.log(imageRatio / candidate));
-		const bestDistance = Math.abs(Math.log(imageRatio / best));
-		return candidateDistance < bestDistance ? candidate : best;
-	});
-}
-
-/**
- * Every ratio uses the same long-edge envelope, so changing aspect never moves the grid.
+ * Every card has the same long edge whatever its proportions, so an image's aspect never moves the grid.
  * @param {number} cell @param {number} [ratio=DEFAULT_CARD_RATIO] width / height
  * @returns {{ w: number, h: number }}
  */
 export function cardSize(cell, ratio = DEFAULT_CARD_RATIO) {
 	const long = cell * CARD_FILL;
 	return ratio >= 1 ? { w: long, h: long / ratio } : { w: long * ratio, h: long };
-}
-
-/**
- * Scale an image plane inside its card like `object-fit: contain`, preserving every chart label.
- * @param {number} imageRatio width / height @param {number} cardRatio width / height
- * @returns {{ x: number, y: number }} local mesh scale
- */
-export function containScale(imageRatio, cardRatio) {
-	if (!Number.isFinite(imageRatio) || imageRatio <= 0 || !Number.isFinite(cardRatio) || cardRatio <= 0) {
-		return { x: 1, y: 1 };
-	}
-	return imageRatio > cardRatio
-		? { x: 1, y: cardRatio / imageRatio }
-		: { x: imageRatio / cardRatio, y: 1 };
 }
 
 /**
@@ -67,10 +33,11 @@ export function containScale(imageRatio, cardRatio) {
  * @param {{ seed: number }[]} projects
  * @param {number} cell
  * @param {number} viewportW
+ * @param {number[]} [heights] each card's height in cells, once its image is in (unknown: the full 0.8)
  * @returns {{ width: number, height: number, cells: { x: number, y: number, rot: number }[] }}
  *   `cells` are centred on the origin, so the plane spans ±width/2 × ±height/2.
  */
-export function layoutPlane(projects, cell, viewportW) {
+export function layoutPlane(projects, cell, viewportW, heights = []) {
 	const n = projects.length;
 	const low = Math.min(n, Math.max(2, Math.round(viewportW / cell)));
 	const high = Math.min(n, low + 1);
@@ -88,9 +55,17 @@ export function layoutPlane(projects, cell, viewportW) {
 	// Odd rows overhang by half a cell (checkerboard), so the plane is that much wider.
 	const rowWidth = cols * cell;
 	const width = rowWidth + (rows > 1 ? cell / 2 : 0);
-	// Every card's long edge is 0.8 cell, so all three proportions fit without changing the row rhythm.
-	const rowPitch = cell * ROW_PITCH;
-	const height = rows * rowPitch;
+	// Each row is as tall as its tallest card plus one gap, so a row of wide images packs as closely
+	// as a row of tall ones instead of leaving a band of empty table under it.
+	const pitches = Array.from({ length: rows }, (_, row) => {
+		let tallest = 0;
+		for (let index = row * cols; index < Math.min(n, (row + 1) * cols); index += 1) {
+			tallest = Math.max(tallest, heights[index] ?? CARD_FILL);
+		}
+		return cell * (tallest + ROW_GAP);
+	});
+	const tops = pitches.map((_, row) => pitches.slice(0, row).reduce((sum, pitch) => sum + pitch, 0));
+	const height = tops[rows - 1] + pitches[rows - 1];
 	const cells = projects.map((project, index) => {
 		const col = index % cols;
 		const row = Math.floor(index / cols);
@@ -102,7 +77,7 @@ export function layoutPlane(projects, cell, viewportW) {
 		const rot = ((((s >>> 14) % 100) / 100) - 0.5) * ((8 * Math.PI) / 180);
 		return {
 			x: (row % 2 ? cell / 2 : 0) + (col + 0.5) * step + jitterX - width / 2,
-			y: height / 2 - ((row + 0.5) * rowPitch + jitterY),
+			y: height / 2 - (tops[row] + pitches[row] / 2 + jitterY),
 			rot
 		};
 	});

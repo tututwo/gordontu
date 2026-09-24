@@ -11,7 +11,7 @@
 	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
 	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFourIcon';
 	import { allProjects, categories, categorySlug } from '$lib/project/project.js';
-	import { WallMotion } from './wallMotion.svelte.js';
+	import { WallMotion } from './wallMotion.js';
 	import { Pan } from './pan.js';
 
 	/** @typedef {import('$lib/project/project.js').Project} Project */
@@ -27,8 +27,9 @@
 
 	let ready = $state(false);
 	/** @type {Project | null} */
-	let selected = $state(null);
-	let heroBox = $state({ w: 0, h: 0 });
+	let selected = $state.raw(null);
+	/** The open card at rest, CSS px; `y` is its centre's offset from the viewport's. */
+	let heroBox = $state.raw({ w: 0, h: 0, y: 0 });
 	/** @type {HTMLCanvasElement | undefined} */
 	let canvas = $state();
 	/** @type {ReturnType<typeof import('./scene.js').createScene> | undefined} */
@@ -41,22 +42,19 @@
 		offset: () => scene?.viewOffset() ?? { x: 0, y: 0 },
 		onchange: () => scene?.wake(),
 		ontap: (event) => {
-			if (selected) return close();
 			const project = scene?.hitTest(event);
 			if (project) open(project);
 		}
 	});
+	/** Whether the press now ending began with a card open: then a click on the table around it closes it. */
+	let closeOnClick = false;
 
 	// The flip is the old landing wall's drag/spring controller: one card-width of drag is one
 	// half-turn, release springs to the nearest face, keys and clicks come free.
-	const flip = new WallMotion(() => heroBox.w || 1);
-
-	$effect(() => {
-		// Read the offset before the optional chain: on the first run `scene` is still loading and
-		// a short-circuit would leave the effect with no dependency to re-run on.
-		const angle = flip.offset * Math.PI;
-		scene?.setFlip(angle);
-	});
+	const flip = new WallMotion(
+		() => heroBox.w || 1,
+		(offset) => scene?.setFlip(offset * Math.PI)
+	);
 
 	/** @param {Project[]} list */
 	function gallery(list) {
@@ -87,6 +85,10 @@
 	}
 
 	/** @param {Project} project */
+	const projectPage = (project) =>
+		resolve('/[category]/[slug]', { category: categorySlug(project.category), slug: project.slug });
+
+	/** @param {Project} project */
 	function open(project) {
 		if (!scene) return;
 		selected = project;
@@ -101,8 +103,9 @@
 	function close() {
 		if (!selected) return;
 		selected = null;
-		flip.reset();
+		// The scene unwinds the card to its front on the way home; this only rewinds the controller.
 		scene?.close();
+		flip.reset();
 		canvas?.focus({ preventScroll: true });
 	}
 
@@ -116,6 +119,48 @@
 		// WallMotion cancels the click that follows a drag; honour that instead of double-flipping.
 		if (!event.defaultPrevented) flip.moveBy(1);
 	}
+
+	/**
+	 * A plain click on an index entry opens its postcard, as tapping the card does; a modified click,
+	 * or one before the postcards are in, follows the link to the Project page.
+	 * @param {MouseEvent & { currentTarget: HTMLAnchorElement }} event @param {Project} project
+	 */
+	function pick(event, project) {
+		if (!ready || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		/** @type {HTMLDetailsElement} */ (event.currentTarget.closest('details')).open = false;
+		open(project);
+	}
+
+	/** The rail's labels in the order of its buttons; `key` is a shortcut the gallery answers to. */
+	const tips = [{ label: 'Home' }, ...categoryLinks.map(({ label }) => ({ label })), { label: 'Recenter', key: '0' }];
+
+	/**
+	 * One tooltip for the whole rail (docs/index-button.mp4): it fades in over the first button pointed
+	 * at, then glides from button to button, taking each label's width as the labels slide past inside
+	 * it like a strip, and fades out where it is when the pointer leaves.
+	 */
+	let tip = $state.raw({ x: 0, w: 0, offset: 0, shown: false, glide: false });
+	/** @type {HTMLElement} */
+	let tipStrip;
+
+	/** @param {EventTarget | null} target */
+	function showTip(target) {
+		const button = target instanceof Element ? target.closest('.tool-button') : null;
+		if (!(button instanceof HTMLElement)) return;
+		const label = /** @type {HTMLElement} */ (tipStrip.children[Number(button.dataset.tip)]);
+		tip = {
+			x: button.offsetLeft + (button.offsetWidth - label.offsetWidth) / 2,
+			w: label.offsetWidth,
+			offset: label.offsetLeft,
+			shown: true,
+			glide: tip.shown && !prefersReducedMotion.current
+		};
+	}
+
+	function hideTip() {
+		if (tip.shown) tip = { ...tip, shown: false, glide: false };
+	}
 </script>
 
 <svelte:window onkeydown={(event) => event.key === 'Escape' && selected && close()} />
@@ -127,6 +172,8 @@
 			bind:this={canvas}
 			tabindex="0"
 			aria-label="{category.label} postcards. Drag or use the arrow keys to move; scroll, pinch, or use plus and minus to zoom; press zero to recenter; tap a card to open it."
+			onpointerdown={() => (closeOnClick = selected !== null)}
+			onclick={() => closeOnClick && close()}
 			{@attach gallery(projects)}
 			{@attach pan.attach}
 		></canvas>
@@ -138,29 +185,51 @@
 		<p>{category.description}</p>
 	</div>
 
-	<nav class="tool-rail" aria-label="Gallery navigation">
-		<a class="tool-button" href={resolve('/')} aria-label="Home">
+	<!-- Tooltips follow a mouse or the keyboard; a finger taps straight through. -->
+	<nav
+		class="tool-rail"
+		aria-label="Gallery navigation"
+		onpointerover={(event) => event.pointerType === 'mouse' && showTip(event.target)}
+		onpointerleave={(event) => event.pointerType === 'mouse' && hideTip()}
+		onfocusin={(event) => event.target instanceof Element && event.target.matches(':focus-visible') && showTip(event.target)}
+		onfocusout={(event) => !event.currentTarget.contains(/** @type {Node | null} */ (event.relatedTarget)) && hideTip()}
+	>
+		<a class="tool-button" href={resolve('/')} aria-label="Home" data-tip="0">
 			<HouseSimpleIcon size={20} weight="regular" aria-hidden="true" />
-			<span class="tooltip">Home</span>
 		</a>
 		<span class="tool-divider" aria-hidden="true"></span>
-		{#each categoryLinks as section (section.value)}
-			{@const Icon = section.Icon}
+		{#each categoryLinks as section, index (section.value)}
 			<a
 				class="tool-button"
 				href={resolve('/[category]', { category: section.slug })}
 				aria-label={section.label}
 				aria-current={section.slug === category.slug ? 'page' : undefined}
+				data-tip={index + 1}
 			>
-				<Icon size={20} weight="regular" aria-hidden="true" />
-				<span class="tooltip">{section.label}</span>
+				<section.Icon size={20} weight="regular" aria-hidden="true" />
 			</a>
 		{/each}
 		<span class="tool-divider" aria-hidden="true"></span>
-		<button class="tool-button" type="button" aria-label="Recenter the gallery" onclick={resetView}>
+		<button
+			class="tool-button"
+			type="button"
+			aria-label="Recenter the gallery"
+			aria-keyshortcuts="0"
+			data-tip={tips.length - 1}
+			onclick={resetView}
+		>
 			<CrosshairSimpleIcon size={20} weight="regular" aria-hidden="true" />
-			<span class="tooltip">Recenter</span>
 		</button>
+		<span
+			class={['tip', { shown: tip.shown, glide: tip.glide }]}
+			aria-hidden="true"
+			style:width="{tip.w}px"
+			style:translate="{tip.x}px 0"
+		>
+			<span class="tip-strip" bind:this={tipStrip} style:translate="{-tip.offset}px 0">
+				{#each tips as { label, key }}<span>{label}{#if key}<kbd>{key}</kbd>{/if}</span>{/each}
+			</span>
+		</span>
 	</nav>
 
 	{#if selected}
@@ -169,19 +238,25 @@
 				class="hero-hit"
 				type="button"
 				aria-label="Flip the postcard"
+				style:top="calc(50% + {heroBox.y}px)"
 				style:width="{heroBox.w}px"
 				style:height="{heroBox.h}px"
 				onclick={handleFlipClick}
 				{@attach flip.attach}
 				{@attach focusOnMount}
 			></button>
-			<div class="card-row">
+			<div
+				class="caption"
+				style:top="calc(50% + {heroBox.y + heroBox.h / 2}px)"
+				style:width="max({heroBox.w}px, min(20rem, 100vw - 2rem))"
+			>
 				<h2 id="open-title">{selected.projectName}</h2>
-				<a href={resolve('/[category]/[slug]', { category: categorySlug(selected.category), slug: selected.slug })}>
-					Details →
-				</a>
-				<a href={selected.projectLink} target="_blank" rel="external noreferrer">Open project ↗</a>
-				<button type="button" onclick={close}>Close</button>
+				<span class="year">{selected.date.slice(0, 4)}</span>
+				<div class="actions">
+					<a href={projectPage(selected)}>Details →</a>
+					<a href={selected.projectLink} target="_blank" rel="external noreferrer">Open project ↗</a>
+					<button type="button" onclick={close}>Close</button>
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -194,7 +269,7 @@
 			<span class="summary-label">Project index</span>
 			<span class="summary-count">{projects.length}</span>
 			<span class="index-caret">
-				<CaretDownIcon size={15} weight="bold" aria-hidden="true" />
+				<CaretDownIcon size={14} weight="bold" aria-hidden="true" />
 			</span>
 		</summary>
 		<nav aria-label="{category.label} projects">
@@ -203,14 +278,10 @@
 				<span>Select a postcard</span>
 			</div>
 			{#each projects as project, index (project.slug)}
-				<a
-					href={resolve('/[category]/[slug]', {
-						category: categorySlug(project.category),
-						slug: project.slug
-					})}
-				>
+				<a href={projectPage(project)} onclick={(event) => pick(event, project)}>
 					<span>{String(index + 1).padStart(2, '0')}</span>
 					<strong>{project.projectName}</strong>
+					<span>{project.date.slice(0, 4)}</span>
 				</a>
 			{/each}
 		</nav>
@@ -220,7 +291,7 @@
 	<div class="gallery-status bottom-chrome">
 		<details class="help">
 			<summary aria-label="How to use the gallery">
-				<QuestionIcon size={18} weight="bold" aria-hidden="true" />
+				<QuestionIcon size={18} weight="regular" aria-hidden="true" />
 			</summary>
 			<div class="help-popover">
 				<strong>Explore the canvas</strong>
@@ -234,11 +305,17 @@
 </div>
 
 <style>
+	/*
+	 * The landing's page, type and greys (app.css), with one addition it has no need for: the floating
+	 * controls, all of one material and one height, set one distance in from the window's edges, so
+	 * the index, the rail and help line up along their tops and their bottoms.
+	 */
 	.gallery {
+		--bar: 3rem;
+		--edge: 1rem;
 		position: fixed;
 		inset: 0;
 		z-index: 1;
-		font-family: var(--font-ui);
 		color: var(--ink);
 	}
 
@@ -251,25 +328,14 @@
 		-webkit-user-select: none;
 		-webkit-touch-callout: none;
 		cursor: grab;
-		filter: drop-shadow(0 18px 18px rgb(49 42 35 / 0.16));
+		/* Lifts the postcards off the white page, and gives a white chart an edge against it. */
+		filter: drop-shadow(0 8px 18px rgb(0 0 0 / 0.12));
 		outline: none;
 	}
 
 	canvas:focus-visible {
-		outline: 2px solid var(--accent);
+		outline: 2px solid var(--ink);
 		outline-offset: -4px;
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
 	}
 
 	.tool-rail,
@@ -277,13 +343,11 @@
 	.project-index nav,
 	.help summary,
 	.help-popover {
-		border: 1px solid color-mix(in srgb, var(--hairline) 82%, transparent);
-		background: color-mix(in srgb, var(--surface-solid) 84%, transparent);
-		box-shadow:
-			0 14px 38px color-mix(in srgb, var(--shadow-soft) 86%, transparent),
-			inset 0 1px rgb(255 255 255 / 0.72);
-		backdrop-filter: blur(18px) saturate(1.12);
-		-webkit-backdrop-filter: blur(18px) saturate(1.12);
+		border: 1px solid var(--hairline);
+		background: rgb(255 255 255 / 0.82);
+		box-shadow: 0 8px 24px rgb(0 0 0 / 0.06);
+		backdrop-filter: blur(20px) saturate(1.8);
+		-webkit-backdrop-filter: blur(20px) saturate(1.8);
 	}
 
 	.intro {
@@ -291,7 +355,7 @@
 		inset: 0;
 		display: grid;
 		place-content: center;
-		gap: 0.9rem;
+		gap: 0.75rem;
 		text-align: center;
 		pointer-events: none;
 		transition: opacity 420ms var(--ease-out);
@@ -302,29 +366,27 @@
 	}
 
 	.intro strong {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(3rem, 4vw, 4rem);
-		font-weight: 440;
-		letter-spacing: -0.035em;
-		line-height: 1;
+		font-size: clamp(2rem, 4vw, 3rem);
+		font-weight: 400;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
 	}
 
 	.intro p {
 		margin: 0;
 		color: var(--muted-ink);
-		font-size: clamp(0.94rem, 1.08vw, 1.08rem);
 	}
 
 	.tool-rail {
 		position: absolute;
 		z-index: 5;
-		bottom: clamp(0.8rem, 1.8vh, 1.1rem);
+		bottom: var(--edge);
 		left: 50%;
 		display: flex;
 		align-items: center;
-		gap: 0.16rem;
-		padding: 0.36rem;
+		gap: 0.125rem;
+		height: var(--bar);
+		padding: 0 calc(0.25rem - 1px);
 		border-radius: 999px;
 		transform: translateX(-50%);
 		transition:
@@ -338,77 +400,101 @@
 		pointer-events: none;
 	}
 
+	/* Grey until pointed at, like the landing's nav; the current section white on black, like the bar
+	   that wipes across a lit Category link. */
 	.tool-button {
-		position: relative;
 		display: grid;
-		width: 2.55rem;
-		height: 2.55rem;
+		width: calc(var(--bar) - 0.5rem);
+		height: calc(var(--bar) - 0.5rem);
 		place-items: center;
 		padding: 0;
 		border: 0;
 		border-radius: 50%;
 		background: transparent;
-		color: var(--ink);
+		color: var(--muted-ink);
 		text-decoration: none;
 		cursor: pointer;
 		transition:
 			background 160ms var(--ease-out),
-			color 160ms var(--ease-out),
-			transform var(--press-out-duration) var(--ease-out);
+			color 160ms var(--ease-out);
 	}
 
 	.tool-button[aria-current='page'] {
 		background: var(--ink);
-		box-shadow: 0 5px 13px rgb(30 24 38 / 0.2);
-		color: var(--surface-solid);
+		color: #fff;
 	}
 
 	.tool-button:hover:not([aria-current='page']) {
-		background: color-mix(in srgb, var(--ink) 8%, transparent);
-	}
-
-	.tool-button:active {
-		transform: scale(0.93);
-		transition-duration: var(--press-in-duration);
+		background: rgb(0 0 0 / 0.05);
+		color: var(--ink);
 	}
 
 	.tool-divider {
 		display: block;
 		width: 1px;
-		height: 1.4rem;
-		margin: 0 0.18rem;
+		height: 1.25rem;
+		margin: 0 0.1875rem;
 		background: var(--hairline);
 	}
 
-	.tooltip {
+	/*
+	 * The rail's one tooltip. Every label sits on one strip, in the order of the buttons, seen through a
+	 * window as wide as the current label: moving along the rail, the window glides over the next button
+	 * and takes its label's width while the strip slides that label into it.
+	 */
+	.tip {
 		position: absolute;
-		bottom: calc(100% + 0.68rem);
-		left: 50%;
-		width: max-content;
-		padding: 0.34rem 0.52rem;
-		border-radius: 0.55rem;
+		bottom: calc(100% + 0.625rem);
+		left: 0;
+		overflow: hidden;
+		border-radius: 0.375rem;
 		background: var(--ink);
-		box-shadow: 0 5px 16px rgb(30 24 38 / 0.18);
-		color: var(--surface-solid);
-		font-size: 0.69rem;
-		font-weight: 590;
+		color: #fff;
+		font-size: 0.75rem;
+		line-height: 1.3;
+		white-space: nowrap;
 		opacity: 0;
-		transform: translate(-50%, 0.25rem);
-		transition:
-			opacity 130ms ease,
-			transform 130ms ease;
 		pointer-events: none;
+		transition: opacity 150ms var(--ease-out);
 	}
 
-	.tool-button:hover .tooltip,
-	.tool-button:focus-visible .tooltip {
+	.tip.shown {
 		opacity: 1;
-		transform: translate(-50%, 0);
+	}
+
+	.tip.glide {
+		transition:
+			opacity 150ms var(--ease-out),
+			translate 220ms var(--ease-out),
+			width 220ms var(--ease-out);
+	}
+
+	.tip-strip {
+		display: flex;
+		width: max-content;
+	}
+
+	.tip.glide .tip-strip {
+		transition: translate 220ms var(--ease-out);
+	}
+
+	.tip-strip > span {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.3125rem 0.5rem;
+	}
+
+	kbd {
+		padding: 0 0.25rem;
+		border: 1px solid rgb(255 255 255 / 0.3);
+		border-radius: 0.25rem;
+		font: inherit;
+		font-size: 0.6875rem;
 	}
 
 	.hero-hit {
 		position: absolute;
-		top: 50%;
 		left: 50%;
 		translate: -50% -50%;
 		padding: 0;
@@ -420,62 +506,73 @@
 	}
 
 	.hero-hit:focus-visible {
-		outline: 2px dashed var(--accent);
-		outline-offset: 10px;
+		outline: 2px solid var(--ink);
+		outline-offset: 4px;
 	}
 
-	.card-row {
+	/* Under the open card and as wide, set like a landing Project card: the title with its year at the
+	   right edge, then the links, the way out at the far end. On paper, like the landing's growing white
+	   card that hides the words under it: the faded postcards pass behind the words, not through them. */
+	.caption {
 		position: absolute;
-		inset-inline: 0;
-		bottom: clamp(1.1rem, 4vh, 2.4rem);
-		width: fit-content;
-		margin-inline: auto;
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
+		left: 50%;
+		display: grid;
+		grid-template-columns: 1fr auto;
 		align-items: baseline;
-		gap: 0.35rem 1.2rem;
-		max-width: min(92vw, 44rem);
-		padding: 0.7rem 1.2rem;
-		border: 1px solid var(--hairline);
-		border-radius: 1.1rem;
-		background: var(--surface);
-		box-shadow: var(--shadow-material);
-		backdrop-filter: blur(10px);
+		column-gap: 1.25rem;
+		margin-top: 1rem;
+		background: var(--paper);
+		box-shadow: 0 0 0.5rem 0.25rem var(--paper);
+		translate: -50% 0;
+		font-size: 0.875rem;
+		line-height: 1.5;
 	}
 
-	.card-row h2 {
+	.caption h2 {
 		display: -webkit-box;
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
-		flex-basis: 100%;
 		margin: 0;
 		overflow: hidden;
-		font-family: var(--font-hand);
-		font-size: 1.05rem;
-		font-weight: 500;
-		text-align: center;
+		font-size: 1rem;
+		font-weight: 400;
+		line-height: 1.4;
 	}
 
-	.card-row a,
-	.card-row button {
-		padding: 0.25rem 0;
+	.year {
+		color: var(--muted-ink);
+	}
+
+	.actions {
+		display: flex;
+		grid-column: 1 / -1;
+		gap: 1.25rem;
+		margin-top: 0.375rem;
+	}
+
+	.actions button {
+		margin-left: auto;
+	}
+
+	/* Grey until pointed at, like the landing's links; padding grows the tap target to 44px without
+	   moving the text. */
+	.actions a,
+	.actions button {
+		margin-block: -0.6875rem;
+		padding: 0.6875rem 0;
 		border: 0;
 		background: none;
+		color: var(--muted-ink);
 		font: inherit;
-		font-size: 0.92rem;
-		color: var(--ink);
 		text-decoration: none;
 		cursor: pointer;
+		transition: color 160ms var(--ease-out);
 	}
 
-	.card-row a:hover,
-	.card-row button:hover,
-	.card-row a:focus-visible,
-	.card-row button:focus-visible {
-		color: var(--accent);
-		outline: none;
+	.actions a:hover,
+	.actions button:hover {
+		color: var(--ink);
 	}
 
 	.bottom-chrome {
@@ -493,22 +590,20 @@
 
 	.project-index {
 		position: absolute;
-		left: clamp(0.8rem, 1.45vw, 1.3rem);
-		bottom: clamp(0.8rem, 1.8vh, 1.1rem);
+		left: var(--edge);
+		bottom: var(--edge);
 	}
 
 	.project-index summary {
 		display: flex;
-		width: 17.5rem;
-		height: 2.65rem;
+		height: var(--bar);
 		align-items: center;
-		gap: 0.55rem;
-		padding: 0 0.75rem;
-		border-radius: 1rem;
-		color: var(--ink);
+		gap: 0.625rem;
+		padding: 0 1rem;
+		border-radius: 999px;
+		font-size: 0.875rem;
 		cursor: pointer;
 		list-style: none;
-		transition: transform var(--press-out-duration) var(--ease-out);
 	}
 
 	.project-index summary::-webkit-details-marker,
@@ -516,26 +611,9 @@
 		display: none;
 	}
 
-	.project-index summary:active {
-		transform: scale(0.975);
-	}
-
-	.summary-label {
-		flex: 1;
-		font-size: 0.8rem;
-		font-weight: 570;
-	}
-
-	.summary-count {
-		display: grid;
-		min-width: 1.45rem;
-		height: 1.45rem;
-		place-items: center;
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--ink) 7%, transparent);
+	.summary-count,
+	.index-caret {
 		color: var(--muted-ink);
-		font-size: 0.69rem;
-		font-weight: 590;
 	}
 
 	.index-caret {
@@ -551,75 +629,70 @@
 	.project-index nav {
 		position: absolute;
 		left: 0;
-		bottom: calc(100% + 0.7rem);
+		bottom: calc(100% + 0.5rem);
 		display: grid;
-		gap: 0.12rem;
-		width: min(24rem, calc(100vw - 2rem));
+		width: min(24rem, calc(100vw - 2 * var(--edge)));
 		max-height: min(62vh, 34rem);
-		padding: 0.7rem;
+		padding: 0.5rem;
 		overflow: auto;
-		border-radius: 1.15rem;
+		border-radius: 1rem;
 		overscroll-behavior: contain;
+	}
+
+	/* Headings in the landing's label type (its Project cards' "Client"). */
+	.index-heading,
+	.help-popover strong {
+		color: var(--muted-ink);
+		font-size: 0.6875rem;
+		font-weight: 400;
+		letter-spacing: 0.08em;
+		line-height: 1.6;
+		text-transform: uppercase;
 	}
 
 	.index-heading {
 		display: flex;
-		align-items: baseline;
 		justify-content: space-between;
 		gap: 1rem;
-		padding: 0.35rem 0.45rem 0.65rem;
+		padding: 0.5rem 0.625rem;
 	}
 
 	.index-heading strong {
-		font-family: var(--font-display);
-		font-size: 1.2rem;
-		font-weight: 540;
-		letter-spacing: -0.025em;
+		font-weight: inherit;
 	}
 
-	.index-heading span {
-		color: var(--muted-ink);
-		font-size: 0.7rem;
-	}
-
+	/* Number, title, and the year at the right edge, as on the landing's Project cards. */
 	.project-index nav a {
 		display: grid;
-		grid-template-columns: 1.7rem 1fr;
-		align-items: start;
-		gap: 0.55rem;
-		padding: 0.55rem 0.45rem;
-		border-radius: 0.7rem;
+		grid-template-columns: 1.5rem 1fr auto;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.5625rem 0.625rem;
+		border-radius: 0.5rem;
 		color: var(--ink);
+		font-size: 0.875rem;
+		line-height: 1.4;
 		text-decoration: none;
 		transition: background 140ms ease;
 	}
 
 	.project-index nav a:hover {
-		background: color-mix(in srgb, var(--ink) 7%, transparent);
+		background: rgb(0 0 0 / 0.05);
 	}
 
 	.project-index nav a > span {
-		padding-top: 0.08rem;
 		color: var(--muted-ink);
-		font-size: 0.64rem;
-		font-weight: 600;
-		letter-spacing: 0.08em;
+		font-size: 0.75rem;
 	}
 
 	.project-index nav a > strong {
-		font-family: var(--font-hand);
-		font-size: 0.88rem;
-		font-weight: 490;
-		line-height: 1.35;
+		font-weight: 400;
 	}
 
 	.gallery-status {
 		position: absolute;
-		right: clamp(0.8rem, 1.45vw, 1.3rem);
-		bottom: clamp(0.8rem, 1.8vh, 1.1rem);
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+		right: var(--edge);
+		bottom: var(--edge);
 	}
 
 	.help {
@@ -628,100 +701,94 @@
 
 	.help summary {
 		display: grid;
-		width: 2.55rem;
-		height: 2.55rem;
+		width: var(--bar);
+		height: var(--bar);
 		place-items: center;
 		border-radius: 50%;
-		color: var(--ink);
+		color: var(--muted-ink);
 		cursor: pointer;
 		list-style: none;
-		transition: transform var(--press-out-duration) var(--ease-out);
+		transition: color 160ms var(--ease-out);
 	}
 
-	.help summary:active {
-		transform: scale(0.94);
+	.help summary:hover,
+	.help[open] summary {
+		color: var(--ink);
 	}
 
 	.help-popover {
 		position: absolute;
 		right: 0;
-		bottom: calc(100% + 0.7rem);
+		bottom: calc(100% + 0.5rem);
 		display: grid;
-		gap: 0.45rem;
-		width: min(17rem, calc(100vw - 2rem));
-		padding: 0.9rem 1rem;
+		gap: 0.375rem;
+		width: min(17rem, calc(100vw - 2 * var(--edge)));
+		padding: 1rem;
 		border-radius: 1rem;
-	}
-
-	.help-popover strong {
-		font-family: var(--font-display);
-		font-size: 1.08rem;
-		font-weight: 550;
-		letter-spacing: -0.02em;
 	}
 
 	.help-popover p,
 	.help-popover span {
 		margin: 0;
-		color: var(--muted-ink);
-		font-size: 0.74rem;
-		line-height: 1.45;
+		color: var(--ink);
+		font-size: 0.8125rem;
+		line-height: 1.5;
+	}
+
+	/* The landing's press and focus, on every control. */
+	.tool-button:active,
+	.project-index summary:active,
+	.project-index nav a:active,
+	.help summary:active,
+	.actions :is(a, button):active {
+		opacity: 0.55;
 	}
 
 	.tool-button:focus-visible,
 	.project-index summary:focus-visible,
 	.project-index nav a:focus-visible,
-	.help summary:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 3px;
+	.help summary:focus-visible,
+	.actions :is(a, button):focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 2px;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
 		.intro,
 		.tool-button,
-		.tooltip,
-		.project-index summary,
 		.index-caret,
 		.help summary,
+		.actions :is(a, button),
 		.bottom-chrome {
 			transition: none;
 		}
 	}
 
+	/* Fingers: 44px controls (Apple's minimum), and the index shrinks to its icon. */
 	@media (max-width: 840px) {
+		.gallery {
+			--bar: 2.75rem;
+			--edge: 0.75rem;
+		}
+
 		.intro {
 			padding: 0 1rem;
 		}
 
-		.intro strong {
-			font-size: clamp(2.35rem, 11vw, 3rem);
-		}
-
-		.intro p {
-			font-size: 0.86rem;
-		}
-
 		.tool-rail {
-			bottom: calc(0.75rem + env(safe-area-inset-bottom));
-			gap: 0.05rem;
-			padding: 0.28rem;
+			bottom: calc(var(--edge) + env(safe-area-inset-bottom));
+			gap: 0;
 		}
 
-		.tooltip {
-			display: none;
-		}
-
-		.project-index {
-			left: 0.75rem;
-			bottom: calc(0.75rem + env(safe-area-inset-bottom));
+		.project-index,
+		.gallery-status {
+			bottom: calc(var(--edge) + env(safe-area-inset-bottom));
 		}
 
 		.project-index summary {
-			width: 2.65rem;
-			height: 2.65rem;
+			width: var(--bar);
 			justify-content: center;
 			padding: 0;
-			border-radius: 1rem;
 		}
 
 		.summary-label,
@@ -729,29 +796,13 @@
 		.index-caret {
 			display: none;
 		}
-
-		.project-index nav {
-			width: calc(100vw - 1.5rem);
-			max-height: min(58vh, 30rem);
-		}
-
-		.gallery-status {
-			right: 0.75rem;
-			bottom: calc(0.75rem + env(safe-area-inset-bottom));
-		}
-
-		.help summary {
-			width: 3rem;
-			height: 3rem;
-			border-radius: 1rem;
-		}
 	}
 
-	/* Narrower than this, the rail (275px) reaches the index and help buttons: they step up above it. */
-	@media (max-width: 404px) {
+	/* Narrower than this, the rail (238px) reaches the index and help buttons: they step up above it. */
+	@media (max-width: 368px) {
 		.project-index,
 		.gallery-status {
-			bottom: calc(4.15rem + env(safe-area-inset-bottom));
+			bottom: calc(var(--edge) * 2 + var(--bar) + env(safe-area-inset-bottom));
 		}
 	}
 
@@ -761,7 +812,7 @@
 		.project-index nav,
 		.help summary,
 		.help-popover {
-			background: var(--surface-solid);
+			background: #fff;
 			backdrop-filter: none;
 			-webkit-backdrop-filter: none;
 		}

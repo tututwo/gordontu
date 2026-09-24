@@ -33,13 +33,9 @@ The about bio's self-correction, played on every arrival: its second sentence fi
 _Avoid_: Typo, draft, tracked change
 
 **Postcard gallery**:
-A page of Projects scattered once as postcards on a bounded plane you drag around. There is one per Project category, holding that category's Projects, and one titled All projects (`/all`), holding every Project mixed together, newest first; its tool rail reaches all four. One postcard can be opened (it flies to the centre) and flipped to its back; its Details link leads to the Project page (`/<category>/<project slug>`, always the Project's own category). Opening or flipping never changes the URL.
+A page of Projects scattered once as postcards on a bounded plane you drag around. There is one per Project category, holding that category's Projects, and one titled All projects (`/all`), holding every Project mixed together, newest first; its tool rail reaches all four. Each postcard is its Project's image in its own proportions. One postcard can be opened (it flies to the centre; picking it from the project index does the same) and flipped to its back, a postcard's back set like a Project card (date, title, Client, tools, and the category as a stamp); its Details link leads to the Project page (`/<category>/<project slug>`, always the Project's own category). Opening or flipping never changes the URL.
 _Avoid_: Grid, wall, canvas, infinite canvas
 
 **Project category**:
 One of the portfolio's canonical groupings: Interactive maps, Visual stories, or Web tools. Each has its own page (`/maps`, `/charts`, `/creative-code` — the URLs keep the earlier names Maps, Charts, Creative coding), reached from the landing page or the gallery's section switcher. The stored `value` never changes; `slug` is the URL form.
 _Avoid_: Title tag, navigation item, filter, services
-
-**Sketch**:
-A hand-drawn rough.js decoration on the back of a postcard in the Postcard gallery, seeded from the Project's name so it is unique but stable.
-_Avoid_: Doodle, icon

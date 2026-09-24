@@ -20,18 +20,19 @@ function clamp(value, minimum, maximum) {
  * Project wall's controller (removed in ADR-0003); today it drives the Postcard gallery's flip,
  * where one step is a half-turn.
  *
- * Interface: `offset` (position in steps), `attach(node)`, `reset()`, `moveBy(±1)` (spring one
- * step). Everything else — spring integration, velocity estimation, pointer capture, post-drag
- * click suppression — is implementation.
+ * Interface: `offset` (position in steps, reported to `onchange` on every move), `attach(node)`,
+ * `reset()`, `moveBy(±1)` (spring one step). Everything else — spring integration, velocity
+ * estimation, pointer capture, post-drag click suppression — is implementation.
  *
  * ponytail: integrator stays hand-rolled — svelte/motion's Spring is parameterized
  * differently and this feel is device-tuned; swap only after testing on real touch.
  */
 export class WallMotion {
 	// Track position in steps so a responsive step-size change cannot shift the active face.
-	offset = $state(0);
+	#offset = 0;
 
 	#step;
+	#onchange;
 	#isDragging = false;
 
 	#animationFrame = 0;
@@ -49,9 +50,22 @@ export class WallMotion {
 	#pointerHistory = [];
 	#suppressClick = false;
 
-	/** @param {() => number} step CSS px per step — a getter, so the motion tracks the responsive layout. */
-	constructor(step) {
+	/**
+	 * @param {() => number} step CSS px per step — a getter, so the motion tracks the responsive layout.
+	 * @param {(offset: number) => void} onchange
+	 */
+	constructor(step, onchange) {
 		this.#step = step;
+		this.#onchange = onchange;
+	}
+
+	get offset() {
+		return this.#offset;
+	}
+
+	set offset(value) {
+		this.#offset = value;
+		this.#onchange(value);
 	}
 
 	/** Snap to the first face. */

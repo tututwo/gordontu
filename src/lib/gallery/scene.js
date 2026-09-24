@@ -1,24 +1,23 @@
 import * as THREE from 'three';
 import { cubicOut } from 'svelte/easing';
 import { toOptimizedImage } from '../project/project.js';
-import {
-	DEFAULT_CARD_RATIO,
-	cardSize,
-	cellSize,
-	closestCardRatio,
-	containScale,
-	layoutPlane,
-	panLimits
-} from './layout.js';
-import { backTexture, loadBackFonts, readTokens } from './postcardBack.js';
+import { DEFAULT_CARD_RATIO, cardSize, cellSize, layoutPlane, panLimits } from './layout.js';
+import { backTexture, loadBackFont, readTokens } from './postcardBack.js';
 
-const CAMERA_Z = 1000;
-const GHOST = 0.15;
+const GHOST = 0.1;
 const OPEN_MS = 520;
 const REVEAL_MS = 380;
 const REVEAL_STAGGER_MS = 28;
-const PAPER = 0xf1ebe0;
-const CARD_PAPER = 0xfffdf9;
+/** The landing's image placeholder grey, shown until a card's image is in (or if it never arrives). */
+const PLACEHOLDER = 0xf4f4f4;
+/**
+ * How far the camera stands from the open card, in card widths. The flip turns the card in real
+ * perspective, and from this far its near edge swells by only a seventh, like a postcard turned at
+ * arm's length; closer, a wide card's edge doubled and reached past the page.
+ */
+const PERSPECTIVE = 4;
+/** Room under the open card for its caption (PostcardGallery's .caption: a gap and at most three lines), px. */
+const CAPTION = 96;
 
 /** @typedef {import('../project/project.js').Project} Project */
 
@@ -28,8 +27,7 @@ const CARD_PAPER = 0xfffdf9;
  * @property {THREE.Mesh} mesh the one postcard on the plane
  * @property {THREE.MeshBasicMaterial} material opacity = reveal × ghost
  * @property {THREE.MeshBasicMaterial} backingMaterial opaque silhouette beneath transparent art
- * @property {THREE.Mesh} art image plane contained inside the card
- * @property {number} ratio width / height
+ * @property {number} ratio width / height, the image's own
  * @property {{ w: number, h: number }} size
  */
 
@@ -39,7 +37,7 @@ const CARD_PAPER = 0xfffdf9;
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Project[]} projects
- * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: { w: number, h: number }) => void }} options
+ * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: { w: number, h: number, y: number }) => void }} options
  *   `pan` is sampled every frame (screen px, +y down); `onready` fires once textures are in.
  */
 export function createScene(canvas, projects, { pan, reduced, onready, onheroresize }) {
@@ -47,8 +45,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 	renderer.setClearColor(0x000000, 0);
 	const scene = new THREE.Scene();
-	const camera = new THREE.PerspectiveCamera(30, 1, 1, CAMERA_Z * 2);
-	camera.position.z = CAMERA_Z;
+	const camera = new THREE.PerspectiveCamera(30, 1, 1, 2000);
+	let cameraZ = 1000;
 	const geometry = new THREE.PlaneGeometry(1, 1);
 	const raycaster = new THREE.Raycaster();
 	const tokens = readTokens();
@@ -57,7 +55,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	let height = 1;
 	let cell = 300;
 	let homeY = 0;
-	let plane = layoutPlane(projects, cell, width);
+	/** @type {ReturnType<typeof layoutPlane>} */
+	let plane;
 	/** @type {Card[]} */
 	const cards = [];
 	let revealStart = Infinity;
@@ -69,12 +68,12 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	hero.renderOrder = projects.length * 2 + 2;
 	const heroPaper = new THREE.Mesh(
 		geometry,
-		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: CARD_PAPER })
+		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: 0xffffff })
 	);
 	const heroFront = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ transparent: true, depthTest: false }));
 	const heroBack = new THREE.Mesh(
 		geometry,
-		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: PAPER })
+		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: 0xffffff })
 	);
 	heroPaper.position.z = -0.001;
 	heroBack.rotation.y = Math.PI;
@@ -94,6 +93,9 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	let openTarget = 0;
 	let openStart = 0;
 	let openDuration = OPEN_MS;
+	// Closing, the card unwinds whatever turn it is at back to its front as it flies home.
+	let closing = false;
+	let closingTurn = 0;
 
 	// --- cards + textures ---
 	const loader = new THREE.TextureLoader();
@@ -103,11 +105,11 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	/** @type {Promise<void>[]} */
 	const loads = [];
 	for (const [index, project] of projects.entries()) {
-		const material = new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: PAPER, opacity: 0 });
+		const material = new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: PLACEHOLDER, opacity: 0 });
 		const backingMaterial = new THREE.MeshBasicMaterial({
 			transparent: true,
 			depthTest: false,
-			color: CARD_PAPER,
+			color: 0xffffff,
 			opacity: 0
 		});
 		const mesh = new THREE.Mesh(geometry, backingMaterial);
@@ -118,15 +120,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		mesh.add(art);
 		scene.add(mesh);
 		/** @type {Card} */
-		const card = {
-			project,
-			mesh,
-			art,
-			material,
-			backingMaterial,
-			ratio: DEFAULT_CARD_RATIO,
-			size: cardSize(cell)
-		};
+		const card = { project, mesh, material, backingMaterial, ratio: DEFAULT_CARD_RATIO, size: cardSize(cell) };
 		mesh.userData.card = card;
 		cards.push(card);
 		const load = loadTexture(toOptimizedImage(project.projectImgSource))
@@ -134,29 +128,38 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 				if (disposed) return texture.dispose();
 				texture.colorSpace = THREE.SRGBColorSpace;
 				texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+				// The card is the image, in its own proportions: no frame, no letterbox.
 				const image = /** @type {{ width: number, height: number }} */ (texture.image);
-				const imageRatio = image.width / image.height;
-				card.ratio = closestCardRatio(imageRatio);
-				const artScale = containScale(imageRatio, card.ratio);
-				card.art.scale.set(artScale.x, artScale.y, 1);
+				if (image.width > 0 && image.height > 0) card.ratio = image.width / image.height;
 				material.map = texture;
 				material.color.set(0xffffff);
 				material.needsUpdate = true;
 			})
 			.catch(() => {
-				/* keeps the paper-coloured material; layout never breaks */
-			})
-			.then(() => place(card));
+				/* keeps the placeholder-grey material; layout never breaks */
+			});
 		loads.push(load);
 	}
 
-	/** Put a card on its cell with its current aspect. @param {Card} card */
-	function place(card) {
-		const spot = plane.cells[cards.indexOf(card)];
-		card.size = cardSize(cell, card.ratio);
-		card.mesh.position.set(spot.x, spot.y, 0);
-		card.mesh.rotation.z = spot.rot;
-		card.mesh.scale.set(card.size.w, card.size.h, 1);
+	/** Lay the plane out for the cards' current proportions and put every card on its cell. */
+	function relayout() {
+		plane = layoutPlane(projects, cell, width, cards.map((card) => cardSize(1, card.ratio).h));
+		for (const [index, card] of cards.entries()) {
+			const spot = plane.cells[index];
+			card.size = cardSize(cell, card.ratio);
+			card.mesh.position.set(spot.x, spot.y, 0);
+			card.mesh.rotation.z = spot.rot;
+			card.mesh.scale.set(card.size.w, card.size.h, 1);
+		}
+		pan.constrain();
+	}
+
+	/** Stand the camera `distance` px back, with the field of view that keeps z = 0 at one unit per CSS px. @param {number} distance */
+	function setCameraDistance(distance) {
+		cameraZ = distance;
+		camera.fov = (2 * Math.atan(height / 2 / cameraZ) * 180) / Math.PI;
+		camera.far = cameraZ * 2;
+		camera.updateProjectionMatrix();
 	}
 
 	function resize() {
@@ -165,16 +168,14 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		height = Math.max(1, Math.round(rect.height));
 		renderer.setSize(width, height, false);
 		camera.aspect = width / height;
-		camera.fov = (2 * Math.atan(height / 2 / CAMERA_Z) * 180) / Math.PI;
-		camera.updateProjectionMatrix();
+		setCameraDistance(heroCard && !closing ? PERSPECTIVE * heroBoxFor(heroCard).w : cameraZ);
 		cell = cellSize(width);
 		homeY = cell * 0.18;
-		plane = layoutPlane(projects, cell, width);
-		for (const card of cards) place(card);
-		pan.constrain();
-		if (heroCard) {
+		relayout();
+		if (heroCard && !closing) {
 			heroTo = heroTargetFor(heroCard);
 			onheroresize(heroBoxFor(heroCard));
+			if (heroBackTexture) drawBack(heroCard);
 		}
 		wake();
 	}
@@ -195,7 +196,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			camera.updateProjectionMatrix();
 		}
 		// Dividing by zoom keeps a one-pixel drag equal to one screen pixel at every scale.
-		camera.position.set(-pan.x / zoom, (pan.y + homeY) / zoom, CAMERA_Z);
+		camera.position.set(-pan.x / zoom, (pan.y + homeY) / zoom, cameraZ);
 		camera.updateMatrixWorld();
 	}
 
@@ -233,18 +234,22 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			hero.position.set(lerp(heroFrom.x, heroTo.x, t), lerp(heroFrom.y, heroTo.y, t), 1);
 			hero.rotation.z = lerp(heroFrom.rot, heroTo.rot, t);
 			hero.scale.set(lerp(heroFrom.w, heroTo.w, t), lerp(heroFrom.h, heroTo.h, t), 1);
+			if (closing) hero.rotation.y = closingTurn * t;
 		}
 
 		renderer.render(scene, camera);
 		if (animating) wake();
 	}
 
-	/** Largest postcard box that fits the viewport with breathing room. @param {Card} card */
+	/**
+	 * The open card at rest, CSS px: as big as fits with its caption under it, the two centred together
+	 * (`y` is the card centre's offset from the viewport's). @param {Card} card
+	 */
 	function heroBoxFor(card) {
 		const maxW = width * 0.8;
-		const maxH = height * 0.66;
+		const maxH = Math.max(height * 0.4, Math.min(height * 0.7, height - CAPTION - 64));
 		const w = Math.min(maxW, maxH * card.ratio);
-		return { w, h: w / card.ratio };
+		return { w, h: w / card.ratio, y: -CAPTION / 2 };
 	}
 
 	/** World-space target whose rendered box matches heroBoxFor at the current camera zoom. @param {Card} card */
@@ -253,11 +258,21 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		const box = heroBoxFor(card);
 		return {
 			x: -pan.x / zoom,
-			y: (pan.y + homeY) / zoom,
+			y: (pan.y + homeY - box.y) / zoom,
 			rot: 0,
 			w: box.w / zoom,
 			h: box.h / zoom
 		};
+	}
+
+	/** Draw the open card's back at its size on screen. @param {Card} card */
+	function drawBack(card) {
+		heroBackTexture?.dispose();
+		heroBackTexture = backTexture(card.project, heroBoxFor(card), renderer.getPixelRatio(), tokens);
+		heroBackTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+		heroBack.material.map = heroBackTexture;
+		heroBack.material.needsUpdate = true;
+		wake();
 	}
 
 	/** @param {number} target */
@@ -272,6 +287,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	function settleClosed() {
 		hero.visible = false;
 		heroCard = undefined;
+		closing = false;
 		heroBackTexture?.dispose();
 		heroBackTexture = undefined;
 		heroBack.material.map = null;
@@ -291,9 +307,11 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	canvas.addEventListener('webglcontextrestored', onContextRestored);
 
 	resize();
-	// Reveal once every texture has settled (loaded or fell back), not one by one.
+	// Reveal once every texture has settled (loaded or fell back), not one by one, laid out for the
+	// proportions they turned out to have.
 	Promise.allSettled(loads).then(() => {
 		if (disposed) return;
+		relayout();
 		revealStart = performance.now();
 		onready();
 		wake();
@@ -333,8 +351,10 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		open(project) {
 			const card = cards.find((c) => c.project === project);
 			if (!card) return;
-			syncCamera();
 			heroCard = card;
+			closing = false;
+			setCameraDistance(PERSPECTIVE * heroBoxFor(card).w);
+			syncCamera();
 			heroFrom = {
 				x: card.mesh.position.x,
 				y: card.mesh.position.y,
@@ -343,38 +363,40 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 				h: card.size.h
 			};
 			heroTo = heroTargetFor(card);
-			heroFront.scale.copy(card.art.scale);
 			heroFront.material.map = card.material.map;
-			heroFront.material.color.set(card.material.map ? 0xffffff : PAPER);
+			heroFront.material.color.set(card.material.map ? 0xffffff : PLACEHOLDER);
 			heroFront.material.needsUpdate = true;
+			heroBackTexture?.dispose();
+			heroBackTexture = undefined;
+			heroBack.material.map = null;
+			heroBack.material.needsUpdate = true;
 			hero.rotation.y = 0;
 			hero.visible = true;
-			loadBackFonts().then(() => {
-				if (heroCard !== card || disposed) return;
-				heroBackTexture?.dispose();
-				heroBackTexture = backTexture(project, card.ratio, tokens);
-				heroBack.material.map = heroBackTexture;
-				heroBack.material.color.set(0xffffff);
-				heroBack.material.needsUpdate = true;
-				wake();
+			loadBackFont(tokens).then(() => {
+				if (heroCard === card && !closing && !disposed) drawBack(card);
 			});
 			tweenOpen(1);
 		},
 
 		close() {
-			if (!heroCard) return;
+			if (!heroCard || closing) return;
+			// Whole turns are the front again: unwind only the part short of one, the shorter way.
+			const turn = hero.rotation.y % (2 * Math.PI);
+			closingTurn = turn > Math.PI ? turn - 2 * Math.PI : turn < -Math.PI ? turn + 2 * Math.PI : turn;
+			closing = true;
 			tweenOpen(0);
 		},
 
 		/** @param {number} radians */
 		setFlip(radians) {
+			if (closing) return;
 			hero.rotation.y = radians;
 			wake();
 		},
 
-		/** CSS-pixel box of the opened card at rest, for the DOM hit target. */
+		/** CSS-pixel box of the opened card at rest, for the DOM hit target and caption. */
 		heroBox() {
-			return heroCard ? heroBoxFor(heroCard) : { w: 0, h: 0 };
+			return heroCard ? heroBoxFor(heroCard) : { w: 0, h: 0, y: 0 };
 		},
 
 		wake,
