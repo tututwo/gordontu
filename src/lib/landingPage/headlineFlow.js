@@ -1,37 +1,39 @@
-import { Spring } from './spring.js';
-
 /**
- * The headline makes room for a magnified Category link icon. At rest the headline is plain HTML in the
- * browser's own layout. When a link's icon grows (from its top-left corner, to the right and down),
- * Pretext lays the sentence out again around it: the card stays where the link sits, so everything before
- * it stays put and the reading order holds; everything after it flows on past the card, and round it on
- * the lines it reaches down into, the way text wraps a floated image. The link's own label follows its
- * card: beside it (reaching past the column if the window has room), or on the next free line if not.
+ * The headline makes room for a magnified Category link icon the way a paragraph makes room for a tall
+ * picture set into one of its lines. The icon grows from its frame's top-left corner, right and down,
+ * so its line just gets taller: the words before it and the lines above stay put, the words after it on
+ * its line are pushed along by exactly as much as the card widens (past the column into the margin, if
+ * the window has room), and the lines below part by exactly as much as it deepens. No word changes line
+ * or neighbour, and every one moves in step with the card's edge, so the sentence stays one paragraph
+ * with a picture in it rather than text running round an object.
  *
- * It is laid out again every frame at the card's current size, so the words rewrap live as the card grows
- * and never pass through one another; they are moved by transform only, so the page itself never
- * reflows. The rest of the page slides down (on a spring) if the sentence needs another line.
+ * Only where pushing the words along would take them past the window's edge (a phone) does the card's
+ * line wrap: the words that will not fit go to the start of the next line if it has room for them, or
+ * onto a line of their own under the card, broken by Pretext. The paragraph opens that room as the card
+ * grows, and the words wrap into it once the first of them reaches the edge, as typing does.
  *
- * Pretext positions are only used as offsets between two of its own layouts (lit minus rest), so the
- * browser's rest layout stays the ground truth. If Pretext's rest line breaks disagree with the
+ * Units are moved by transform only, in the same frame as the card they make room for, so the page
+ * never reflows and nothing trails the card; the page below moves down with the headline's last line.
+ *
+ * Pretext positions are only used as offsets between two of its own layouts (wrapped minus rest), so
+ * the browser's rest layout stays the ground truth. If Pretext's rest line breaks disagree with the
  * browser's, the flow stays off and the icons fall back to magnifying over the sentence.
  */
 
-/** Space kept between the card and the words flowing round it, in em; and from the window's edge. */
-const GAP_X = 0.35;
-const GAP_Y = 0.15;
+/** Space kept from the window's edge, in em. */
 const EDGE = 1;
 /** The label's black bar reaches this far past its text (CategoryLink's .label padding), in em. */
 const BAR = 0.2;
-/** The page below slides down and back on this, so an added line never jolts it. */
-const GLIDE = { tension: 260, friction: 31 };
+/** A lit card's side in reference-card units: CategoryLink's 70 frame, brackets popped by 6, doubled. */
+const LIT = (70 + 2 * 6) * 2;
+/** A wrapping word is fully gone when its line is this much short of, or past, full. */
+const FADE = 0.2;
 
 /** @typedef {import('@chenglou/pretext/rich-inline').RichInlineItem} Item */
-/** @typedef {import('@chenglou/pretext/rich-inline').RichInlineCursor} Cursor */
 
 /**
  * One thing that moves as a whole: a word, the avatar, or a link, with any punctuation glued after it.
- * For a link, `label`/`frameOuter`/`labelItem` let the flow split it in two while it is lit.
+ * For a link, `label`/`frameOuter`/`labelItem` let its label wrap away from its card while it is lit.
  * @typedef {{
  *   els: HTMLElement[],
  *   item: Item,
@@ -42,22 +44,10 @@ const GLIDE = { tension: 260, friction: 31 };
  *   labelItem: Item | null,
  *   restLine: number,
  *   restX: number,
- *   modelX: number,
- *   frameY: number
+ *   right: number,
+ *   labelWidth: number,
+ *   modelX: number
  * }} Unit
- */
-
-/**
- * Where a layout put things: each unit (for a lit link, its card), each lit link's label, the top of
- * each line's words, and each card's top.
- * @typedef {{
- *   line: number[],
- *   x: number[],
- *   labelLine: Map<number, number>,
- *   labelX: Map<number, number>,
- *   anchor: number[],
- *   cardTop: Map<number, number>
- * }} Placement
  */
 
 /** @param {HTMLElement} h1 */
@@ -66,6 +56,9 @@ export function headlineFlow(h1) {
 	let pretext;
 	/** @type {Unit[]} */
 	let units = [];
+	/** Unit indices on each rest line. */
+	/** @type {number[][]} */
+	let lines = [];
 	/** Per rest line: the top of its words, and whether it holds a link's frame (1) or not (0). */
 	/** @type {number[]} */
 	let anchors = [];
@@ -82,17 +75,12 @@ export function headlineFlow(h1) {
 	let enabled = false;
 	/** @type {HTMLElement[]} */
 	let followers = [];
-	/** Magnification, bracket pop and how far its black bar has wiped (0–1) of each lit link, by unit index. */
-	/** @type {Map<number, { zoom: number, pop: number, bar: number }>} */
+	/** Magnification, bracket pop, how far its black bar has wiped (0–1) and whether it is on its way in, of each lit link, by unit index. */
+	/** @type {Map<number, { zoom: number, pop: number, bar: number, on: boolean }>} */
 	const lit = new Map();
-	const below = new Spring(0, GLIDE);
-	let frame = 0;
-	let last = 0;
-	let dirty = false;
 	let stale = false;
 	let disposed = false;
 
-	const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 	/** @param {Element} el */
 	const fontOf = (el) => {
 		const s = getComputedStyle(el);
@@ -111,6 +99,29 @@ export function headlineFlow(h1) {
 		if (!pretext) return 0;
 		const prepared = pretext.prepareRichInline([{ text: 'x', font, letterSpacing }, { text: ' x', font, letterSpacing }]);
 		return pretext.layoutNextRichInlineLineRange(prepared, 1e6)?.fragments[1]?.gapBefore ?? 0;
+	}
+
+	/**
+	 * Break `items` into lines of the column's width with Pretext: each item's line and x. A line's first
+	 * item draws no space, but spaced items carry the space drift, so every line gets that much back.
+	 * @param {Item[]} items
+	 * @returns {[number, number][]}
+	 */
+	function wrap(items) {
+		/** @type {[number, number][]} */
+		const out = [];
+		if (!pretext) return out;
+		let k = 0;
+		pretext.walkRichInlineLineRanges(pretext.prepareRichInline(items), width + spaceDrift, (range) => {
+			let at = 0;
+			for (const fr of range.fragments) {
+				at += fr.gapBefore;
+				out[fr.itemIndex] = [k, at];
+				at += fr.occupiedWidth;
+			}
+			k++;
+		});
+		return out;
 	}
 
 	/** Read the browser's rest layout into units and Pretext items, and check Pretext breaks alike. */
@@ -137,6 +148,7 @@ export function headlineFlow(h1) {
 				const unit = list[list.length - 1];
 				const glued = rect.width;
 				unit.els.push(el);
+				unit.right = rect.right - box.left;
 				unit.item.extraWidth = (unit.item.extraWidth ?? 0) + glued;
 				if (unit.labelItem) unit.labelItem.extraWidth = (unit.labelItem.extraWidth ?? 0) + glued;
 				continue;
@@ -161,8 +173,9 @@ export function headlineFlow(h1) {
 				labelItem: null,
 				restLine: 0,
 				restX: rect.left - box.left,
-				modelX: 0,
-				frameY: 0
+				right: rect.right - box.left,
+				labelWidth: 0,
+				modelX: 0
 			};
 			if (el.matches('.category-link')) {
 				// At rest a link is one atomic item: its label's text, plus the frame and its margin as width.
@@ -174,6 +187,10 @@ export function headlineFlow(h1) {
 				unit.label = label;
 				unit.frame = new DOMRect(f.left - box.left, f.top - box.top, f.width, f.height);
 				unit.frameOuter = f.width + parseFloat(getComputedStyle(frameEl).marginRight);
+				// Its label's box takes in the room its black bar will need.
+				const l = label.getBoundingClientRect();
+				unit.right = l.right - box.left;
+				unit.labelWidth = l.width;
 				// The label's negative margins cancel its padding, so the link is as wide as frame plus name.
 				const drift = rect.width - unit.frameOuter - measureText(name, fontOf(label), spacing);
 				unit.item = { text: lead + name, font: fontOf(label), letterSpacing: spacing, break: 'never', extraWidth: unit.frameOuter + drift };
@@ -191,6 +208,7 @@ export function headlineFlow(h1) {
 			if (i && unit.restX <= list[i - 1].restX + 1) line++;
 			unit.restLine = line;
 		});
+		lines = Array.from({ length: line + 1 }, (_, k) => list.flatMap((unit, i) => (unit.restLine === k ? [i] : [])));
 
 		// Lines are anchored by their words' tops, which share the line's baseline. A word is an inline
 		// block as tall as the line-height, so it spans a line that holds nothing taller.
@@ -204,7 +222,7 @@ export function headlineFlow(h1) {
 			lineHeight = r.height;
 		}
 		// A frame is taller than a line of words, so the browser opens its line up above and below.
-		framed = Array.from({ length: line + 1 }, (_, k) => +list.some((unit) => unit.link && unit.restLine === k));
+		framed = lines.map((members) => +members.some((i) => list[i].link));
 		rise = drop = 0;
 		for (const unit of list) {
 			const f = unit.frame;
@@ -219,7 +237,6 @@ export function headlineFlow(h1) {
 			const step = k >= 2 && anchors[k - 1] !== undefined && anchors[k - 2] !== undefined ? anchors[k - 1] - anchors[k - 2] : lineHeight;
 			anchors[k] = (anchors[k - 1] ?? 0) + step;
 		}
-		for (const unit of list) if (unit.frame) unit.frameY = unit.frame.top - anchors[unit.restLine];
 
 		// Between these inline blocks the browser's space is a fraction of a pixel wider than Pretext's.
 		// Each spaced item carries the difference; a line's first item draws no space, so every line is
@@ -239,274 +256,169 @@ export function headlineFlow(h1) {
 		);
 
 		// Pretext's rest layout must break exactly as the browser did, or its offsets would be wrong.
-		const rest = layout(new Map());
-		enabled = units.every((unit, i) => rest.line[i] === unit.restLine);
-		units.forEach((unit, i) => (unit.modelX = rest.x[i]));
+		const rest = wrap(units.map((unit) => unit.item));
+		enabled = units.every((unit, i) => rest[i]?.[0] === unit.restLine);
+		units.forEach((unit, i) => (unit.modelX = rest[i]?.[1] ?? 0));
 		if (enabled) h1.dataset.flow = '';
 		else delete h1.dataset.flow;
 	}
 
-	/**
-	 * Lay the sentence out with each lit link's card grown to `side` px square from its frame's top-left.
-	 * A lit link splits into its card, pinned where the link sits, and its label, which follows the card.
-	 * @param {Map<number, number>} cards unit index → card side in px
-	 * @returns {Placement}
-	 */
-	function layout(cards) {
-		/** @type {Placement} */
-		const out = { line: [], x: [], labelLine: new Map(), labelX: new Map(), anchor: [], cardTop: new Map() };
-		if (!pretext) return out;
-		/** @type {Item[]} */
-		const items = [];
-		/** What each item is: [unit index, 'unit' | 'card' | 'label']. */
-		/** @type {[number, string][]} */
-		const whose = [];
-		units.forEach((unit, i) => {
-			const side = cards.get(i);
-			if (side === undefined || !unit.labelItem) {
-				items.push(unit.item);
-				whose.push([i, 'unit']);
-				return;
+	/** Place every unit for the cards as they are this frame. */
+	function retarget() {
+		// A lit label's black bar wipes in from the left across its box, and nudges on what follows it only
+		// once it reaches past the text, into the room the label's negative margin gave back.
+		const barNow = (/** @type {number} */ i) => Math.max(0, BAR * em - (1 - (lit.get(i)?.bar ?? 0)) * units[i].labelWidth);
+		// The words after a card may be pushed this far right: to the window's edge, less a margin.
+		const limit = width + Math.max(0, document.documentElement.clientWidth - EDGE * em - h1.getBoundingClientRect().right);
+		/**
+		 * How much each lit card has grown and how far it pushes what follows it (its bar included), now and
+		 * as planned: lit, so that words know in time whether they will have to wrap. A card on its way out
+		 * is planned lit too, so that leaving retraces arriving, unless one on its line is on its way in:
+		 * then that one takes its room.
+		 */
+		/** @type {Map<number, { grow: number, push: number, plan: number }>} */
+		const cards = new Map();
+		const arriving = new Set([...lit].flatMap(([i, { on }]) => (on ? [units[i].restLine] : [])));
+		for (const [i, { zoom, pop, on }] of lit) {
+			const side = units[i].frame?.width ?? 0;
+			const grow = (side * (70 + 2 * pop) * zoom) / 70 - side;
+			const plan = on || !arriving.has(units[i].restLine) ? Math.max(grow, (side * LIT) / 70 - side) + BAR * em : 0;
+			cards.set(i, { grow, push: grow + barNow(i), plan });
+		}
+
+		/** Each unit's offset, and its glued punctuation's (they differ for a lit link, past its label). */
+		/** @type {[number, number][]} */
+		const at = units.map(() => [0, 0]);
+		/** @type {[number, number][]} */
+		const tail = units.map(() => [0, 0]);
+		/** A lit link's label, where it wraps away from its card: its offset. */
+		/** @type {Map<number, [number, number]>} */
+		const labelAt = new Map();
+		/** Words that wrap dissolve as they reach the edge and form again on their new line. */
+		/** @type {Map<number, number>} */
+		const shown = new Map();
+		/** How far each unit of a line that takes wrapped words at its start is to move right, once all there. */
+		/** @type {Map<number, number>} */
+		const room = new Map();
+		let roomShare = 0;
+		let down = 0;
+
+		lines.forEach((members, k) => {
+			// Along the line, each lit card pushes what follows it. How full the line is: the most any unit
+			// has used of the room it has before the edge; at 1 the first of them reaches it.
+			let push = 0;
+			let pushLit = 0;
+			let fill = 0;
+			let grow = 0;
+			let over = -1;
+			for (const i of members) {
+				const card = cards.get(i);
+				const made = room.get(i) ?? 0;
+				at[i] = [push + made * roomShare, down];
+				tail[i] = [at[i][0] + (card?.push ?? 0), down];
+				const reach = tail[i][0];
+				if (reach > 0) fill = Math.max(fill, reach / Math.max(1, limit - units[i].right));
+				if (over < 0 && units[i].right + pushLit + made + (card?.plan ?? 0) > limit + 0.5) over = i;
+				push += card?.push ?? 0;
+				pushLit += card?.plan ?? 0;
+				grow = Math.max(grow, card?.grow ?? 0);
 			}
-			const lead = unit.item.text.startsWith(' ') ? ' ' : '';
-			const marginRight = unit.frameOuter - /** @type {DOMRect} */ (unit.frame).width;
-			items.push({ text: lead + '⁠', font: unit.item.font, break: 'never', extraWidth: side + marginRight + (lead ? spaceDrift : 0) });
-			whose.push([i, 'card']);
-			items.push({ ...unit.labelItem, extraWidth: (unit.labelItem.extraWidth ?? 0) + barReach(i) });
-			whose.push([i, 'label']);
-		});
-		const prepared = pretext.prepareRichInline(items);
-		// How far past the column a label may reach to stay beside its card: to the window's edge.
-		const right = h1.getBoundingClientRect().right;
-		const spare = Math.max(0, document.documentElement.clientWidth - EDGE * em - right);
-
-		/** Per line of this layout: whether it holds a frame (1) or not (0). */
-		/** @type {number[]} */
-		const hasFrame = [];
-		/** Cards placed on the line being filled. */
-		/** @type {number[]} */
-		const fresh = [];
-		/** @param {number} item @param {number} k @param {number} x */
-		const put = (item, k, x) => {
-			const [i, part] = whose[item];
-			if (part === 'label') {
-				out.labelLine.set(i, k);
-				out.labelX.set(i, x);
-			} else {
-				out.line[i] = k;
-				out.x[i] = x;
-				if (units[i].link) hasFrame[k] = 1;
-				if (part === 'card') fresh.push(i);
-			}
-		};
-		/** A placed card's left edge, where its frame's is at rest. @param {number} i */
-		const cardLeft = (i) => /** @type {DOMRect} */ (units[i].frame).left + out.x[i] - units[i].modelX;
-
-		/** @type {Cursor | undefined} */
-		let cursor;
-		let done = false;
-		for (let k = 0; !done && k < 64; k++) {
-			// Where this line starts: its words' top if it holds no frame, its frames' top if it does (the
-			// browser opens a framed line up by `rise`, so both land here). Spaced as at rest, adjusted for
-			// lines above that gained or lost a frame; past the rest lines, as the browser would space them.
-			hasFrame[k] = 0;
-			const above = k ? hasFrame[k - 1] : 0;
-			const top =
-				k === 0
-					? anchors[0] - rise * framed[0]
-					: k < anchors.length
-						? out.anchor[k - 1] + anchors[k] - anchors[k - 1] - rise * framed[k] + drop * (above - framed[k - 1])
-						: out.anchor[k - 1] + lineHeight + drop * above;
-
-			// This line's free stretches: all of it, less any card reaching down from a line above.
-			/** @type {[number, number][]} */
-			let free = [[0, width]];
-			for (const [i, y] of out.cardTop) {
-				const side = /** @type {number} */ (cards.get(i));
-				if (top > y + side + GAP_Y * em) continue;
-				const lo = cardLeft(i) - GAP_X * em;
-				const hi = cardLeft(i) + side + GAP_X * em;
-				free = free.flatMap(([a, b]) =>
-					/** @type {[number, number][]} */ ([
-						[a, Math.min(b, lo)],
-						[Math.max(a, hi), b]
-					]).filter(([c, d]) => d - c > 1)
-				);
-			}
-
-			for (let s = 0; !done && s < free.length; s++) {
-				let a = free[s][0];
-				const b = free[s][1];
-				while (!done) {
-					const next = cursor ? cursor.itemIndex : 0;
-					if (next >= items.length) {
-						done = true;
-						break;
+			roomShare = 0;
+			room.clear();
+			// The card deepens its line: the lines below part to let it in.
+			let open = grow;
+			const wrapped = over < 0 ? [] : members.slice(members.indexOf(over));
+			if (wrapped.length) {
+				// Lit, these would pass the edge: they wrap, a lit link's label without its card. Room for
+				// them opens as the line fills, and they move into it when it is full.
+				const next = lines[k + 1] ?? [];
+				/** @type {Item[]} */
+				const items = wrapped.map((i) => {
+					const labelItem = units[i].labelItem;
+					return cards.has(i) && labelItem ? { ...labelItem, extraWidth: (labelItem.extraWidth ?? 0) + BAR * em } : units[i].item;
+				});
+				const share = Math.min(1, fill);
+				const joined = next.length ? wrap([...items, ...next.map((i) => units[i].item)]) : [];
+				const join = joined.length > 0 && joined.every(([line]) => line === 0);
+				const placed = join ? joined : wrap(items);
+				/** Where each line they wrap onto has its words' top, spaced as the browser would. */
+				/** @type {number[]} */
+				const tops = [];
+				if (join) {
+					// The next line moves along to make room at its start.
+					next.forEach((i, n) => room.set(i, placed[wrapped.length + n][1] - units[i].modelX));
+					roomShare = share;
+					tops[0] = anchors[k + 1] + down + grow;
+				} else {
+					// Or they get lines of their own under the card, as many as Pretext breaks them into.
+					const start = anchors[k] + down + lineHeight + drop * framed[k] + grow;
+					let bottom = start;
+					for (let line = 0; placed.some(([l]) => l === line); line++) {
+						const frame = +wrapped.some((i, n) => placed[n][0] === line && units[i].link && !cards.has(i));
+						tops[line] = bottom + rise * frame;
+						bottom = tops[line] + lineHeight + drop * frame;
 					}
-					const atBoundary = !cursor || (cursor.segmentIndex === 0 && cursor.graphemeIndex === 0);
-					const [unitIndex, part] = whose[next];
-					const unit = units[unitIndex];
-					if (atBoundary && part === 'card' && unit.restLine === k) {
-						// The card stays where the link sits, however much of the line it then needs.
-						const x = Math.max(a, unit.modelX);
-						put(next, k, x);
-						a = x + (items[next].extraWidth ?? 0);
-						cursor = { itemIndex: next + 1, segmentIndex: 0, graphemeIndex: 0 };
-						continue;
-					}
-					// A label keeps to its card: beside it, reaching past the column if the window has room;
-					// otherwise only in a stretch to the right of its card's left edge.
-					let limit = b;
-					if (atBoundary && part === 'label') {
-						if (out.line[unitIndex] === k) limit = b + spare;
-						else if (b <= cardLeft(unitIndex)) break;
-					}
-					const room = limit - a + spaceDrift;
-					const range = pretext.layoutNextRichInlineLineRange(prepared, Math.max(1, room), cursor);
-					if (!range) {
-						done = true;
-						break;
-					}
-					// Pretext always places at least one item, even one too wide, and may split a word to do
-					// it. Only a full-width line may overflow; otherwise leave this stretch for the next.
-					const split = range.end.segmentIndex !== 0 || range.end.graphemeIndex !== 0;
-					const fullLine = a === 0 && b === width;
-					if ((range.width > room + 0.5 || split) && !fullLine) break;
-					let at = a;
-					let stop = false;
-					for (const fr of range.fragments) {
-						const [, kind] = whose[fr.itemIndex];
-						// Anything but the label itself must end by the column's edge.
-						if (kind !== 'label' && at + fr.gapBefore + fr.occupiedWidth > b + 0.5 && at > a) {
-							cursor = { itemIndex: fr.itemIndex, segmentIndex: 0, graphemeIndex: 0 };
-							stop = true;
-							break;
-						}
-						at += fr.gapBefore;
-						put(fr.itemIndex, k, at);
-						at += fr.occupiedWidth;
-						cursor = { itemIndex: fr.itemIndex + 1, segmentIndex: 0, graphemeIndex: 0 };
-						if (kind === 'card' || (kind === 'label' && at > b)) {
-							stop = kind === 'label';
-							break;
-						}
-					}
-					if (stop) break;
-					if (range.end.itemIndex >= items.length) done = true;
-					if (cursor && cursor.itemIndex < range.end.itemIndex) {
-						// Stopped early at a card: carry on after it in this stretch.
-						a = at;
-						continue;
-					}
-					cursor = range.end;
-					// Next up is a card pinned to this line, or the label of a card that just ended it: carry on here.
-					const upcoming = cursor.itemIndex < items.length ? whose[cursor.itemIndex] : null;
-					if (upcoming && (upcoming[1] === 'card' ? units[upcoming[0]].restLine === k : upcoming[1] === 'label' && out.line[upcoming[0]] === k)) {
-						a = at;
-						continue;
-					}
-					break;
+					open += (bottom - start) * share;
+				}
+				for (const i of wrapped) shown.set(i, Math.min(1, Math.abs(fill - 1) / FADE));
+				if (fill >= 1) {
+					wrapped.forEach((i, n) => {
+						const [line, x] = placed[n];
+						const unit = units[i];
+						const y = tops[line] - anchors[k];
+						if (cards.has(i)) {
+							// The card stays under the pointer; its label (and comma) go.
+							const lx = x - (unit.modelX + unit.frameOuter);
+							labelAt.set(i, [lx - at[i][0], y - at[i][1]]);
+							tail[i] = [lx + barNow(i), y];
+						} else at[i] = tail[i] = [x - unit.modelX, y];
+					});
 				}
 			}
-			out.anchor[k] = top + rise * hasFrame[k];
-			for (const i of fresh) out.cardTop.set(i, out.anchor[k] + units[i].frameY);
-			fresh.length = 0;
-		}
-		return out;
-	}
-
-	/** How far a lit link's black bar reaches past its label's text, as it wipes in. @param {number} i */
-	const barReach = (i) => BAR * em * (lit.get(i)?.bar ?? 0);
-
-	/** Lay the sentence out round the cards as they are this frame, and place every unit there. */
-	function retarget() {
-		dirty = false;
-		/** @type {Map<number, number>} */
-		const cards = new Map();
-		for (const [i, { zoom, pop }] of lit) {
-			const f = units[i].frame;
-			if (f && (zoom > 1.0005 || pop > 0.0005)) cards.set(i, (f.width * (70 + 2 * pop) * zoom) / 70);
-		}
-		const flowed = cards.size ? layout(cards) : null;
-		let grow = 0;
-		units.forEach((unit, i) => {
-			const k = flowed?.line[i] ?? unit.restLine;
-			const dx = flowed ? (flowed.x[i] ?? unit.modelX) - unit.modelX : 0;
-			const dy = flowed ? flowed.anchor[k] - anchors[unit.restLine] : 0;
-			grow = Math.max(grow, dy);
-			/** @type {[number, number]} */
-			let after = [dx, dy];
-			let label = '';
-			if (flowed && flowed.labelLine.has(i)) {
-				// The label (and its comma) follow the card; the label's transform is inside the link's.
-				const lk = /** @type {number} */ (flowed.labelLine.get(i));
-				const ldx = /** @type {number} */ (flowed.labelX.get(i)) - (unit.modelX + unit.frameOuter);
-				const ldy = flowed.anchor[lk] - anchors[unit.restLine];
-				label = `translate(${ldx - dx}px, ${ldy - dy}px)`;
-				// Punctuation after it clears the bar that reaches past its text, as the bar wipes in.
-				after = [ldx + barReach(i), ldy];
-				grow = Math.max(grow, ldy);
-			}
-			unit.els.forEach((el, n) => {
-				const [x, y] = n ? after : [dx, dy];
-				el.style.transform = Math.abs(x) > 0.01 || Math.abs(y) > 0.01 ? `translate(${x}px, ${y}px)` : '';
-			});
-			if (unit.label) unit.label.style.transform = label;
+			down += open;
 		});
-		// The page below slides down if the sentence needs more lines, or a card reaches past its end.
-		for (const [i, side] of cards) {
-			const top = flowed?.cardTop.get(i);
-			if (top !== undefined) grow = Math.max(grow, top + side + GAP_Y * em - h1.clientHeight);
-		}
-		if (below.target !== grow) below.to(grow);
-		if (reduced()) below.set(grow);
-	}
 
-	function slideFollowers() {
-		const t = below.value > 0.01 ? `translateY(${below.value}px)` : '';
+		units.forEach((unit, i) => {
+			// A lit link's card stays whole; only its label and comma dissolve.
+			const opacity = shown.has(i) && shown.get(i) !== 1 ? String(shown.get(i)) : '';
+			unit.els.forEach((el, n) => {
+				const [x, y] = n ? tail[i] : at[i];
+				el.style.transform = Math.abs(x) > 0.01 || Math.abs(y) > 0.01 ? `translate(${x}px, ${y}px)` : '';
+				el.style.opacity = n || !cards.has(i) ? opacity : '';
+			});
+			const label = labelAt.get(i);
+			if (unit.label) {
+				unit.label.style.transform = label ? `translate(${label[0]}px, ${label[1]}px)` : '';
+				unit.label.style.opacity = cards.has(i) ? opacity : '';
+			}
+		});
+		const t = down > 0.01 ? `translateY(${down}px)` : '';
 		for (const el of followers) el.style.transform = t;
-	}
-
-	/** @param {number} now */
-	function tick(now) {
-		const dt = Math.max(0, Math.min(64, now - last));
-		last = now;
-		if (dirty) retarget();
-		const moving = below.advance(dt);
-		slideFollowers();
-		frame = moving || dirty ? requestAnimationFrame(tick) : 0;
-		// Settled with nothing lit: take up any layout change that waited (a resize, say).
-		if (!frame && !lit.size && stale) remeasure();
-	}
-
-	function wake() {
-		if (frame || !enabled) return;
-		last = performance.now();
-		frame = requestAnimationFrame(tick);
 	}
 
 	/** @param {Event} event */
 	function onzoom(event) {
-		const { zoom, pop, bar } = /** @type {CustomEvent<{ zoom: number, pop: number, bar: number }>} */ (event).detail;
+		const { zoom, pop, bar, on } = /** @type {CustomEvent<{ zoom: number, pop: number, bar: number, on: boolean }>} */ (event).detail;
 		const i = units.findIndex((unit) => unit.link === event.target);
 		if (i < 0) return;
 		if (zoom <= 1.0005 && pop <= 0.0005) lit.delete(i);
-		else lit.set(i, { zoom, pop, bar });
-		dirty = true;
-		wake();
+		else lit.set(i, { zoom, pop, bar, on });
+		// In step with the card: the link tells us from inside its own frame, before it paints.
+		if (enabled) retarget();
+		// Nothing lit: take up any layout change that waited (a resize, say).
+		if (!lit.size && stale) remeasure();
 	}
 
 	function reset() {
 		for (const unit of units) {
-			for (const el of unit.els) el.style.transform = '';
-			if (unit.label) unit.label.style.transform = '';
+			for (const el of [...unit.els, ...(unit.label ? [unit.label] : [])]) el.style.transform = el.style.opacity = '';
 		}
 		for (const el of followers) el.style.transform = '';
 	}
 
-	/** Re-read the rest layout, unless something is lit or still moving; then wait till it settles. */
+	/** Re-read the rest layout, unless something is lit; then wait till nothing is. */
 	function remeasure() {
-		if (lit.size || frame) {
+		if (lit.size) {
 			stale = true;
 			return;
 		}
@@ -530,7 +442,6 @@ export function headlineFlow(h1) {
 
 	return () => {
 		disposed = true;
-		cancelAnimationFrame(frame);
 		observer.disconnect();
 		h1.removeEventListener('iconzoom', onzoom);
 		delete h1.dataset.flow;

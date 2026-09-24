@@ -45,11 +45,12 @@
 				node.style.setProperty('--pop', String(-inset.value));
 				// While it is magnified, this link sits above the other two.
 				node.style.zIndex = zoom.value > 1.001 ? '2' : '';
-				// Tell the headline, which makes room for the card (see headlineFlow.js).
-				const news = `${zoom.value} ${inset.value} ${wipeValue()}`;
+				// Tell the headline, which makes room for the card (see headlineFlow.js), and whether it is
+				// on its way in or out.
+				const news = `${zoom.value} ${inset.value} ${wipeValue()} ${lit}`;
 				if (news !== told) {
 					told = news;
-					const detail = { zoom: zoom.value, pop: -inset.value, bar: 1 - wipeValue() / 100 };
+					const detail = { zoom: zoom.value, pop: -inset.value, bar: 1 - wipeValue() / 100, on: lit };
 					node.dispatchEvent(new CustomEvent('iconzoom', { bubbles: true, detail }));
 				}
 				node.style.setProperty('--wipe', String(wipeValue()));
