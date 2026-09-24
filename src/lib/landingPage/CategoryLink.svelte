@@ -1,4 +1,5 @@
 <script>
+	import { untrack } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
 	import { Spring } from './spring.js';
@@ -8,135 +9,173 @@
 	/** @type {{ href: string, label: string, shape: Shape }} */
 	let { href, label, shape } = $props();
 
-	let ready = $state(false);
-	let enhanced = $state(false);
-
 	/** Lit, the icon grows to this many times its size, and its brackets pop out this far (card px). */
 	const LIT_ZOOM = 1.2;
 	const POP = 6;
 
-	/**
+	/*
 	 * The uikit-expt card hover as deployed at uikit-expt.vercel.app (commit 6f34d27), in that card's
 	 * pixels: the bracket box grows from inset 0 to -6, the label's black bar grows as its right edge
-	 * springs from 100% to 0%. (The reference's ink turned violet; here it stays black.) What the icon itself
-	 * does when lit is its own (see icons/).
-	 * Values reach the DOM as CSS custom properties and the icon as a three.js redraw.
-	 * @param {Shape} shape
+	 * springs from 100% to 0%. (The reference's ink turned violet; here it stays black.) What the icon
+	 * itself does when lit is its own (see icons/). Values reach the DOM as CSS custom properties and
+	 * the icon as a three.js redraw.
 	 */
-	function hoverEffect(shape) {
-		return (/** @type {HTMLAnchorElement} */ node) => {
-			const canvas = /** @type {HTMLCanvasElement} */ (node.querySelector('canvas'));
-			const inset = new Spring(0);
-			/** Lit, the whole icon — brackets and drawing — doubles in size. */
-			const zoom = new Spring(1);
-			// The reference springs the bar's '100%' → '0%' as a string, which react-spring runs as a
-			// 0→1 progress between the value it is at and the new goal, restarted on every retarget with
-			// its (normalised) velocity kept, so a reversal turns straight round instead of coasting on.
-			const wipe = { from: 100, to: 100, t: new Spring(1) };
-			const wipeValue = () => wipe.from + (wipe.to - wipe.from) * wipe.t.value;
-			let pointer = false;
-			let focus = false;
-			let lit = false;
-			let frame = 0;
-			let last = 0;
+	const inset = new Spring(0);
+	/** Lit, the whole icon — brackets and drawing — doubles in size. */
+	const zoom = new Spring(1);
+	// The reference springs the bar's '100%' → '0%' as a string, which react-spring runs as a
+	// 0→1 progress between the value it is at and the new goal, restarted on every retarget with
+	// its (normalised) velocity kept, so a reversal turns straight round instead of coasting on.
+	const wipe = { from: 100, to: 100, t: new Spring(1) };
+	const wipeValue = () => wipe.from + (wipe.to - wipe.from) * wipe.t.value;
+
+	/**
+	 * What lights it: a mouse over it, keyboard focus, or a tap. A finger cannot hover, so its first
+	 * tap lights the link, a second one follows it, and a press anywhere else puts it out.
+	 */
+	let hovered = false;
+	let focused = false;
+	let tapped = false;
+	/** Whether the last press on it was a finger's (or a pen's) rather than a mouse's. */
+	let touch = false;
+	let lit = false;
+	let frame = 0;
+	let last = 0;
+	/** @type {ReturnType<typeof import('./icons/index.js').createIcon> | undefined} */
+	let icon;
+	let told = '';
+	let ready = $state(false);
+	let enhanced = $state(false);
+	/** @type {HTMLAnchorElement} */
+	let link;
+
+	/** Paint the current state, advancing the icon by `dt` ms; true while the icon wants frames. */
+	function draw(dt = 0) {
+		link.style.setProperty('--inset', String(inset.value));
+		link.style.setProperty('--zoom', String(zoom.value));
+		link.style.setProperty('--pop', String(-inset.value));
+		// While it is magnified, this link sits above the other two.
+		link.style.zIndex = zoom.value > 1.001 ? '2' : '';
+		// Tell the headline, which makes room for the card (see headlineFlow.js), and whether it is
+		// on its way in or out.
+		const news = `${zoom.value} ${inset.value} ${wipeValue()} ${lit}`;
+		if (news !== told) {
+			told = news;
+			// `full` is the lit card's side in card px, so the headline plans for the size it will reach.
+			const full = (70 + 2 * POP) * LIT_ZOOM;
+			const detail = { zoom: zoom.value, pop: -inset.value, bar: 1 - wipeValue() / 100, on: lit, full };
+			link.dispatchEvent(new CustomEvent('iconzoom', { bubbles: true, detail }));
+		}
+		link.style.setProperty('--wipe', String(wipeValue()));
+		return icon?.frame(dt, { lit, zoom: zoom.value, reduced: prefersReducedMotion.current }) ?? false;
+	}
+
+	/** @param {number} now */
+	function tick(now) {
+		const dt = Math.max(0, Math.min(64, now - last));
+		last = now;
+		let moving = inset.advance(dt);
+		moving = zoom.advance(dt) || moving;
+		moving = wipe.t.advance(dt) || moving;
+		moving = draw(dt) || moving;
+		frame = moving ? requestAnimationFrame(tick) : 0;
+	}
+
+	function play() {
+		if (frame) return;
+		last = performance.now();
+		frame = requestAnimationFrame(tick);
+	}
+
+	function update() {
+		const on = hovered || focused || tapped;
+		if (on === lit) return;
+		lit = on;
+		inset.to(on ? -POP : 0);
+		zoom.to(on ? LIT_ZOOM : 1);
+		wipe.from = wipeValue();
+		wipe.to = on ? 0 : 100;
+		const velocity = wipe.t.velocity;
+		wipe.t.set(0);
+		wipe.t.velocity = velocity;
+		wipe.t.to(1);
+		if (prefersReducedMotion.current) {
+			for (const spring of [inset, zoom, wipe.t]) spring.set(spring.target);
+			draw();
+			return;
+		}
+		play();
+	}
+
+	// Also starts the loop if the icon arrives (or is resized) while the link is already lit.
+	function redraw() {
+		icon?.resize();
+		if (!frame && draw()) play();
+	}
+
+	// Zoom or a move to a denser screen changes devicePixelRatio but not the canvas's CSS size, and
+	// turning reduced motion off while lit has to restart the icon's loop (and on, still it).
+	$effect(() => {
+		devicePixelRatio.current;
+		prefersReducedMotion.current;
+		if (icon) redraw();
+	});
+
+	/** Only a mouse hovers: a finger sends pointerenter as it presses and pointerleave as it lifts. */
+	/** @param {PointerEvent} event @param {boolean} on */
+	function hover(event, on) {
+		if (event.pointerType !== 'mouse') return;
+		hovered = on;
+		update();
+	}
+
+	/** A finger's first tap lights the link instead of following it; a keyboard's click (detail 0) follows it. */
+	/** @param {MouseEvent} event */
+	function tap(event) {
+		if (!touch || !event.detail || tapped) return;
+		event.preventDefault();
+		tapped = true;
+		update();
+	}
+
+	/** A press anywhere else puts a tapped link out. @param {PointerEvent} event */
+	function away(event) {
+		if (!tapped || link.contains(/** @type {Node} */ (event.target))) return;
+		tapped = false;
+		update();
+	}
+
+	/**
+	 * From here the effect is the focus indicator; a link focused before hydration picks it up now.
+	 * @param {HTMLAnchorElement} node
+	 */
+	function enhance(node) {
+		link = node;
+		enhanced = true;
+		focused = node.matches(':focus-visible');
+		untrack(update);
+		return () => {
+			enhanced = false;
+			cancelAnimationFrame(frame);
+			frame = 0;
+		};
+	}
+
+	/**
+	 * The icon, drawn into the canvas by three, which is loaded here rather than at the top so the
+	 * landing's first paint ships no WebGL.
+	 * @param {Shape} kind
+	 */
+	function mountIcon(kind) {
+		return (/** @type {HTMLCanvasElement} */ canvas) => {
 			let disposed = false;
-			/** @type {ReturnType<typeof import('./icons/index.js').createIcon> | undefined} */
-			let icon;
-			let told = '';
-
-			/** Paint the current state, advancing the icon by `dt` ms; true while the icon wants frames. */
-			function draw(dt = 0) {
-				node.style.setProperty('--inset', String(inset.value));
-				node.style.setProperty('--zoom', String(zoom.value));
-				node.style.setProperty('--pop', String(-inset.value));
-				// While it is magnified, this link sits above the other two.
-				node.style.zIndex = zoom.value > 1.001 ? '2' : '';
-				// Tell the headline, which makes room for the card (see headlineFlow.js), and whether it is
-				// on its way in or out.
-				const news = `${zoom.value} ${inset.value} ${wipeValue()} ${lit}`;
-				if (news !== told) {
-					told = news;
-					// `full` is the lit card's side in card px, so the headline plans for the size it will reach.
-					const full = (70 + 2 * POP) * LIT_ZOOM;
-					const detail = { zoom: zoom.value, pop: -inset.value, bar: 1 - wipeValue() / 100, on: lit, full };
-					node.dispatchEvent(new CustomEvent('iconzoom', { bubbles: true, detail }));
-				}
-				node.style.setProperty('--wipe', String(wipeValue()));
-				return icon?.frame(dt, { lit, zoom: zoom.value, reduced: prefersReducedMotion.current }) ?? false;
-			}
-
-			/** @param {number} now */
-			function tick(now) {
-				const dt = Math.max(0, Math.min(64, now - last));
-				last = now;
-				let moving = inset.advance(dt);
-				moving = zoom.advance(dt) || moving;
-				moving = wipe.t.advance(dt) || moving;
-				moving = draw(dt) || moving;
-				frame = moving ? requestAnimationFrame(tick) : 0;
-			}
-
-			function update() {
-				const on = pointer || focus;
-				if (on === lit) return;
-				lit = on;
-				inset.to(on ? -POP : 0);
-				zoom.to(on ? LIT_ZOOM : 1);
-				wipe.from = wipeValue();
-				wipe.to = on ? 0 : 100;
-				const velocity = wipe.t.velocity;
-				wipe.t.set(0);
-				wipe.t.velocity = velocity;
-				wipe.t.to(1);
-				if (prefersReducedMotion.current) {
-					for (const spring of [inset, zoom, wipe.t]) spring.set(spring.target);
-					draw();
-					return;
-				}
-				if (!frame) {
-					last = performance.now();
-					frame = requestAnimationFrame(tick);
-				}
-			}
-
-			// Touch fires pointerenter on press and pointerleave after release, so a tap plays the
-			// effect while the finger is down and the click that follows navigates.
-			const onenter = () => ((pointer = true), update());
-			const onleave = () => ((pointer = false), update());
-			const onfocus = () => ((focus = node.matches(':focus-visible')), update());
-			const onblur = () => ((focus = false), update());
-			node.addEventListener('pointerenter', onenter);
-			node.addEventListener('pointerleave', onleave);
-			node.addEventListener('focus', onfocus);
-			node.addEventListener('blur', onblur);
-			// From here the effect is the focus indicator; a link focused before hydration picks it up now.
-			enhanced = true;
-			onfocus();
-
-			// Also starts the loop if the icon arrives (or is resized) while the link is already lit.
-			const redraw = () => {
-				icon?.resize();
-				if (!frame && draw()) {
-					last = performance.now();
-					frame = requestAnimationFrame(tick);
-				}
-			};
 			const observer = new ResizeObserver(redraw);
-			// Zoom or a move to a denser screen changes devicePixelRatio but not the canvas's CSS size, and
-			// turning reduced motion off while lit has to restart the icon's loop (and on, still it).
-			$effect(() => {
-				devicePixelRatio.current;
-				prefersReducedMotion.current;
-				if (icon) redraw();
-			});
 			// three restores a lost context but draws nothing until asked.
 			canvas.addEventListener('webglcontextrestored', redraw);
-
-			// three is loaded here, not at the top, so the landing's first paint ships no WebGL.
 			import('./icons/index.js')
 				.then(({ createIcon }) => {
 					if (disposed) return;
-					icon = createIcon(canvas, shape);
+					icon = createIcon(canvas, kind);
 					observer.observe(canvas);
 					redraw();
 					ready = true;
@@ -145,28 +184,34 @@
 					// No WebGL (or a broken chunk): the frame stays empty but the link still works.
 					console.warn('Category link icon unavailable:', error);
 				});
-
 			return () => {
 				disposed = true;
-				cancelAnimationFrame(frame);
 				observer.disconnect();
 				canvas.removeEventListener('webglcontextrestored', redraw);
-				node.removeEventListener('pointerenter', onenter);
-				node.removeEventListener('pointerleave', onleave);
-				node.removeEventListener('focus', onfocus);
-				node.removeEventListener('blur', onblur);
-				enhanced = false;
 				icon?.dispose();
+				icon = undefined;
 				ready = false;
 			};
 		};
 	}
 </script>
 
-<a class={['category-link', { enhanced }]} {href} {@attach hoverEffect(shape)}>
+<svelte:document onpointerdown={away} />
+
+<a
+	class={['category-link', { enhanced }]}
+	{href}
+	onpointerenter={(event) => hover(event, true)}
+	onpointerleave={(event) => hover(event, false)}
+	onpointerdown={(event) => (touch = event.pointerType !== 'mouse')}
+	onclick={tap}
+	onfocus={() => ((focused = link.matches(':focus-visible')), update())}
+	onblur={() => ((focused = false), update())}
+	{@attach enhance}
+>
 	<span class="frame" aria-hidden="true">
 		<span class="box"><span class="corners"><span></span><span></span><span></span><span></span></span></span>
-		<canvas class={{ ready }}></canvas>
+		<canvas class={{ ready }} {@attach mountIcon(shape)}></canvas>
 	</span><span class="label">{label}<span class="bar" data-label={label} aria-hidden="true"></span></span>
 </a>
 
@@ -190,6 +235,8 @@
 		text-decoration: none;
 		white-space: nowrap;
 		-webkit-tap-highlight-color: transparent;
+		/* Two quick taps light it and follow it; they are not a double-tap zoom. */
+		touch-action: manipulation;
 	}
 
 	/* A plain ring until the effect is attached; then the effect is the indicator. Transparent, not
