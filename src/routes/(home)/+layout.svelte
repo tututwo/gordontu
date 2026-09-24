@@ -95,11 +95,13 @@
 	 * browser text size scales the whole page with it. Top-aligned, not centred: a tab of another
 	 * height must not move the headline.
 	 */
+	/* Clipped, so the avatar's glasses, carried past the end of the page, do not make it longer. */
 	.landing {
 		position: relative;
 		z-index: 1;
 		min-height: 100svh;
 		padding: max(4em, 12vh) 1em 4em;
+		overflow: clip;
 		color: #000;
 		font-family: var(--font-sans);
 		font-size: 1.25rem;
