@@ -316,7 +316,7 @@ export function headlineFlow(h1) {
 				// The label's negative margins cancel its padding, so the link is as wide as frame plus name.
 				const drift = rect.width - unit.frameOuter - measureText(name, fontOf(label), spacing);
 				unit.item = { text: lead + name, font: fontOf(label), letterSpacing: spacing, break: 'never', extraWidth: unit.frameOuter + drift };
-			} else if (el.matches('img')) {
+			} else if (el.matches('.avatar')) {
 				// The avatar is a box: a zero-width word joiner carrying its width.
 				unit.item = { text: lead + '⁠', font: fontOf(h1), break: 'never', extraWidth: rect.width };
 			} else {
@@ -341,7 +341,7 @@ export function headlineFlow(h1) {
 		lineHeight = em * 1.8;
 		const range = document.createRange();
 		for (const unit of list) {
-			if (unit.link || unit.els[0].matches('img')) continue;
+			if (unit.link || unit.els[0].matches('.avatar')) continue;
 			const r = unit.els[0].getBoundingClientRect();
 			const k = unit.restLine;
 			anchors[k] = Math.min(anchors[k] ?? Infinity, r.top - box.top);

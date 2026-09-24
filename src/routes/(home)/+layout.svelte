@@ -4,6 +4,7 @@
 	import GithubLogoIcon from 'phosphor-svelte/lib/GithubLogoIcon';
 	import LinkedinLogoIcon from 'phosphor-svelte/lib/LinkedinLogoIcon';
 	import XLogoIcon from 'phosphor-svelte/lib/XLogoIcon';
+	import Avatar from '$lib/landingPage/Avatar.svelte';
 	import CategoryLink from '$lib/landingPage/CategoryLink.svelte';
 	import { headlineFlow } from '$lib/landingPage/headlineFlow.js';
 	import { categories } from '$lib/project/project.js';
@@ -61,13 +62,7 @@
 		<h1 {@attach headlineFlow}>
 			{#each headline as piece}{#if piece.space}{' '}{/if}{#if 'word' in piece}<span class="word"
 						>{piece.word}</span
-					>{:else if 'avatar' in piece}<img
-						class="avatar"
-						src="/landing/avatar.png"
-						alt=""
-						width="134"
-						height="134"
-					/>{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
+					>{:else if 'avatar' in piece}<Avatar />{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
 		</h1>
 
 		<ul class="socials">
@@ -164,12 +159,6 @@
 
 	h1 :global([data-twin])::before {
 		content: attr(data-twin);
-	}
-
-	.avatar {
-		width: 4em;
-		height: auto;
-		vertical-align: 0.15em;
 	}
 
 	.socials {
