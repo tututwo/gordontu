@@ -9,7 +9,8 @@
 	import ListIcon from 'phosphor-svelte/lib/ListIcon';
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifoldIcon';
 	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
-	import { categories } from '$lib/project/project.js';
+	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFourIcon';
+	import { allProjects, categories, categorySlug } from '$lib/project/project.js';
 	import { WallMotion } from './wallMotion.svelte.js';
 	import { Pan } from './pan.js';
 
@@ -18,14 +19,10 @@
 	/** @type {{ projects: Project[], category: (typeof categories)[number] }} */
 	let { projects, category } = $props();
 
-	const categoryLinks = categories.map((section) => ({
+	const icons = { all: SquaresFourIcon, maps: MapTrifoldIcon, charts: ChartBarIcon, 'creative-code': CodeIcon };
+	const categoryLinks = [allProjects, ...categories].map((section) => ({
 		...section,
-		Icon:
-			section.slug === 'charts'
-				? ChartBarIcon
-				: section.slug === 'maps'
-					? MapTrifoldIcon
-					: CodeIcon
+		Icon: icons[/** @type {keyof typeof icons} */ (section.slug)]
 	}));
 
 	let ready = $state(false);
@@ -180,7 +177,7 @@
 			></button>
 			<div class="card-row">
 				<h2 id="open-title">{selected.projectName}</h2>
-				<a href={resolve('/[category]/[slug]', { category: category.slug, slug: selected.slug })}>
+				<a href={resolve('/[category]/[slug]', { category: categorySlug(selected.category), slug: selected.slug })}>
 					Details →
 				</a>
 				<a href={selected.projectLink} target="_blank" rel="external noreferrer">Open project ↗</a>
@@ -208,7 +205,7 @@
 			{#each projects as project, index (project.slug)}
 				<a
 					href={resolve('/[category]/[slug]', {
-						category: category.slug,
+						category: categorySlug(project.category),
 						slug: project.slug
 					})}
 				>
@@ -750,7 +747,8 @@
 		}
 	}
 
-	@media (max-width: 360px) {
+	/* Narrower than this, the rail (275px) reaches the index and help buttons: they step up above it. */
+	@media (max-width: 404px) {
 		.project-index,
 		.gallery-status {
 			bottom: calc(4.15rem + env(safe-area-inset-bottom));

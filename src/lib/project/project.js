@@ -6,6 +6,8 @@
  * @property {string[]} tools
  * @property {string} category
  * @property {string} date
+ * @property {string} [client] - who it was made for, by name; absent means Self-initiated
+ * @property {boolean} [featured] - shown as a Project card on the landing's projects tab
  * @property {number} seed - deterministic sketch seed derived from projectName; the postcard
  *   back's rough.js drawing is seeded from it so a Project reads as one object
  * @property {string} slug - URL segment of the Project page (`/<category>/<slug>`), from projectName; unique
@@ -37,9 +39,25 @@ export const categories = [
 	}
 ];
 
+/**
+ * The Postcard gallery of every Project (`/all`), shaped like a category so the gallery takes either.
+ * No Project is stored with its `value`.
+ */
+export const allProjects = {
+	value: 'all',
+	label: 'All projects',
+	slug: 'all',
+	description: 'Every map, story, and tool, on one table.'
+};
+
 /** @param {string} value */
 export function categoryLabel(value) {
 	return categories.find((category) => category.value === value)?.label ?? value;
+}
+
+/** A Project's category `value` → its URL `slug`. @param {string} value */
+export function categorySlug(value) {
+	return categories.find((category) => category.value === value)?.slug ?? value;
 }
 
 /** @type {Omit<Project, 'seed' | 'slug'>[]} */
@@ -51,6 +69,17 @@ const data = [
 		tools: ["QGIS"],
 		category: "maps",
 		date: "2026-09-04",
+		featured: true,
+	},
+	{
+		projectName: "YPCCC Hazard Tool",
+		projectLink: "https://ypccc-hazard-tool.vercel.app/?hazard=heat__perception_reality_gap&state=0&county=00000&exploreMode=0",
+		projectImgSource: "/projects/Maps/ypccc-hazard-tool.png",
+		tools: ["React.js", "MapLibre", "D3", "deck.gl"],
+		category: "maps",
+		date: "2026-04-01",
+		client: "Yale University",
+		featured: true,
 	},
 	{
 		projectName: "Poyang Lake Entered the Dry Season 100 Days Earlier",
@@ -59,6 +88,7 @@ const data = [
 		tools: ["QGIS"],
 		category: "maps",
 		date: "2022-09-01",
+		featured: true,
 	},
 	{
 		projectName: "Traveling Particles",
@@ -67,6 +97,7 @@ const data = [
 		tools: ["Three", "D3"],
 		category: "code creatively",
 		date: "2024-11-01",
+		featured: true,
 	},
 	{
 		projectName: "California Affordable Housing",
@@ -75,14 +106,17 @@ const data = [
 		tools: ["Svelte", "D3"],
 		category: "charts",
 		date: "2023-11-01",
+		client: "Terner Center for Housing Innovation, UC Berkeley",
+		featured: true,
 	},
 	{
 		projectName: "Election Map - 3D Visualization with Three.js and GLSL",
-		projectLink: "https://vite-three-five.vercel.app/",
+		projectLink: "https://vite-three-chi.vercel.app/",
 		projectImgSource: "/projects/Charts/three_election.png",
 		tools: ["Three.js", "React.js"],
 		category: "charts",
 		date: "2023-11-01",
+		featured: true,
 	},
 	{
 		projectName: "Brain Pulse Animation - Recreate Blue Yard Studio's Brain Pulse Animation",
@@ -147,6 +181,8 @@ const data = [
 		tools: ["Svelte", "D3", "R"],
 		category: "charts",
 		date: "2022-08-01",
+		client: "World Bank",
+		featured: true,
 	},
 	{
 		projectName: "How dry would each state be if Americans only consumed local state-produced beer?",
@@ -259,6 +295,7 @@ const data = [
 		tools: ["Canvas"],
 		category: "code creatively",
 		date: "2022-09-10",
+		featured: true,
 	},
 	{
 		projectName: "Developing and undeveloped countries remain to be the agricultural countries, made in QGIS",

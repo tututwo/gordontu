@@ -5,11 +5,23 @@ This context describes how Gordon's creative and technical work is presented to 
 ## Language
 
 **Project**:
-A published piece of Gordon's creative or technical work, with a title, image, destination, tools, category, and date.
+A published piece of Gordon's creative or technical work, with a title, image, destination, tools, category, Client, and date.
 _Avoid_: Post, moment, photo
 
+**Client**:
+Whoever a Project was made for, by name (World Bank, Yale University); two or more share one line. A Project nobody commissioned is Self-initiated.
+_Avoid_: Customer, partner, organisation type (Nonprofit)
+
+**Featured Project**:
+A Project Gordon has picked to show on the landing's projects tab. The rest are only in the Postcard galleries.
+_Avoid_: Highlight, selected work, pick
+
+**Project card**:
+How a Featured Project appears on the landing's projects tab: its image, then its title with its Client beneath, and its year at the right edge.
+_Avoid_: Row, tile, profile pic (for the image: that is Gordon's avatar)
+
 **Landing**:
-The home page and its three tabs, on plain white. A headline ("I'm Gordon", his avatar, then what he makes) names the three Project categories as Category links; below it come the social links (X, LinkedIn, GitHub), a rule, and a quiet text nav of tabs: about, projects, writing, each with its own URL (`/about`, `/projects`, `/writing`). Switching tabs changes only the panel below the nav; the headline stays put. The home URL opens on about, the grey bio that carries the Bio revision. projects lists every Project, newest first, each leading to its Project page; writing is the Blog.
+The home page and its three tabs, on plain white. A headline ("I'm Gordon", his avatar, then what he makes) names the three Project categories as Category links; below it come the social links (X, LinkedIn, GitHub), a rule, and a quiet text nav of tabs: about, projects, writing, each with its own URL (`/about`, `/projects`, `/writing`). Switching tabs changes only the panel below the nav; the headline stays put. The home URL opens on about, the grey bio that carries the Bio revision. projects shows the Featured Projects as Project cards, newest first, each leading to its Project page, then a View all link to the All projects Postcard gallery; writing is the Blog, a placeholder line until the first post.
 _Avoid_: Hero, landing nav, card deck, menu
 
 **Category link**:
@@ -21,8 +33,8 @@ The about bio's self-correction, played on every arrival: its second sentence fi
 _Avoid_: Typo, draft, tracked change
 
 **Postcard gallery**:
-A Project category's page: every Project of that category scattered once as postcards on a bounded plane you drag around. One postcard can be opened (it flies to the centre) and flipped to its back; its Details link leads to the Project page (`/<category>/<project slug>`). Opening or flipping never changes the URL.
-_Avoid_: Grid, wall, canvas
+A page of Projects scattered once as postcards on a bounded plane you drag around. There is one per Project category, holding that category's Projects, and one titled All projects (`/all`), holding every Project mixed together, newest first; its tool rail reaches all four. One postcard can be opened (it flies to the centre) and flipped to its back; its Details link leads to the Project page (`/<category>/<project slug>`, always the Project's own category). Opening or flipping never changes the URL.
+_Avoid_: Grid, wall, canvas, infinite canvas
 
 **Project category**:
 One of the portfolio's canonical groupings: Interactive maps, Visual stories, or Web tools. Each has its own page (`/maps`, `/charts`, `/creative-code` — the URLs keep the earlier names Maps, Charts, Creative coding), reached from the landing page or the gallery's section switcher. The stored `value` never changes; `slug` is the URL form.
