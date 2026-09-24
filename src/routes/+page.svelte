@@ -170,6 +170,16 @@
 		display: inline-block;
 	}
 
+	/* Where a lit card splits a word, the letters after the cut are an aria-hidden copy placed in the
+	   headline (see headlineFlow.js). It draws them as generated content, so the sentence reads once. */
+	h1:global([data-flow]) {
+		position: relative;
+	}
+
+	h1 :global([data-twin])::before {
+		content: attr(data-twin);
+	}
+
 	.avatar {
 		width: 4em;
 		height: auto;

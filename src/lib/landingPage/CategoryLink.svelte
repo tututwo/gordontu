@@ -216,31 +216,29 @@
 	}
 
 	/*
-	 * Border and brackets, scaled as vectors when the icon doubles (the drawing zooms in three.js).
-	 * As it grows it fills in white with a faint shadow, so the magnified icon reads as a card lifted
-	 * over the sentence rather than lines drawn across its words.
+	 * The brackets, scaled as vectors when the icon doubles (the drawing zooms in three.js). At rest
+	 * the icon stands in the sentence on its own, drawn straight on the page; the brackets are the
+	 * hover's, showing as they spring out and going as they spring back. As the card grows it fills in
+	 * white, with no border or shadow, so it stays part of the page and still hides the words where it
+	 * magnifies over them (a headline that cannot make room).
 	 */
 	.box {
-		--lift: calc(var(--zoom) - 1);
 		position: absolute;
 		inset: 0;
-		box-sizing: border-box;
-		/* The reference's 25% #e5e5e5 composites to ~239 in its WebGL panel; this matches it on white. */
-		border: calc(var(--u) * 1) solid rgb(229 229 229 / 0.62);
-		background: rgb(255 255 255 / var(--lift));
-		box-shadow: 0 calc(var(--u) * 6) calc(var(--u) * 18) rgb(0 0 0 / calc(var(--lift) * 0.08));
+		background: rgb(255 255 255 / calc(var(--zoom) - 1));
 		transform: scale(var(--zoom));
 	}
 
 	.corners {
 		position: absolute;
 		inset: calc(var(--u) * var(--inset));
+		opacity: clamp(0, calc(var(--pop) / 3), 1);
 	}
 
 	/*
 	 * The reference's Corner: an 8px box holding a 2×8 bar and an 8×2 bar in a flex row. They
 	 * overflow it, so yoga shrinks both by their share: a 1.6-wide upright and a 6.4-long arm, 8
-	 * across in all. The box sits 1px out over the frame's border and is turned 0°, 90°, 180° or 270°
+	 * across in all. The box sits 1px out past the frame's edge and is turned 0°, 90°, 180° or 270°
 	 * about its centre for each corner.
 	 */
 	.corners span {
