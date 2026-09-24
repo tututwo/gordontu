@@ -9,7 +9,7 @@ A published piece of Gordon's creative or technical work, with a title, image, d
 _Avoid_: Post, moment, photo
 
 **Landing**:
-The home page: a short introduction on plain white. A bold headline ("I'm Gordon", his avatar, then what he makes) names the three Project categories as Category links; a grey bio below it carries the Bio revision; then the social links (X, LinkedIn, GitHub) and a quiet text nav (about, projects, writing). "writing" is the Blog; "projects" has no destination yet.
+The home page and its three tabs, on plain white. A headline ("I'm Gordon", his avatar, then what he makes) names the three Project categories as Category links; below it come the social links (X, LinkedIn, GitHub), a rule, and a quiet text nav of tabs: about, projects, writing, each with its own URL (`/about`, `/projects`, `/writing`). Switching tabs changes only the panel below the nav; the headline stays put. The home URL opens on about, the grey bio that carries the Bio revision. projects lists every Project, newest first, each leading to its Project page; writing is the Blog.
 _Avoid_: Hero, landing nav, card deck, menu
 
 **Category link**:
@@ -17,7 +17,7 @@ One of the three links set into the landing headline, one per Project category: 
 _Avoid_: Button, pill, chip, card
 
 **Bio revision**:
-The landing bio's self-correction, played on every arrival: the bio first reads plainly with the tool-list sentence ("I use d3.js, three.js…") and no closing sentence; then a grey strikethrough and grey highlight sweep across the tool list, and "I use AI across my toolkit…" is typed in after it. Styled like a suggested edit, but in grey only. Reduced motion shows the finished revision at once.
+The about bio's self-correction, played on every arrival: its second sentence first reads plainly as a tool list ("I use d3.js, three.js…"); then a grey highlight and a strikethrough sweep across the list together in one left-to-right stroke (if the list wraps, the stroke runs on from line to line in reading order, like a pen crossing out part of one sentence), and "Claude Code, Codex & Jev across my toolkit…" is typed in after it, so the sentence now reads "I use Claude Code, Codex & Jev…". Styled like a suggested edit, but in grey only. Reduced motion shows the finished revision at once.
 _Avoid_: Typo, draft, tracked change
 
 **Postcard gallery**:

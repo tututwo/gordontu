@@ -1,11 +1,11 @@
 const SVG = 'http://www.w3.org/2000/svg';
 
 /**
- * The Bio revision, as an attachment on the bio paragraph. The page's CSS holds the start state
+ * The Bio revision, as an attachment on the bio paragraph. About.svelte's CSS holds the start state
  * (no highlight, untyped sentence) only while scripting runs without reduced motion, so this plays
- * it forward: after a beat the tool list gets its grey highlight and a pen-like scratch, then the
- * <ins> sentence is typed out behind a caret. The scratch is one straight stroke per line box of
- * the <del>, redrawn whenever the paragraph reflows. The motion preference is read once, on
+ * it forward: after a beat a grey highlight and a pen-like scratch sweep across the tool list
+ * together, then the <ins> is typed out behind a caret. The scratch is one straight stroke per line
+ * box of the <del>, redrawn whenever the paragraph reflows. The motion preference is read once, on
  * arrival: flipping it mid-visit leaves the revision as it is rather than replaying it.
  * @param {HTMLElement} node
  */
@@ -18,43 +18,45 @@ export function bioRevision(node) {
 	const typed = { n: 0 };
 	/** @type {{ path: SVGPathElement, start: number, length: number }[]} */
 	let strokes = [];
+	// How far along the pen's run the highlight is complete: the stroke runs on past the list.
+	let reach = 1;
 
+	// The list is struck as if it were one unbroken line, then cut at its line breaks the way its
+	// highlight is sliced: one stroke that sinks from 40% of the highlight's height to 72% across the
+	// whole list (from the mockup) and runs half an em past its end (not past a line break, where it
+	// would poke into the margin), so a wrapped list is struck in reading order at one speed.
 	function layout() {
 		const box = node.getBoundingClientRect();
-		svg.replaceChildren();
-		let total = 0;
 		const rects = [...del.getClientRects()];
+		const overshoot = (rects.at(-1)?.height ?? 0) * 0.35;
+		const width = rects.reduce((sum, rect) => sum + rect.width, 0);
+		const total = width + overshoot;
+		let run = 0;
+		svg.replaceChildren();
 		strokes = rects.map((rect, i) => {
-			// From the mockup: the stroke enters at 40% of the highlight's height, leaves at 72%, and
-			// runs half an em past the end of the list (not past a line break, where it would poke
-			// into the margin).
-			const overshoot = i === rects.length - 1 ? rect.height * 0.35 : 0;
-			const x0 = rect.left - box.left;
-			const x1 = rect.right - box.left + overshoot;
-			const y0 = rect.top - box.top + rect.height * 0.4;
-			const y1 = rect.top - box.top + rect.height * 0.72;
+			const length = rect.width + (i === rects.length - 1 ? overshoot : 0);
+			const x = rect.left - box.left;
+			/** @param {number} at */
+			const y = (at) => rect.top - box.top + rect.height * (0.4 + (0.32 * at) / total);
 			const path = document.createElementNS(SVG, 'path');
-			path.setAttribute('d', `M${x0} ${y0}L${x1} ${y1}`);
+			path.setAttribute('d', `M${x} ${y(run)}L${x + length} ${y(run + length)}`);
 			path.setAttribute('pathLength', '1');
 			svg.append(path);
-			const length = Math.hypot(x1 - x0, y1 - y0);
-			const stroke = { path, start: total, length };
-			total += length;
+			const stroke = { path, start: run / total, length: length / total };
+			run += length;
 			return stroke;
 		});
-		for (const stroke of strokes) {
-			stroke.start /= total;
-			stroke.length /= total;
-		}
+		reach = width / total || 1;
 		drawStrike();
 	}
 
-	// Each line's stroke picks up where the previous one ends, so a wrapped list is struck in reading order.
+	// The highlight's front keeps pace with the pen until the pen runs past the end of the list.
 	function drawStrike() {
 		for (const { path, start, length } of strokes) {
 			const drawn = Math.min(1, Math.max(0, (strike.p - start) / length));
 			path.style.strokeDashoffset = String(1 - drawn);
 		}
+		del.style.backgroundSize = `${Math.min(1, strike.p / reach) * 100}% 100%`;
 	}
 
 	/** @param {number} n */
@@ -83,13 +85,7 @@ export function bioRevision(node) {
 
 		timeline = gsap
 			.timeline({ delay: 0.8 })
-			// From the highlight's own grey at zero alpha: GSAP would fade from `transparent` as black.
-			.fromTo(
-				del,
-				{ backgroundColor: 'rgba(236, 236, 236, 0)' },
-				{ backgroundColor: '#ececec', duration: 0.3, ease: 'power1.out' }
-			)
-			.to(strike, { p: 1, duration: 0.55, ease: 'power2.inOut', onUpdate: drawStrike }, '<')
+			.to(strike, { p: 1, duration: 0.6, ease: 'power2.inOut', onUpdate: drawStrike })
 			.to(
 				typed,
 				{
@@ -106,7 +102,6 @@ export function bioRevision(node) {
 		// GSAP failed to load: show the finished revision rather than leave the sentence hidden.
 		console.warn('Bio revision unavailable:', error);
 		if (disposed) return;
-		del.style.backgroundColor = '#ececec';
 		strike.p = 1;
 		layout();
 		type(chars.length);
@@ -118,7 +113,7 @@ export function bioRevision(node) {
 		timeline?.kill();
 		observer.disconnect();
 		node.classList.remove('revising');
-		del.style.backgroundColor = '';
+		del.style.backgroundSize = '';
 		for (const char of chars) {
 			char.style.opacity = '';
 			char.classList.remove('caret');

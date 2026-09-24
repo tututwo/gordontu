@@ -1,12 +1,14 @@
 <script>
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import GithubLogoIcon from 'phosphor-svelte/lib/GithubLogoIcon';
 	import LinkedinLogoIcon from 'phosphor-svelte/lib/LinkedinLogoIcon';
 	import XLogoIcon from 'phosphor-svelte/lib/XLogoIcon';
 	import CategoryLink from '$lib/landingPage/CategoryLink.svelte';
-	import { bioRevision } from '$lib/landingPage/bioRevision.js';
 	import { headlineFlow } from '$lib/landingPage/headlineFlow.js';
 	import { categories } from '$lib/project/project.js';
+
+	let { children } = $props();
 
 	/** @param {string} slug */
 	function category(slug) {
@@ -38,23 +40,21 @@
 		...words('designed and built with taste and AI.')
 	];
 
-	const sentence = 'I use AI across my toolkit to design and build interactive 2D&3D experiences.';
-	const typed = [...sentence];
-
 	const socials = /** @type {const} */ ([
 		{ label: 'X', href: 'https://x.com/_tuyukun', Icon: XLogoIcon, weight: 'regular' },
 		{ label: 'LinkedIn', href: 'https://www.linkedin.com/in/gordon-tu/', Icon: LinkedinLogoIcon, weight: 'fill' },
 		{ label: 'GitHub', href: 'https://github.com/tututwo', Icon: GithubLogoIcon, weight: 'fill' }
 	]);
-</script>
 
-<svelte:head>
-	<title>Gordon Tu — Design engineer</title>
-	<meta
-		name="description"
-		content="I’m Gordon. I make your data easier to understand and use through interactive maps, visual stories, and web tools designed and built with taste and AI."
-	/>
-</svelte:head>
+	// Each tab has its own URL; the home page opens on about. Matched by route, as the server resolves
+	// hrefs relative to the page.
+	const tabs = /** @type {const} */ ([
+		['about', '/(home)/about'],
+		['projects', '/(home)/projects'],
+		['writing', '/(home)/writing']
+	]);
+	const current = $derived(page.route.id === '/(home)' ? '/(home)/about' : page.route.id);
+</script>
 
 <div class="landing">
 	<div class="intro">
@@ -70,22 +70,6 @@
 					/>{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
 		</h1>
 
-		<p class="bio" {@attach bioRevision}>
-			I’m a design engineer based in the Bay Area. I’ve worked on design systems and AI workflows at
-			<img class="logo" src="/landing/visa.png" alt="" width="32" height="32" /> VISA and turned
-			complex research into visualization tools for
-			<img class="logo" src="/landing/yale.png" alt="" width="32" height="32" /> Yale and
-			<img class="logo" src="/landing/berkeley.png" alt="" width="32" height="32" /> UC Berkeley.
-			<del>I&nbsp;use d3.js, three.js+GLSL/TSL, React&amp;Svelte, QGIS, Blender etc..</del>
-			<!-- Read once as a sentence; the per-letter copy is only for the typing. -->
-			<ins
-				><span class="sr-only">{sentence}</span><span aria-hidden="true"
-					>{#each typed as char}<span class="char">{char}</span>{/each}</span
-				></ins
-			>
-			<svg class="scratch" aria-hidden="true"></svg>
-		</p>
-
 		<ul class="socials">
 			{#each socials as { label, href, Icon, weight } (href)}
 				<li>
@@ -96,12 +80,16 @@
 			{/each}
 		</ul>
 
-		<nav aria-label="Site">
-			<a href={resolve('/about')}>about</a>
-			<!-- ponytail: no destination yet; becomes a link once a projects page exists. -->
-			<span class="soon" title="Coming soon">projects</span>
-			<a href={resolve('/blog')}>writing</a>
+		<hr />
+
+		<!-- Only the panel below changes between tabs, so switching keeps the scroll and the focus. -->
+		<nav aria-label="Site" data-sveltekit-noscroll data-sveltekit-keepfocus>
+			{#each tabs as [label, route] (route)}
+				<a href={resolve(route)} aria-current={route === current ? 'page' : undefined}>{label}</a>
+			{/each}
 		</nav>
+
+		<div class="panel">{@render children()}</div>
 	</div>
 </div>
 
@@ -121,15 +109,14 @@
 	/*
 	 * Proportions from docs/landing-page.png, scaled up so the bio reads at body size (16px, not the
 	 * mockup's 12px). Every size below is in em of this one value, and it is in rem so a visitor's
-	 * browser text size scales the whole page with it.
+	 * browser text size scales the whole page with it. Top-aligned, not centred: a tab of another
+	 * height must not move the headline.
 	 */
 	.landing {
 		position: relative;
 		z-index: 1;
-		display: grid;
-		place-items: center;
 		min-height: 100svh;
-		padding: 4em 1em;
+		padding: max(4em, 12vh) 1em 4em;
 		color: #000;
 		font-family: var(--font-sans);
 		font-size: 1.25rem;
@@ -137,8 +124,8 @@
 
 	/* ~75 characters of bio per line. */
 	.intro {
-		width: 100%;
 		max-width: 30em;
+		margin: 0 auto;
 	}
 
 	a {
@@ -186,126 +173,9 @@
 		vertical-align: 0.15em;
 	}
 
-	.bio {
-		position: relative;
-		margin: 1.6em 0 0;
-		color: #707070;
-		font-size: 0.8em;
-		line-height: 1.8;
-	}
-
-	.logo {
-		width: 1.333em;
-		height: 1.333em;
-		vertical-align: -0.3em;
-	}
-
-	del {
-		padding: 0.125em 0.1em;
-		border-radius: 0.17em;
-		background: #ececec;
-		text-decoration: none;
-		-webkit-box-decoration-break: clone;
-		box-decoration-break: clone;
-	}
-
-	ins {
-		text-decoration: none;
-	}
-
-	.char {
-		position: relative;
-	}
-
-	.char:global(.caret)::after {
-		position: absolute;
-		top: 0.05em;
-		bottom: -0.1em;
-		left: 100%;
-		width: 1px;
-		content: '';
-		background: currentColor;
-		animation: blink 1s steps(1) infinite;
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
-
-	.scratch {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		overflow: visible;
-		pointer-events: none;
-	}
-
-	.scratch :global(path) {
-		fill: none;
-		stroke: #000;
-		stroke-width: 1;
-		stroke-dasharray: 1;
-	}
-
-	/*
-	 * The Bio revision's start state, held only while the script that plays it can run. If that
-	 * script never arrives, a zero-length animation shows the finished revision after 5 s; the
-	 * script marks the paragraph `revising` on arrival and takes over.
-	 */
-	@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-		del {
-			background-color: rgb(236 236 236 / 0);
-			animation: bio-failsafe-del 0s 5s forwards;
-		}
-
-		.char {
-			opacity: 0;
-			animation: bio-failsafe-char 0s 5s forwards;
-		}
-
-		.bio:global(.revising) :is(del, .char) {
-			animation: none;
-		}
-	}
-
-	@keyframes bio-failsafe-del {
-		to {
-			background-color: #ececec;
-			text-decoration-line: line-through;
-		}
-	}
-
-	@keyframes bio-failsafe-char {
-		to {
-			opacity: 1;
-		}
-	}
-
-	/* No script, no drawn scratch: fall back to a plain strikethrough. */
-	@media (scripting: none) {
-		del {
-			text-decoration: line-through;
-		}
-	}
-
-	@keyframes blink {
-		50% {
-			opacity: 0;
-		}
-	}
-
 	.socials {
 		display: flex;
-		margin: 1.275em 0 0 -0.32em;
+		margin: 1.6em 0 0 -0.32em;
 		padding: 0;
 		list-style: none;
 	}
@@ -335,11 +205,17 @@
 		color: #000;
 	}
 
+	hr {
+		margin: 1.2em 0 0;
+		border: 0;
+		border-top: 1px solid #e3e3e3;
+	}
+
 	/* #767676 is the lightest grey that still reads at 4.5:1 on white; the mockup's #9a9a9a did not. */
 	nav {
 		display: flex;
 		gap: 1.33em;
-		margin-top: 2.2em;
+		margin-top: 2.6em;
 		color: #767676;
 		font-size: 0.8em;
 		line-height: 1.5;
@@ -349,16 +225,24 @@
 	nav a {
 		margin: -0.625em 0;
 		padding: 0.625em 0;
+		text-underline-offset: 0.3em;
+		text-decoration-thickness: 1px;
 		transition: color 160ms var(--ease-out);
 	}
 
-	/* Not a link yet, so it must not look like one. */
-	.soon {
-		color: #bdbdbd;
-		cursor: default;
+	nav a[aria-current='page'] {
+		text-decoration-line: underline;
 	}
 
 	nav a:hover {
 		color: #000;
+	}
+
+	/* The tabs' shared text; each page styles its own blocks. */
+	.panel {
+		margin-top: 1.9em;
+		color: #707070;
+		font-size: 0.8em;
+		line-height: 1.8;
 	}
 </style>
