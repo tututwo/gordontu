@@ -44,6 +44,7 @@
 	/** The scratch: one straight stroke per line box of the <del>, and the stretch of the pen's run it takes. */
 	/** @type {{ d: string, start: number, length: number }[]} */
 	let strokes = $state.raw([]);
+	const clamp01 = gsap.utils.clamp(0, 1);
 	/** @type {HTMLElement} */
 	let del;
 	/** @type {HTMLElement | undefined} */
@@ -148,12 +149,13 @@
 			const overshoot = (rects.at(-1)?.height ?? 0) * 0.35;
 			const width = rects.reduce((sum, rect) => sum + rect.width, 0);
 			const total = width + overshoot;
+			const sink = gsap.utils.mapRange(0, total, 0.4, 0.72);
 			let run = 0;
 			strokes = rects.map((rect, i) => {
 				const length = rect.width + (i === rects.length - 1 ? overshoot : 0);
 				const x = rect.left - box.left;
 				/** @param {number} at */
-				const y = (at) => rect.top - box.top + rect.height * (0.4 + (0.32 * at) / total);
+				const y = (at) => rect.top - box.top + rect.height * sink(at);
 				const stroke = { d: `M${x} ${y(run)}L${x + length} ${y(run + length)}`, start: run / total, length: length / total };
 				run += length;
 				return stroke;
@@ -209,7 +211,7 @@
 	>
 	<svg class="scratch" aria-hidden="true">
 		{#each strokes as { d, start, length }}
-			<path {d} pathLength="1" style:stroke-dashoffset={1 - Math.min(1, Math.max(0, (bio.strike - start) / length))} />
+			<path {d} pathLength="1" style:stroke-dashoffset={1 - clamp01((bio.strike - start) / length)} />
 		{/each}
 	</svg>
 </p>

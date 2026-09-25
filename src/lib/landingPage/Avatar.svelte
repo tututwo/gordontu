@@ -21,6 +21,7 @@
 	import { gsap } from 'gsap';
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
+	import { frameLoop } from '../frameLoop.js';
 	// The avatar in two layers, split from static/landing/avatar.png: the drawing without its glasses,
 	// and the glasses, which over it rebuild the drawing (and are small enough for Vite to inline, so
 	// they are never late onto the face). Once WebGL is in, a canvas draws the face instead, bending
@@ -78,8 +79,9 @@
 	const carried = $derived(Math.hypot(glasses.current.x - side * OFF.x, glasses.current.y - OFF.y));
 	const tilt = $derived(off * OFF.turn * side * Math.max(0, 1 - carried * 2));
 	const zoom = $derived(1 + (ZOOM - 1) * off);
+	const clampLook = gsap.utils.clamp(-1, 1);
 	/** Which way the head faces, -1–1: towards the side the glasses are on, fully once they are off. */
-	const look = $derived(Math.max(-1, Math.min(1, glasses.current.x / OFF.x)));
+	const look = $derived(clampLook(glasses.current.x / OFF.x));
 
 	/**
 	 * With the glasses in hand, the head looks up at the pointer, or down, when it is above or below it:
@@ -185,7 +187,11 @@
 		addEventListener('pointerup', (event) => event.pointerType === 'touch' && away(), { signal });
 		addEventListener('pointercancel', away, { signal });
 		addEventListener('scroll', follow, { signal, passive: true });
-		return () => controller.abort();
+		return () => {
+			controller.abort();
+			// Gone mid-drag (off to another page), it never sees the glasses let go: stop scrolling here.
+			edgeScroll.stop();
+		};
 	}
 
 	// Where the lenses are, for the text they read: each centre carried through the glasses' transform.
@@ -260,7 +266,7 @@
 		};
 		grab = { x: event.clientX, y: event.clientY + scrollY, from: event.clientY, size: box.width, at: event, near };
 		drag(event);
-		requestAnimationFrame(edge);
+		edgeScroll.start();
 	}
 
 	/** @param {{ clientX: number, clientY: number }} event */
@@ -282,17 +288,19 @@
 	 * events, so each frame they are aimed at the pointer again.
 	 */
 	function edge() {
-		if (!grab) return;
+		if (!grab) return false;
 		const y = grab.at.clientY;
 		const down = y > grab.from && y > innerHeight - EDGE;
 		const up = y < grab.from && y < EDGE;
 		if (down || up) scrollBy(0, (down ? y - innerHeight + EDGE : y - EDGE) / 4);
 		drag(grab.at);
-		requestAnimationFrame(edge);
+		return true;
 	}
+	const edgeScroll = frameLoop(edge);
 
 	function drop() {
 		grab = null;
+		edgeScroll.stop();
 		lenses.held = false;
 		move({ x: 0, y: 0 });
 		pitch.set(0, { instant: prefersReducedMotion.current });

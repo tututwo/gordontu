@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { cubicOut } from 'svelte/easing';
+import { gsap } from 'gsap/gsap-core';
+import { frameLoop } from '../frameLoop.js';
 import { toOptimizedImage } from '../project/project.js';
 import { DEFAULT_CARD_RATIO, cardSize, cellSize, layoutPlane, panLimits } from './layout.js';
 import { backTexture, loadBackFont, readTokens } from './postcardBack.js';
@@ -37,6 +38,7 @@ const CAPTION = 96;
  * @property {THREE.MeshBasicMaterial} material opacity = reveal × ghost
  * @property {THREE.MeshBasicMaterial} backingMaterial opaque silhouette beneath transparent art
  * @property {number} ratio width / height, the image's own
+ * @property {number} reveal 0..1, how far it has faded in
  */
 
 /**
@@ -51,8 +53,6 @@ const CAPTION = 96;
  */
 export function createScene(canvas, projects, { pan, reduced, onready, onheroresize }) {
 	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-	renderer.setClearColor(0x000000, 0);
 	const scene = new THREE.Scene();
 	const camera = new THREE.PerspectiveCamera(30, 1, 1, 2000);
 	let cameraZ = 1000;
@@ -68,7 +68,9 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	let plane;
 	/** @type {Card[]} */
 	const cards = [];
-	let revealStart = Infinity;
+	/** @type {gsap.core.Tween | undefined} */
+	let revealing;
+	let revealStart = 0;
 	let disposed = false;
 
 	// --- hero (the opened card) ---
@@ -94,22 +96,19 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	let heroCard;
 	/** @type {THREE.Texture | undefined} */
 	let heroBackTexture;
-	let heroFrom = { x: 0, y: 0, rot: 0, w: 1, h: 1 };
-	let heroTo = { x: 0, y: 0, rot: 0, w: 1, h: 1 };
-	// Open progress 0..1 as an interruptible tween: retargeting starts from the current value.
-	let openValue = 0;
-	let openFrom = 0;
-	let openTarget = 0;
+	// Where the open card comes to rest, world units; it flies there from its card.
+	const heroTo = { position: new THREE.Vector3(), scale: new THREE.Vector3(1, 1, 1) };
+	// Open progress 0..1, tweened by GSAP: retargeting starts from the current value.
+	const openProgress = { value: 0 };
+	/** @type {gsap.core.Tween | undefined} */
+	let opening;
 	let openStart = 0;
-	let openDuration = OPEN_MS;
 	// Closing, the card unwinds whatever turn it is at back to its front as it flies home.
 	let closing = false;
 	let closingTurn = 0;
 
 	// --- cards + textures ---
 	const loader = new THREE.TextureLoader();
-	/** @param {string} url @returns {Promise<THREE.Texture>} */
-	const loadTexture = (url) => new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject));
 
 	/** @type {Promise<void>[]} */
 	const loads = [];
@@ -129,10 +128,10 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		mesh.add(art);
 		scene.add(mesh);
 		/** @type {Card} */
-		const card = { project, mesh, material, backingMaterial, ratio: DEFAULT_CARD_RATIO };
+		const card = { project, mesh, material, backingMaterial, ratio: DEFAULT_CARD_RATIO, reveal: 0 };
 		mesh.userData.card = card;
 		cards.push(card);
-		const load = loadTexture(toOptimizedImage(project.projectImgSource))
+		const load = loader.loadAsync(toOptimizedImage(project.projectImgSource))
 			.then((texture) => {
 				if (disposed) return texture.dispose();
 				texture.colorSpace = THREE.SRGBColorSpace;
@@ -172,6 +171,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	}
 
 	function resize() {
+		// Browser zoom and a move to another screen change the pixel ratio too.
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 		const rect = canvas.getBoundingClientRect();
 		width = Math.max(1, Math.round(rect.width));
 		height = Math.max(1, Math.round(rect.height));
@@ -182,7 +183,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		homeY = cell * 0.18;
 		relayout();
 		if (heroCard && !closing) {
-			heroTo = heroTargetFor(heroCard);
+			aimHero(heroCard);
 			// Redrawing the back reports the box too, with its link where it now lies.
 			if (heroBackTexture) drawBack(heroCard);
 			else onheroresize(heroBoxFor(heroCard));
@@ -191,11 +192,11 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	}
 
 	// --- frame ---
-	/** @param {number} a @param {number} b @param {number} t */
-	const lerp = (a, b, t) => a + (b - a) * t;
-	let frame = 0;
+	// Render on the next frame, and on while the fly or the reveal still moves; the coast and the flip
+	// wake it from their own loops.
+	const frame = frameLoop((dt, now) => tick(now));
 	function wake() {
-		if (!frame && !disposed) frame = requestAnimationFrame(tick);
+		if (!disposed) frame.start();
 	}
 
 	/** Apply the screen-space view controller to Three's world-space camera. */
@@ -210,69 +211,87 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		camera.updateMatrixWorld();
 	}
 
-	/** @param {number} now */
+	/** Render the frame at `now`; whether the fly or the reveal still moves. @param {number} now */
 	function tick(now) {
-		frame = 0;
 		let animating = false;
 
 		// Pan is screen px (+y down); the camera moves the opposite way in world units (+y up).
 		syncCamera();
 
-		// Open tween.
-		if (openValue !== openTarget) {
-			const p = openDuration === 0 ? 1 : Math.min(1, (now - openStart) / openDuration);
-			openValue = openFrom + (openTarget - openFrom) * cubicOut(p);
-			if (p >= 1) openValue = openTarget;
-			animating ||= openValue !== openTarget;
-			if (openValue === 0 && openTarget === 0) settleClosed();
+		// Open tween, played to this frame's time; done when its eased ratio reaches 1, as a paused tween of
+		// no length (reduced motion) reports no progress however far it is played.
+		if (opening) {
+			opening.time((now - openStart) / 1000);
+			if (opening.ratio < 1) animating = true;
+			else {
+				opening.kill();
+				opening = undefined;
+				// The close settles on the frame it lands, before that frame renders.
+				if (!openProgress.value) settleClosed();
+			}
 		}
-		const ghost = 1 - (1 - GHOST) * openValue;
+		const ghost = 1 - (1 - GHOST) * openProgress.value;
 
-		// Cards fade in with a stagger and ghost while one is open.
-		for (const [index, card] of cards.entries()) {
-			const revealAge = now - revealStart - index * REVEAL_STAGGER_MS;
-			const reveal = reduced() ? 1 : cubicOut(Math.min(1, Math.max(0, revealAge / REVEAL_MS)));
-			if (reveal < 1) animating = true;
+		// Cards fade in with a stagger and ghost while one is open. By the frame's time, so cards that came
+		// in while the tab was hidden are in; with reduced motion they are simply in.
+		if (revealing) {
+			revealing.time((now - revealStart) / 1000);
+			if (revealing.progress() < 1) animating ||= !reduced();
+			else {
+				revealing.kill();
+				revealing = undefined;
+			}
+		}
+		for (const card of cards) {
+			const reveal = reduced() ? 1 : card.reveal;
 			card.material.opacity = reveal * ghost;
 			card.backingMaterial.opacity = reveal * ghost;
 			card.mesh.visible = card !== heroCard;
 		}
 
-		// Hero.
-		if (hero.visible) {
-			const t = openValue;
-			hero.position.set(lerp(heroFrom.x, heroTo.x, t), lerp(heroFrom.y, heroTo.y, t), 1);
-			hero.rotation.z = lerp(heroFrom.rot, heroTo.rot, t);
-			hero.scale.set(lerp(heroFrom.w, heroTo.w, t), lerp(heroFrom.h, heroTo.h, t), 1);
+		// Hero, from its card's place on the plane (wherever a relayout has since put it) to the centre.
+		if (heroCard) {
+			const t = openProgress.value;
+			const home = heroCard.mesh;
+			hero.position.lerpVectors(home.position, heroTo.position, t);
+			hero.scale.lerpVectors(home.scale, heroTo.scale, t);
+			hero.rotation.z = home.rotation.z * (1 - t);
 			if (closing) hero.rotation.y = closingTurn * t;
 		}
 
 		renderer.render(scene, camera);
-		if (animating) wake();
+		return animating;
 	}
 
 	/**
 	 * The open card at rest, CSS px: as big as fits with its caption under it, the two centred together
-	 * (`y` is the card centre's offset from the viewport's). @param {Card} card
+	 * (`y` is the card centre's offset from the viewport's). Its sides and that offset are whole device
+	 * pixels, with even margins, so its edges land on pixel boundaries and its back is drawn one texel to a
+	 * pixel. @param {Card} card
 	 */
 	function heroBoxFor(card) {
+		// Three spreads the canvas's CSS px over its viewport, rounded to whole device px (the buffer is floored,
+		// so it can be a pixel smaller): at a fractional pixel ratio a CSS px is then a hair off the ratio.
+		const view = renderer.getCurrentViewport(new THREE.Vector4());
+		const sx = view.z / width;
+		const sy = view.w / height;
+		/**
+		 * `size` CSS px as the nearest whole device px that leave an even margin in `span` device px, at
+		 * `scale` device px to a CSS px. @param {number} size @param {number} span @param {number} scale
+		 */
+		const snap = (size, span, scale) => (span + 2 * Math.round((size * scale - span) / 2)) / scale;
 		const maxW = width * 0.8;
 		const maxH = Math.max(height * 0.4, Math.min(height * 0.7, height - CAPTION - 64));
 		const w = Math.min(maxW, maxH * card.ratio);
-		return { w, h: w / card.ratio, y: -CAPTION / 2 };
+		return { w: snap(w, view.z, sx), h: snap(w / card.ratio, view.w, sy), y: -Math.round((CAPTION / 2) * sy) / sy };
 	}
 
-	/** World-space target whose rendered box matches heroBoxFor at the current camera zoom. @param {Card} card */
-	function heroTargetFor(card) {
+	/** Aim the open card at heroBoxFor's box, at the current camera zoom. @param {Card} card */
+	function aimHero(card) {
 		const zoom = Math.max(0.001, pan.zoom);
 		const box = heroBoxFor(card);
-		return {
-			x: -pan.x / zoom,
-			y: (pan.y + homeY - box.y) / zoom,
-			rot: 0,
-			w: box.w / zoom,
-			h: box.h / zoom
-		};
+		heroTo.position.set(-pan.x / zoom, (pan.y + homeY - box.y) / zoom, 0);
+		heroTo.scale.set(box.w / zoom, box.h / zoom, 1);
 	}
 
 	/** Draw the open card's back at its size on screen, and report where its link lies. @param {Card} card */
@@ -290,10 +309,18 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 
 	/** @param {number} target */
 	function tweenOpen(target) {
-		openFrom = openValue;
-		openTarget = target;
+		opening?.kill();
+		// Paused: the render plays it from now by its frames' time, so a card opened in a background tab
+		// (an index link opened in a new one) is open when you come to it.
+		opening = gsap.to(openProgress, {
+			value: target,
+			duration: reduced() ? 0 : OPEN_MS / 1000,
+			ease: 'power2.out',
+			paused: true,
+			// Reduced motion lands on the next frame too, not in the middle of this event.
+			immediateRender: false
+		});
 		openStart = performance.now();
-		openDuration = reduced() ? 0 : OPEN_MS;
 		wake();
 	}
 
@@ -308,13 +335,11 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	}
 
 	// --- observers ---
-	let resizePending = 0;
-	const observer = new ResizeObserver(() => {
-		if (!resizePending) resizePending = requestAnimationFrame(() => ((resizePending = 0), resize()));
-	});
+	// Resize on the next frame, however many times the observer fires before it.
+	const resizing = frameLoop(() => (resize(), false));
+	const observer = new ResizeObserver(() => resizing.start());
 	observer.observe(canvas);
 	const listeners = new AbortController();
-	canvas.addEventListener('webglcontextlost', (event) => event.preventDefault(), { signal: listeners.signal });
 	canvas.addEventListener('webglcontextrestored', wake, { signal: listeners.signal });
 
 	resize();
@@ -323,6 +348,13 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	Promise.allSettled(loads).then(() => {
 		if (disposed) return;
 		relayout();
+		revealing = gsap.to(cards, {
+			reveal: 1,
+			duration: REVEAL_MS / 1000,
+			stagger: REVEAL_STAGGER_MS / 1000,
+			ease: 'power2.out',
+			paused: true
+		});
 		revealStart = performance.now();
 		onready();
 		wake();
@@ -366,14 +398,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			heroCard = card;
 			setCameraDistance(PERSPECTIVE * heroBoxFor(card).w);
 			syncCamera();
-			heroFrom = {
-				x: card.mesh.position.x,
-				y: card.mesh.position.y,
-				rot: card.mesh.rotation.z,
-				w: card.mesh.scale.x,
-				h: card.mesh.scale.y
-			};
-			heroTo = heroTargetFor(card);
+			aimHero(card);
 			onheroresize(heroBoxFor(card));
 			heroFront.material.map = card.material.map;
 			heroFront.material.color.set(card.material.map ? 0xffffff : PLACEHOLDER);
@@ -404,10 +429,15 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 
 		wake,
 
+		/** Resize on the next frame, for a change the canvas's own size doesn't show: a new pixel ratio. */
+		resize: resizing.start,
+
 		dispose() {
 			disposed = true;
-			if (frame) cancelAnimationFrame(frame);
-			if (resizePending) cancelAnimationFrame(resizePending);
+			frame.stop();
+			resizing.stop();
+			opening?.kill();
+			revealing?.kill();
 			observer.disconnect();
 			listeners.abort();
 			for (const card of cards) {

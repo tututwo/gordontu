@@ -1,5 +1,5 @@
+import { gsap } from 'gsap';
 import { BufferGeometry, Float32BufferAttribute, Group, Mesh, Vector2 } from 'three';
-import { cubicInOut, sineInOut } from 'svelte/easing';
 import { Spring } from '../spring.js';
 import { lineGlsl, screenGlsl } from './stage.js';
 
@@ -40,19 +40,27 @@ const HYSTERESIS = 0.02;
 const SCALE = 64;
 
 /**
- * How narrow the window is (0 desktop, 1 phone) at `ms` since it lit up: a first squeeze once the
- * cards are out, then hold phone, widen, hold desktop, narrow — one wrap every 2.5 s.
- * @param {number} ms
+ * How narrow the window is (0 desktop, 1 phone) since it lit up: a first squeeze once the cards are
+ * out, then hold phone, widen, hold desktop, narrow — one wrap every 2.5 s. Paused: `squeezeAt`
+ * seeks it to the icon's own time, the first squeeze once and the 5 s after it on a loop.
  */
+const scripted = { squeeze: 0 };
+const script = gsap
+	.timeline({ paused: true, defaults: { duration: 0.9, ease: 'sine.inOut' } })
+	.to(scripted, { squeeze: 1, duration: 0.55, ease: 'power2.inOut' }, 0.15)
+	.to(scripted, { squeeze: 0 }, 2.3)
+	.to(scripted, { squeeze: 1 }, 4.8);
+
+/** @param {number} ms since it lit up */
 function squeezeAt(ms) {
-	if (ms < 150) return 0;
-	if (ms < 700) return cubicInOut((ms - 150) / 550);
-	const u = (ms - 700) % 5000;
-	if (u < 1600) return 1;
-	if (u < 2500) return 1 - sineInOut((u - 1600) / 900);
-	if (u < 4100) return 0;
-	return sineInOut((u - 4100) / 900);
+	const s = ms / 1000;
+	script.time(s < 0.7 ? s : 0.7 + ((s - 0.7) % 5));
+	return scripted.squeeze;
 }
+
+/** The window part way from desktop (0) to phone (1): one object, rewritten on every call. */
+const sizeAt = gsap.utils.interpolate(DESKTOP, PHONE);
+const clamp01 = gsap.utils.clamp(0, 1);
 
 /**
  * The two card slots, [centre y, centre z, height, width], filling the window's content box: a row
@@ -302,8 +310,9 @@ export function createToolsIcon(stage) {
 
 			// The window follows the script while lit; unlit, it waits for the cards to sink, then widens.
 			const hidden = outs.every((s) => s.value <= 0);
-			if (lit) {
-				// Lit, it tracks the script closely, a new goal every frame.
+			if (lit && !reduced) {
+				// Lit, it tracks the script closely, a new goal every frame. Reduced, it jumps straight to
+				// phone below; seeking the script then would only wake GSAP's ticker for nothing.
 				squeeze.to(squeezeAt(clock));
 			} else if (hidden && squeeze.target !== 0) {
 				// Unlit, once the cards have sunk it glides home and comes to rest.
@@ -312,15 +321,12 @@ export function createToolsIcon(stage) {
 			if (reduced) squeeze.set(lit ? 1 : 0);
 			moving = squeeze.advance(dt) || moving;
 
-			const t = Math.min(1, Math.max(0, squeeze.value));
-			/** @param {'w' | 'h' | 'margin' | 'radius' | 'head' | 'foot'} key */
-			const size = (key) => DESKTOP[key] + (PHONE[key] - DESKTOP[key]) * t;
-			const w = size('w');
-			const h = size('h');
+			const t = clamp01(squeeze.value);
+			const { w, h, margin, radius, head, foot } = sizeAt(t);
 			glass.uniforms.uHalf.value.set(w / 2, h / 2);
-			glass.uniforms.uRadius.value = size('radius');
+			glass.uniforms.uRadius.value = radius;
 			// The title bar's line fades out over the first part of the glide, the phone's parts in over the last.
-			glass.uniforms.uDesktop.value = 1 - Math.min(1, Math.max(0, (t - 0.25) / 0.5));
+			glass.uniforms.uDesktop.value = 1 - clamp01((t - 0.25) / 0.5);
 
 			// Crossing the breakpoint: lift the second card clear, and 50 ms later switch the layout.
 			if (column ? w > BREAK + HYSTERESIS : w < BREAK - HYSTERESIS) {
@@ -335,7 +341,7 @@ export function createToolsIcon(stage) {
 				shown = column;
 				wrapAt = -1;
 			}
-			const rects = layout(w, h, size('margin'), size('head'), size('foot'), shown);
+			const rects = layout(w, h, margin, head, foot, shown);
 
 			let settled = true;
 			slots.forEach((slot, i) => {

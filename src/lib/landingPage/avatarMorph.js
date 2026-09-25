@@ -22,6 +22,8 @@ uniform float uTurn;
 varying vec2 vRest;
 varying vec2 vUp;
 varying vec2 vDown;
+varying float vUpMix;
+varying float vDownMix;
 
 void main() {
 	vec2 p = aRest + (aUp - aRest) * uUp + (aDown - aRest) * uDown;
@@ -29,6 +31,9 @@ void main() {
 	vRest = aRest;
 	vUp = aUp;
 	vDown = aDown;
+	// The drawings cross over in the middle of the move, where the shapes are nearest both.
+	vUpMix = smoothstep(0.2, 0.8, uUp);
+	vDownMix = smoothstep(0.2, 0.8, uDown);
 	gl_Position = vec4(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0, 0.0, 1.0);
 }`;
 
@@ -37,23 +42,17 @@ precision mediump float;
 uniform sampler2D uRestImage;
 uniform sampler2D uUpImage;
 uniform sampler2D uDownImage;
-uniform float uUpMix;
-uniform float uDownMix;
 varying vec2 vRest;
 varying vec2 vUp;
 varying vec2 vDown;
+varying float vUpMix;
+varying float vDownMix;
 
 void main() {
 	vec4 colour = texture2D(uRestImage, vRest);
-	colour = mix(colour, texture2D(uUpImage, vUp), uUpMix);
-	gl_FragColor = mix(colour, texture2D(uDownImage, vDown), uDownMix);
+	colour = mix(colour, texture2D(uUpImage, vUp), vUpMix);
+	gl_FragColor = mix(colour, texture2D(uDownImage, vDown), vDownMix);
 }`;
-
-/** The drawings cross over in the middle of the move, where the shapes are nearest both. @param {number} t */
-const crossing = (t) => {
-	const x = Math.min(1, Math.max(0, (t - 0.2) / 0.6));
-	return x * x * (3 - 2 * x);
-};
 
 /** @typedef {{ up: number, down: number, turn: number }} Pose */
 
@@ -69,7 +68,12 @@ function face({ up, down, turn }) {
 		return [at(0) + mesh.turn[i] * turn, at(1)];
 	});
 }
-const rest = face({ up: 0, down: 0, turn: 0 });
+/**
+ * The frame the eyes and mouth span: the first, and the other two's offsets from it.
+ * @param {number[][]} points
+ */
+const frame = ([p0, p1, p2]) => new DOMMatrix([p1[0] - p0[0], p1[1] - p0[1], p2[0] - p0[0], p2[1] - p0[1], p0[0], p0[1]]);
+const fromRest = frame(face({ up: 0, down: 0, turn: 0 })).inverse();
 
 /**
  * How glasses sitting on the face move with it: the affine map that carries the eyes and mouth from
@@ -79,20 +83,10 @@ const rest = face({ up: 0, down: 0, turn: 0 });
  * @param {number[]} origin
  */
 function glassesOn(pose, [ox, oy]) {
-	const [p0, p1, p2] = rest;
-	const [q0, q1, q2] = face(pose);
-	// A = Q R⁻¹, R and Q holding the other two points' offsets from the first as columns.
-	const [r00, r10, r01, r11] = [p1[0] - p0[0], p1[1] - p0[1], p2[0] - p0[0], p2[1] - p0[1]];
-	const [s00, s10, s01, s11] = [q1[0] - q0[0], q1[1] - q0[1], q2[0] - q0[0], q2[1] - q0[1]];
-	const det = r00 * r11 - r01 * r10;
-	const a = (s00 * r11 - s01 * r10) / det;
-	const c = (s01 * r00 - s00 * r01) / det;
-	const b = (s10 * r11 - s11 * r10) / det;
-	const d = (s11 * r00 - s10 * r01) / det;
+	const m = frame(face(pose)).multiply(fromRest);
 	// Where the origin goes, less where it was.
-	const x = q0[0] + a * (ox - p0[0]) + c * (oy - p0[1]) - ox;
-	const y = q0[1] + b * (ox - p0[0]) + d * (oy - p0[1]) - oy;
-	return `translate(${x * 100}%, ${y * 100}%) matrix(${a}, ${b}, ${c}, ${d}, 0, 0)`;
+	const { x, y } = m.transformPoint({ x: ox, y: oy });
+	return `translate(${(x - ox) * 100}%, ${(y - oy) * 100}%) matrix(${m.a}, ${m.b}, ${m.c}, ${m.d}, 0, 0)`;
 }
 
 /**
@@ -144,7 +138,7 @@ export function createMorph(canvas, images, lost) {
 	});
 
 	const uniform = (/** @type {string} */ name) => gl.getUniformLocation(program, name);
-	const [uUp, uDown, uTurn, uUpMix, uDownMix] = ['uUp', 'uDown', 'uTurn', 'uUpMix', 'uDownMix'].map(uniform);
+	const [uUp, uDown, uTurn] = ['uUp', 'uDown', 'uTurn'].map(uniform);
 
 	/** Take a new context back to where the page is: it shows the picture until the next load. */
 	const onlost = (/** @type {Event} */ event) => {
@@ -161,8 +155,6 @@ export function createMorph(canvas, images, lost) {
 			gl.uniform1f(uUp, up);
 			gl.uniform1f(uDown, down);
 			gl.uniform1f(uTurn, turn);
-			gl.uniform1f(uUpMix, crossing(up));
-			gl.uniform1f(uDownMix, crossing(down));
 			gl.drawElements(gl.TRIANGLES, mesh.triangles.length, gl.UNSIGNED_SHORT, 0);
 		},
 		glasses: glassesOn,

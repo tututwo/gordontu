@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { devicePixelRatio } from 'svelte/reactivity/window';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import ChartBarIcon from 'phosphor-svelte/lib/ChartBarIcon';
 	import CodeIcon from 'phosphor-svelte/lib/CodeIcon';
@@ -11,7 +12,7 @@
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifoldIcon';
 	import QuestionIcon from 'phosphor-svelte/lib/QuestionIcon';
 	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFourIcon';
-	import { allProjects, categories } from '$lib/project/project.js';
+	import { allProjects, categories, categoryLabel, formatDate } from '$lib/project/project.js';
 	import { WallMotion } from './wallMotion.js';
 	import { Pan } from './pan.js';
 
@@ -98,11 +99,20 @@
 		};
 	}
 
+	// Moved to a screen of another density, the postcards redraw sharp on it. A browser zoom resizes the
+	// canvas too, so there the scene follows a second time, a frame later; on the way in it isn't there yet.
+	$effect(() => {
+		devicePixelRatio.current;
+		scene?.resize();
+	});
+
 	/** This gallery's URL, with `project`'s postcard open (`/maps/<slug>`) or none (`/maps`). @param {Project | null} project */
 	const urlFor = (project) => resolve('/[category]/[[slug]]', { category: category.slug, slug: project?.slug });
 
 	/** @param {Project} project */
 	function show(project) {
+		// The index and help go with the rest of the chrome, closed: in the top layer they wouldn't fade with it.
+		for (const panel of document.querySelectorAll('.gallery [popover]')) /** @type {HTMLElement} */ (panel).togglePopover?.(false);
 		if (!ready || !scene) return;
 		selected = project;
 		flip.reset();
@@ -153,12 +163,11 @@
 	/**
 	 * A plain click on an index entry opens its postcard, as tapping the card does; a modified click
 	 * follows the link, to the same open postcard in a new tab.
-	 * @param {MouseEvent & { currentTarget: HTMLAnchorElement }} event @param {Project} project
+	 * @param {MouseEvent} event @param {Project} project
 	 */
 	function pick(event, project) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		event.preventDefault();
-		/** @type {HTMLDetailsElement} */ (event.currentTarget.closest('details')).open = false;
 		open(project);
 	}
 
@@ -297,6 +306,17 @@
 			>
 				<h2 id="open-title">{selected.projectName}</h2>
 				<span class="year">{selected.date.slice(0, 4)}</span>
+				<!-- The back, in words, for screen readers. -->
+				<dl class="sr-only">
+					<dt>Date</dt>
+					<dd>{formatDate(selected.date)}</dd>
+					<dt>Client</dt>
+					<dd>{selected.client ?? 'Self-initiated'}</dd>
+					<dt>Tools</dt>
+					<dd>{selected.tools.join(', ')}</dd>
+					<dt>Category</dt>
+					<dd>{categoryLabel(selected.category)}</dd>
+				</dl>
 				<div class="actions">
 					<button type="button" onclick={() => flip.moveBy(1)}>{back ? 'Flip to front' : 'Flip for details'}</button>
 					<button type="button" onclick={close}>Close</button>
@@ -307,16 +327,16 @@
 
 	<!-- Keyed so it closes again after changing section (the component instance survives navigation). -->
 	{#key category.slug}
-	<details class="project-index bottom-chrome">
-		<summary class="frosted" aria-label="Open the project index">
+	<div class="project-index bottom-chrome">
+		<button class="frosted" type="button" popovertarget="project-index" aria-label="Open the project index">
 			<ListIcon size={18} weight="regular" aria-hidden="true" />
-			<span class="summary-label">Project index</span>
-			<span class="summary-count">{projects.length}</span>
+			<span class="index-label">Project index</span>
+			<span class="index-count">{projects.length}</span>
 			<span class="index-caret">
 				<CaretDownIcon size={14} weight="bold" aria-hidden="true" />
 			</span>
-		</summary>
-		<nav class="frosted" aria-label="{category.label} projects">
+		</button>
+		<nav id="project-index" class="frosted" popover aria-label="{category.label} projects">
 			<div class="index-heading">
 				<strong>{category.label}</strong>
 				<span>Select a postcard</span>
@@ -329,21 +349,19 @@
 				</a>
 			{/each}
 		</nav>
-	</details>
+	</div>
 	{/key}
 
 	<div class="gallery-status bottom-chrome">
-		<details class="help">
-			<summary class="frosted" aria-label="How to use the gallery">
-				<QuestionIcon size={18} weight="regular" aria-hidden="true" />
-			</summary>
-			<div class="help-popover frosted">
-				<strong>Explore the canvas</strong>
-				<p>Drag or use the arrow keys to move. Scroll, pinch, or use + / − to zoom.</p>
-				<span>Press 0 or use Recenter to return home.</span>
-				<span>Open a postcard to flip it and view the project.</span>
-			</div>
-		</details>
+		<button class="help frosted" type="button" popovertarget="gallery-help" aria-label="How to use the gallery">
+			<QuestionIcon size={18} weight="regular" aria-hidden="true" />
+		</button>
+		<div id="gallery-help" class="help-popover frosted" popover>
+			<strong>Explore the canvas</strong>
+			<p>Drag or use the arrow keys to move. Scroll, pinch, or use + / − to zoom.</p>
+			<span>Press 0 or use Recenter to return home.</span>
+			<span>Open a postcard to flip it and view the project.</span>
+		</div>
 	</div>
 
 </div>
@@ -357,6 +375,8 @@
 	.gallery {
 		--bar: 3rem;
 		--edge: 1rem;
+		/* How far up the index and help sit, and so where their panels open from. */
+		--chrome-bottom: var(--edge);
 		position: fixed;
 		inset: 0;
 		z-index: 1;
@@ -645,27 +665,22 @@
 	.project-index {
 		position: absolute;
 		left: var(--edge);
-		bottom: var(--edge);
+		bottom: var(--chrome-bottom);
 	}
 
-	.project-index summary {
+	.project-index > button {
 		display: flex;
 		height: var(--bar);
 		align-items: center;
 		gap: 0.625rem;
 		padding: 0 1rem;
 		border-radius: 999px;
+		color: inherit;
 		font-size: 0.875rem;
 		cursor: pointer;
-		list-style: none;
 	}
 
-	.project-index summary::-webkit-details-marker,
-	.help summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.summary-count,
+	.index-count,
 	.index-caret {
 		color: var(--muted-ink);
 	}
@@ -676,14 +691,15 @@
 		transition: transform 180ms var(--ease-out);
 	}
 
-	.project-index[open] .index-caret {
+	.project-index:has(:popover-open) .index-caret {
 		transform: rotate(180deg);
 	}
 
-	.project-index nav {
-		position: absolute;
-		left: 0;
-		bottom: calc(100% + 0.5rem);
+	/* The panels open in the top layer, out of their buttons' boxes, so they are placed on the window:
+	   a gap above the buttons, at the same edge. Closed, the browser hides them. */
+	.project-index nav:popover-open {
+		inset: auto auto calc(var(--chrome-bottom) + var(--bar) + 0.5rem) var(--edge);
+		margin: 0;
 		display: grid;
 		width: min(24rem, calc(100vw - 2 * var(--edge)));
 		max-height: min(62vh, 34rem);
@@ -746,34 +762,29 @@
 	.gallery-status {
 		position: absolute;
 		right: var(--edge);
-		bottom: var(--edge);
+		bottom: var(--chrome-bottom);
 	}
 
 	.help {
-		position: relative;
-	}
-
-	.help summary {
 		display: grid;
 		width: var(--bar);
 		height: var(--bar);
 		place-items: center;
+		padding: 0;
 		border-radius: 50%;
 		color: var(--muted-ink);
 		cursor: pointer;
-		list-style: none;
 		transition: color 160ms var(--ease-out);
 	}
 
-	.help summary:hover,
-	.help[open] summary {
+	.help:hover,
+	.gallery-status:has(:popover-open) .help {
 		color: var(--ink);
 	}
 
-	.help-popover {
-		position: absolute;
-		right: 0;
-		bottom: calc(100% + 0.5rem);
+	.help-popover:popover-open {
+		inset: auto var(--edge) calc(var(--chrome-bottom) + var(--bar) + 0.5rem) auto;
+		margin: 0;
 		display: grid;
 		gap: 0.375rem;
 		width: min(17rem, calc(100vw - 2 * var(--edge)));
@@ -789,19 +800,28 @@
 		line-height: 1.5;
 	}
 
+	/* A browser from before popovers (Safari 16, Firefox 124) would stand both panels open over the
+	   table, under buttons that do nothing: there the index and help stay away. */
+	@supports not selector(:popover-open) {
+		.project-index,
+		.gallery-status {
+			display: none;
+		}
+	}
+
 	/* The landing's press and focus, on every control. */
 	.tool-button:active,
-	.project-index summary:active,
+	.project-index > button:active,
 	.project-index nav a:active,
-	.help summary:active,
+	.help:active,
 	.actions button:active {
 		opacity: 0.55;
 	}
 
 	.tool-button:focus-visible,
-	.project-index summary:focus-visible,
+	.project-index > button:focus-visible,
 	.project-index nav a:focus-visible,
-	.help summary:focus-visible,
+	.help:focus-visible,
 	.actions button:focus-visible,
 	.back-link:focus-visible {
 		outline: 2px solid var(--ink);
@@ -812,7 +832,7 @@
 		.intro,
 		.tool-button,
 		.index-caret,
-		.help summary,
+		.help,
 		.actions button,
 		.back-link,
 		.bottom-chrome {
@@ -825,6 +845,7 @@
 		.gallery {
 			--bar: 2.75rem;
 			--edge: 0.75rem;
+			--chrome-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
 		}
 
 		.intro {
@@ -836,19 +857,14 @@
 			gap: 0;
 		}
 
-		.project-index,
-		.gallery-status {
-			bottom: calc(var(--edge) + env(safe-area-inset-bottom));
-		}
-
-		.project-index summary {
+		.project-index > button {
 			width: var(--bar);
 			justify-content: center;
 			padding: 0;
 		}
 
-		.summary-label,
-		.summary-count,
+		.index-label,
+		.index-count,
 		.index-caret {
 			display: none;
 		}
@@ -856,9 +872,8 @@
 
 	/* Narrower than this, the rail (238px) reaches the index and help buttons: they step up above it. */
 	@media (max-width: 368px) {
-		.project-index,
-		.gallery-status {
-			bottom: calc(var(--edge) * 2 + var(--bar) + env(safe-area-inset-bottom));
+		.gallery {
+			--chrome-bottom: calc(var(--edge) * 2 + var(--bar) + env(safe-area-inset-bottom));
 		}
 	}
 

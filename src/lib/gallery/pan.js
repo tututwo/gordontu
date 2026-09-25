@@ -1,4 +1,7 @@
 // ponytail: same pointer / velocity-fit / click-suppression as wallMotion.js on two axes; kept separate on purpose.
+import { gsap } from 'gsap/gsap-core';
+import { frameLoop } from '../frameLoop.js';
+
 const DECELERATION_RATE = 0.998; // per ms
 const MAX_RELEASE_SPEED = 4; // px per ms
 const POINTER_HISTORY_WINDOW = 110;
@@ -6,16 +9,13 @@ const DRAG_THRESHOLD = 8;
 const NUDGE = 160;
 const RUBBER = 0.35; // how much of an overscroll the finger actually gets
 const RETURN_RATE = 0.99; // per ms, ease back inside after release
-
-/** @param {number} value @param {number} minimum @param {number} maximum */
-const clamp = (value, minimum, maximum) => Math.min(Math.max(value, minimum), maximum);
+const clampDt = gsap.utils.clamp(0, 100); // ms
 
 /** Minimum and maximum gallery scale. */
 export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 2.5;
 
-/** @param {number} zoom */
-export const clampZoom = (zoom) => clamp(zoom, MIN_ZOOM, MAX_ZOOM);
+export const clampZoom = gsap.utils.clamp(MIN_ZOOM, MAX_ZOOM);
 
 /**
  * Keep the same world point under a moving screen-space anchor while zooming.
@@ -43,7 +43,7 @@ export function anchoredPan(pan, from, to, ratio) {
  */
 export function wheelZoomRatio(deltaY, deltaMode, ctrlKey) {
 	const unit = deltaMode === 1 ? 0.05 : deltaMode === 2 ? 1 : 0.002;
-	const exponent = clamp(-deltaY * unit * (ctrlKey ? 10 : 1), -0.5, 0.5);
+	const exponent = gsap.utils.clamp(-0.5, 0.5, -deltaY * unit * (ctrlKey ? 10 : 1));
 	return 2 ** exponent;
 }
 
@@ -70,8 +70,7 @@ export class Pan {
 
 	#velocityX = 0;
 	#velocityY = 0;
-	#animationFrame = 0;
-	#previousFrameTime = 0;
+	#coasting = frameLoop((dt) => this.#coast(dt));
 
 	/** @type {HTMLElement | undefined} */
 	#node;
@@ -125,8 +124,8 @@ export class Pan {
 	/** Hard clamp — for zoom, wheel, keyboard, and viewport changes. */
 	#clamp() {
 		const { x, y } = this.#limits();
-		this.x = clamp(this.x, -x, x);
-		this.y = clamp(this.y, -y, y);
+		this.x = gsap.utils.clamp(-x, x, this.x);
+		this.y = gsap.utils.clamp(-y, y, this.y);
 	}
 
 	/**
@@ -142,8 +141,8 @@ export class Pan {
 	/** Ease the plane back inside after a release out of bounds; kills momentum in that direction. @param {number} dt ms */
 	#settleEdges(dt) {
 		const { x, y } = this.#limits();
-		const homeX = clamp(this.x, -x, x);
-		const homeY = clamp(this.y, -y, y);
+		const homeX = gsap.utils.clamp(-x, x, this.x);
+		const homeY = gsap.utils.clamp(-y, y, this.y);
 		const pull = 1 - RETURN_RATE ** dt;
 		let outside = false;
 		if (homeX !== this.x) {
@@ -160,8 +159,7 @@ export class Pan {
 	}
 
 	stop() {
-		if (this.#animationFrame) cancelAnimationFrame(this.#animationFrame);
-		this.#animationFrame = 0;
+		this.#coasting.stop();
 		this.#velocityX = 0;
 		this.#velocityY = 0;
 	}
@@ -194,7 +192,7 @@ export class Pan {
 		// An impulse that coasts exactly (dx, dy) under the same decay as a flick.
 		this.#velocityX += dx * (1 - DECELERATION_RATE);
 		this.#velocityY += dy * (1 - DECELERATION_RATE);
-		this.#startCoast();
+		this.#coasting.start();
 	}
 
 	/** @param {number} clientX @param {number} clientY @param {number} nextZoom */
@@ -213,17 +211,9 @@ export class Pan {
 		return true;
 	}
 
-	#startCoast() {
-		if (this.#animationFrame) return;
-		this.#previousFrameTime = performance.now();
-		this.#animationFrame = requestAnimationFrame(this.#coast);
-	}
-
-	/** @param {number} time */
-	#coast = (time) => {
-		this.#animationFrame = 0;
-		const dt = clamp(time - this.#previousFrameTime, 0, 100);
-		this.#previousFrameTime = time;
+	/** @param {number} elapsed ms since the last frame */
+	#coast(elapsed) {
+		const dt = clampDt(elapsed);
 		const decay = DECELERATION_RATE ** dt;
 		// Exact integral of v·decay^t over the frame — frame-rate independent.
 		const travel = (1 - decay) / (1 - DECELERATION_RATE);
@@ -236,10 +226,10 @@ export class Pan {
 		if (!outside && Math.hypot(this.#velocityX, this.#velocityY) < 0.02) {
 			this.#velocityX = 0;
 			this.#velocityY = 0;
-			return;
+			return false;
 		}
-		this.#animationFrame = requestAnimationFrame(this.#coast);
-	};
+		return true;
+	}
 
 	/** @param {number} x @param {number} y @param {number} time */
 	#recordPointerSample(x, y, time) {
@@ -486,7 +476,7 @@ export class Pan {
 			} else {
 				this.#velocityX = speedX * scale;
 				this.#velocityY = speedY * scale;
-				this.#startCoast();
+				this.#coasting.start();
 			}
 			this.#onchange();
 		} else if (!this.#suppressTap && !wasCancelled) {

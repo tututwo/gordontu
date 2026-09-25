@@ -61,6 +61,11 @@ export function categorySlug(value) {
 	return categories.find((category) => category.value === value)?.slug ?? value;
 }
 
+/** A Project's date as its postcard's back sets it (Mar 2024). @param {string} value ISO date */
+export function formatDate(value) {
+	return new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
+}
+
 /** @type {Omit<Project, 'seed' | 'slug'>[]} */
 const data = [
 	{

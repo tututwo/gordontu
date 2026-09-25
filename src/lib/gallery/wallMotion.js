@@ -1,4 +1,6 @@
+import { gsap } from 'gsap/gsap-core';
 import { prefersReducedMotion } from 'svelte/motion';
+import { frameLoop } from '../frameLoop.js';
 
 const DECELERATION_RATE = 0.998;
 const DAMPING_RATIO = 0.88;
@@ -9,11 +11,7 @@ const MAX_ELAPSED_TIME = 0.1;
 const MAX_RELEASE_SPEED = 8;
 const POINTER_HISTORY_WINDOW = 110;
 const DRAG_THRESHOLD = 8;
-
-/** @param {number} value @param {number} minimum @param {number} maximum */
-function clamp(value, minimum, maximum) {
-	return Math.min(Math.max(value, minimum), maximum);
-}
+const clampElapsed = gsap.utils.clamp(0, MAX_ELAPSED_TIME);
 
 /**
  * Drag, flick, spring, and keyboard motion along one axis of whole steps. Born as the landing
@@ -35,8 +33,7 @@ export class WallMotion {
 	#onchange;
 	#isDragging = false;
 
-	#animationFrame = 0;
-	#previousFrameTime = 0;
+	#spring = frameLoop((dt) => this.#updateMotion(dt));
 	#motionTarget = 0;
 	#motionVelocity = 0;
 
@@ -77,8 +74,7 @@ export class WallMotion {
 	}
 
 	#finishMotion() {
-		if (this.#animationFrame) cancelAnimationFrame(this.#animationFrame);
-		this.#animationFrame = 0;
+		this.#spring.stop();
 		this.#motionVelocity = 0;
 	}
 
@@ -87,15 +83,12 @@ export class WallMotion {
 		this.#finishMotion();
 		this.#motionTarget = target;
 		this.#motionVelocity = initialVelocity;
-		this.#previousFrameTime = performance.now();
-		this.#animationFrame = requestAnimationFrame(this.#updateMotion);
+		this.#spring.start();
 	}
 
-	/** @param {number} time */
-	#updateMotion = (time) => {
-		this.#animationFrame = 0;
-		let remainingSeconds = clamp((time - this.#previousFrameTime) / 1000, 0, MAX_ELAPSED_TIME);
-		this.#previousFrameTime = time;
+	/** @param {number} dt ms since the last frame */
+	#updateMotion(dt) {
+		let remainingSeconds = clampElapsed(dt / 1000);
 
 		while (remainingSeconds > 0) {
 			const deltaSeconds = Math.min(remainingSeconds, MAX_FRAME_DELTA);
@@ -112,16 +105,16 @@ export class WallMotion {
 			) {
 				this.offset = this.#motionTarget;
 				this.#finishMotion();
-				return;
+				return false;
 			}
 		}
 
-		this.#animationFrame = requestAnimationFrame(this.#updateMotion);
-	};
+		return true;
+	}
 
 	/** Where a flick coasts to under DECELERATION_RATE, at most two steps away, snapped. @param {number} velocity steps/s */
 	#releaseTarget(velocity) {
-		return Math.round(this.offset + clamp((velocity / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE)), -2, 2));
+		return Math.round(this.offset + gsap.utils.clamp(-2, 2, (velocity / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE))));
 	}
 
 	/** @param {number} value */
@@ -186,7 +179,7 @@ export class WallMotion {
 	#handlePointerDown = (event) => {
 		if (this.#pointerId !== undefined || event.button !== 0) return;
 		// Pressing a coasting face is a grab, not a click — swallow the click it produces.
-		this.#suppressClick = this.#animationFrame !== 0;
+		this.#suppressClick = this.#spring.running;
 		this.#finishMotion();
 		this.#pointerId = event.pointerId;
 		this.#dragStartX = event.clientX;
@@ -231,11 +224,7 @@ export class WallMotion {
 		// erases a real flick. (pointercancel coordinates are unreliable; skip them.)
 		if (wasDragging && !wasCancelled) this.offset = this.#dragOffsetFor(event.clientX);
 
-		const releaseVelocity = clamp(
-			this.#getReleaseVelocity(),
-			-MAX_RELEASE_SPEED,
-			MAX_RELEASE_SPEED
-		);
+		const releaseVelocity = gsap.utils.clamp(-MAX_RELEASE_SPEED, MAX_RELEASE_SPEED, this.#getReleaseVelocity());
 		this.#isDragging = false;
 		this.#pointerId = undefined;
 		if (target.hasPointerCapture(activePointerId)) target.releasePointerCapture(activePointerId);

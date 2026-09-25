@@ -1,5 +1,5 @@
 import { CanvasTexture, SRGBColorSpace } from 'three';
-import { categoryLabel } from '../project/project.js';
+import { categoryLabel, formatDate } from '../project/project.js';
 
 /** Design-token values the canvas needs (it cannot resolve `var()`). */
 const TOKENS = ['--paper', '--ink', '--muted-ink', '--hairline', '--font-sans'];
@@ -13,11 +13,6 @@ export function readTokens() {
 /** Make sure the web font is usable on a canvas before we draw with it. @param {Record<string, string>} tokens */
 export function loadBackFont(tokens) {
 	return document.fonts.load(`400 20px ${tokens['--font-sans']}`).catch(() => undefined);
-}
-
-/** @param {string} value ISO date */
-function formatDate(value) {
-	return new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 }
 
 /**

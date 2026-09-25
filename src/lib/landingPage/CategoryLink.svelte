@@ -1,7 +1,9 @@
 <script>
+	import { gsap } from 'gsap';
 	import { untrack } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
+	import { frameLoop } from '../frameLoop.js';
 	import { Spring } from './spring.js';
 
 	/** @typedef {import('./icons/index.js').Shape} Shape */
@@ -39,8 +41,6 @@
 	/** Whether the last press on it was a finger's (or a pen's) rather than a mouse's. */
 	let touch = false;
 	let lit = false;
-	let frame = 0;
-	let last = 0;
 	/** @type {ReturnType<typeof import('./icons/index.js').createIcon> | undefined} */
 	let icon;
 	let told = '';
@@ -69,22 +69,14 @@
 		return icon?.frame(dt, { lit, zoom: zoom.value, reduced: prefersReducedMotion.current }) ?? false;
 	}
 
-	/** @param {number} now */
-	function tick(now) {
-		const dt = Math.max(0, Math.min(64, now - last));
-		last = now;
+	const clampDt = gsap.utils.clamp(0, 64);
+	const loop = frameLoop((dt) => {
+		dt = clampDt(dt);
 		let moving = pop.advance(dt);
 		moving = zoom.advance(dt) || moving;
 		moving = wipe.t.advance(dt) || moving;
-		moving = draw(dt) || moving;
-		frame = moving ? requestAnimationFrame(tick) : 0;
-	}
-
-	function play() {
-		if (frame) return;
-		last = performance.now();
-		frame = requestAnimationFrame(tick);
-	}
+		return draw(dt) || moving;
+	});
 
 	function update() {
 		const on = hovered || focused || tapped;
@@ -101,13 +93,13 @@
 			draw();
 			return;
 		}
-		play();
+		loop.start();
 	}
 
 	// Also starts the loop if the icon arrives (or is resized) while the link is already lit.
 	function redraw() {
 		icon?.resize();
-		if (!frame && draw()) play();
+		if (!loop.running && draw()) loop.start();
 	}
 
 	// Zoom or a move to a denser screen changes devicePixelRatio but not the canvas's CSS size, and
@@ -153,8 +145,7 @@
 		untrack(update);
 		return () => {
 			enhanced = false;
-			cancelAnimationFrame(frame);
-			frame = 0;
+			loop.stop();
 		};
 	}
 

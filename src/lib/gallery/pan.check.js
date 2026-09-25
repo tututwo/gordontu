@@ -6,6 +6,14 @@ const ok = (condition, message) => {
 	if (!condition) throw new Error(`pan.check: ${message}`);
 };
 
+// Animation frames run by hand (see the coast at the end).
+/** @type {FrameRequestCallback[]} */
+let queue = [];
+Object.assign(globalThis, {
+	requestAnimationFrame: (/** @type {FrameRequestCallback} */ callback) => queue.push(callback),
+	cancelAnimationFrame: () => (queue = [])
+});
+
 class FakeNode {
 	style = {};
 	/** @type {Map<string, (event: any) => void>} */
@@ -127,5 +135,18 @@ const detachOffset = offsetPan.attach(/** @type {any} */ (offsetNode));
 offsetNode.emit('wheel', { deltaX: 0, deltaY: -100, deltaMode: 0, ctrlKey: false, clientX: 500, clientY: 400 });
 ok(Math.abs(offsetPan.y - (offsetPan.zoom - 1) * 72) < 1e-9, 'fixed composition offset stays anchored while zooming');
 detachOffset();
+
+// An arrow key's coast, one animation frame at a time: each frame it has travelled the exact integral
+// of its decaying speed, and once it stops it asks for no more frames.
+performance.now = () => 1000;
+const coast = new Pan({ limits: () => ({ x: 2000, y: 2000 }) });
+coast.nudge(-160, 0);
+for (let frame = 1; queue.length; frame++) {
+	ok(frame < 200, 'the coast stops');
+	const at = 1000 + (frame * 1000) / 60;
+	for (const callback of queue.splice(0)) callback(at);
+	ok(Math.abs(coast.x + 160 * (1 - 0.998 ** (at - 1000))) < 1e-9, `coast frame ${frame} travels the exact integral`);
+}
+ok(coast.x < -150, 'the coast carries most of a nudge');
 
 console.log('pan ok');
