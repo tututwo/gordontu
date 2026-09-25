@@ -6,3 +6,7 @@ node_modules
 .env.*
 !.env.example
 vite.config.js.timestamp-*
+
+# Installed agent skills stay local (skills-lock.json records them)
+/.agents/skills/
+/.claude/skills/

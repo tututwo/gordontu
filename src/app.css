@@ -1,4 +1,6 @@
 @import "@fontsource-variable/inter";
+/* Vercel's design system tokens, for pages built with the vercel-design skill. */
+@import "../docs/vercel-design-system/variables.css" layer(base);
 
 @layer base {
 	/* The landing's page, for every page: plain white, black, one grey, one hairline, one typeface. */
@@ -10,6 +12,8 @@
 		--hairline: #e3e3e3;
 		--font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
 			Arial, sans-serif;
+		/* Geist isn't installed; Vercel's DESIGN.md names Inter as its substitute. */
+		--font-geist-sans: var(--font-sans);
 		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
 		min-width: 320px;
