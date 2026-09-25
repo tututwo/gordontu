@@ -9,7 +9,8 @@
 	 * The bio's last line, an afterthought: once the revision has sat a beat a grey bar sweeps across it
 	 * and keeps it, and only the avatar's glasses read what is under the bar.
 	 */
-	const afterword = 'Oh, and I practice Chen- and Yang-style tai chi and play acoustic guitar.';
+	const afterword =
+		'Alright, you really wanna know ha: I practice Chen- and Yang-style tai chi, play acoustic guitar, and I’m learning tango with my retired neighbor.';
 
 	/**
 	 * The Bio revision. The CSS below holds its start state (unstruck list, untyped sentence, no bar)
@@ -39,6 +40,15 @@
 			.map(({ x, y, r }) => `radial-gradient(circle ${r}px at ${x - box.left}px ${y - box.top}px, #000 ${r - 0.5}px, transparent ${r}px)`)
 			.join(', ');
 	});
+
+	/** The bar shows the avatar where the words under it are, so his face can tell when they are read. */
+	/** @param {HTMLElement} node */
+	function readable(node) {
+		lenses.text = node;
+		return () => {
+			lenses.text = null;
+		};
+	}
 
 	/**
 	 * The motion preference is read once, on arrival: flipping it mid-visit leaves the revision as it
@@ -127,7 +137,9 @@
 
 <!-- Under the bar the words are only transparent, so screen readers, find and copy still have them. -->
 <p class={['afterword', { revising }]} bind:this={secret}>
-	<span class="veil" style:background-size={revising ? `${veil.current * 100}% 100%` : null}>{afterword}</span>
+	<span class="veil" style:background-size={revising ? `${veil.current * 100}% 100%` : null} {@attach readable}
+		>{afterword}</span
+	>
 	{#if through}<span class="through" aria-hidden="true" style:mask-image={through}><span>{afterword}</span></span
 		>{/if}
 </p>

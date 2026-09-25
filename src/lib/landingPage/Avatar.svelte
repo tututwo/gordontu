@@ -1,20 +1,24 @@
 <script module>
 	/**
 	 * The glasses' lenses while they are off the face, as circles in viewport pixels, for text that
-	 * shows only through them (the bio's afterword, see About.svelte). Empty while they are on.
-	 * @type {{ circles: { x: number, y: number, r: number }[] }}
+	 * shows only through them (the bio's afterword, see About.svelte), and that text, which the face
+	 * watches for them to read. Empty while they are on.
+	 * @type {{ circles: { x: number, y: number, r: number }[], text: HTMLElement | null }}
 	 */
-	export const lenses = $state({ circles: [] });
+	export const lenses = $state({ circles: [], text: null });
 </script>
 
 <script>
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
-	// The avatar in three layers, split from static/landing/avatar.png: the head without a face, its
-	// features (eyes, brows, mouth), and the glasses, which stacked rebuild the drawing. Features and
-	// glasses are small enough for Vite to inline, so they are never late onto the head.
-	import face from './avatar-bare.png';
-	import featuresImage from './features.png';
+	import { devicePixelRatio } from 'svelte/reactivity/window';
+	// The avatar in two layers, split from static/landing/avatar.png: the drawing without its glasses,
+	// and the glasses, which over it rebuild the drawing (and are small enough for Vite to inline, so
+	// they are never late onto the face). Once WebGL is in, a canvas draws the face instead, bending
+	// it into the poses drawn for it, looking up and looking down (see avatarMorph.js).
+	import face from './face.png';
 	import glassesImage from './glasses.png';
+	import lookingDown from './looking-down.webp';
+	import lookingUp from './looking-up.webp';
 
 	/**
 	 * Pressed, the glasses come off to here, in avatar sides from where they sit: up and away from the
@@ -65,6 +69,96 @@
 	const zoom = $derived(1 + (ZOOM - 1) * off);
 	/** Which way the head faces, -1–1: towards the side the glasses are on, fully once they are off. */
 	const look = $derived(Math.max(-1, Math.min(1, glasses.current.x / OFF.x)));
+
+	/**
+	 * With the glasses in hand, the head looks up at the pointer, or down, when it is above or below it:
+	 * within this many degrees of straight up, or down, from the head's centre (in avatar sides from
+	 * the top left), and further from it than `r`.
+	 */
+	const PLUMB = { up: 15, down: 75 };
+	const HEAD = { x: 0.48, y: 0.37, r: 0.25 };
+	/**
+	 * Where the start by the hair moves to as the head looks down, in avatar sides: to where the
+	 * drawing looking down has its own (painted out of it, so the start can turn to alarm there too).
+	 */
+	const STARTLED_DOWN = { x: 0.0302, y: 0.2295 };
+	/** -1 looking up, 1 looking down; unhurried, like a head. */
+	const pitch = new Spring(0, { stiffness: 0.08, damping: 0.6 });
+	let morph = $state.raw(/** @type {ReturnType<typeof import('./avatarMorph.js').createMorph> | null} */ (null));
+	/** The canvas's side, in CSS px. */
+	let size = $state(0);
+	const pose = $derived({ up: Math.max(0, -pitch.current), down: Math.max(0, pitch.current), turn: look * TURN });
+	// Worn, the glasses go where the face takes them; taken off, they leave the face's pose behind.
+	const worn = $derived(
+		morph?.glasses({ up: pose.up * (1 - off), down: pose.down * (1 - off), turn: 0 }, [BRIDGE[0] / 134, BRIDGE[1] / 134]) ?? ''
+	);
+
+	/** A lens over the words under the grey bar: he is being read, and the start turns to alarm. */
+	const reading = $derived.by(() => {
+		const { text, circles } = lenses;
+		if (!text || !circles.length) return false;
+		return [...text.getClientRects()].some((box) =>
+			circles.some(({ x, y, r }) => Math.hypot(x - Math.max(box.left, Math.min(x, box.right)), y - Math.max(box.top, Math.min(y, box.bottom))) < r)
+		);
+	});
+
+	$effect(() => morph?.draw(pose, Math.round(size * (devicePixelRatio.current ?? 1))));
+
+	/**
+	 * The poses load after the page, as the Category link icons' three.js does, so the first paint ships
+	 * no WebGL; until they are in, or without WebGL, the head stays as drawn.
+	 * @param {HTMLCanvasElement} canvas
+	 */
+	function morphing(canvas) {
+		let gone = false;
+		const load = (/** @type {string} */ src) => {
+			const image = new Image();
+			image.src = src;
+			return image.decode().then(() => image);
+		};
+		Promise.all([import('./avatarMorph.js'), load(face), load(lookingUp), load(lookingDown)])
+			.then(([{ createMorph }, ...images]) => {
+				if (!gone) morph = createMorph(canvas, images, () => ((morph = null), pitch.set(0, { instant: true })));
+			})
+			.catch((error) => console.warn('Avatar poses unavailable:', error));
+		return () => {
+			gone = true;
+			morph?.dispose();
+			morph = null;
+		};
+	}
+
+	/**
+	 * Watches the pointer anywhere on the page (the page scrolling under it too) and, while it holds the
+	 * glasses, turns the head up or down to it; the glasses back on, a finger lifted, or the mouse gone
+	 * from the window, and it looks ahead again.
+	 * @param {HTMLElement} avatar
+	 */
+	function watching(avatar) {
+		/** @type {{ x: number, y: number } | null} */
+		let pointer = null;
+		const slope = (/** @type {number} */ degrees) => Math.tan((degrees * Math.PI) / 180);
+		const follow = () => {
+			let target = 0;
+			if (morph && pointer && grab) {
+				const box = avatar.getBoundingClientRect();
+				const dx = pointer.x - (box.left + box.width * HEAD.x);
+				const dy = pointer.y - (box.top + box.width * HEAD.y);
+				const plumb = slope(dy < 0 ? PLUMB.up : PLUMB.down);
+				if (Math.abs(dy) > box.width * HEAD.r && Math.abs(dx) <= Math.abs(dy) * plumb) target = Math.sign(dy);
+			}
+			if (target !== pitch.target) pitch.set(target, { instant: prefersReducedMotion.current });
+		};
+		const away = () => ((pointer = null), follow());
+		const controller = new AbortController();
+		const { signal } = controller;
+		addEventListener('pointermove', (event) => ((pointer = { x: event.clientX, y: event.clientY }), follow()), { signal });
+		addEventListener('pointerout', (event) => !event.relatedTarget && away(), { signal });
+		addEventListener('pointerup', (event) => event.pointerType === 'touch' && away(), { signal });
+		addEventListener('pointercancel', away, { signal });
+		addEventListener('scroll', follow, { signal, passive: true });
+		return () => controller.abort();
+	}
 
 	// Where the lenses are, for the text they read: each centre carried through the glasses' transform.
 	/** @param {HTMLElement} avatar */
@@ -138,6 +232,7 @@
 	function drop() {
 		grab = null;
 		move({ x: 0, y: 0 });
+		pitch.set(0, { instant: prefersReducedMotion.current });
 	}
 </script>
 
@@ -146,28 +241,26 @@
 	class="avatar"
 	aria-hidden="true"
 	{@attach aim}
+	{@attach watching}
 	style:--off={off}
 	onpointerdown={press}
 	onpointermove={drag}
 	onlostpointercapture={drop}
 >
 	<img src={face} alt="" width="134" height="134" draggable="false" />
-	<img
-		class="features"
-		src={featuresImage}
-		alt=""
-		width="134"
-		height="134"
-		draggable="false"
-		style:transform="translateX({look * TURN * 100}%)"
-	/>
-	<svg class="startle" viewBox="0 0 134 134">
-		<path d="M101.9 21.3 105.2 15.1M104.7 23.6 110 19.1M106.9 28.4 113.8 27.3" />
+	<canvas class={['poses', { ready: morph }]} bind:clientWidth={size} {@attach morphing}></canvas>
+	<svg
+		class={['startle', { reading }]}
+		viewBox="0 0 134 134"
+		style:transform="translate({pose.down * STARTLED_DOWN.x * 100}%, {pose.down * STARTLED_DOWN.y * 100}%)"
+	>
+		<path class="ticks" d="M101.9 21.3 105.2 15.1M104.7 23.6 110 19.1M106.9 28.4 113.8 27.3" />
+		<path class="alarm" d="M103.6 13.6 102.3 22.4M101.8 26.4h0M110.3 14.6 108.7 23.2M108.1 27.2h0" />
 	</svg>
 	<span
 		class="glasses"
 		style:transform-origin="{(BRIDGE[0] / 134) * 100}% {(BRIDGE[1] / 134) * 100}%"
-		style:transform="translate({glasses.current.x * 100}%, {glasses.current.y * 100}%) rotate({tilt}deg) scale({zoom})"
+		style:transform="translate({glasses.current.x * 100}%, {glasses.current.y * 100}%) rotate({tilt}deg) scale({zoom}) {worn}"
 	>
 		<img src={glassesImage} alt="" width="134" height="134" draggable="false" />
 		<svg viewBox="0 0 134 134" stroke-width={STROKE}>
@@ -201,19 +294,30 @@
 	}
 
 	img,
-	svg {
+	svg,
+	canvas {
 		display: block;
 		width: 100%;
 		height: auto;
 	}
 
-	.features,
+	.poses,
 	.startle,
 	.glasses,
 	.glasses svg {
 		position: absolute;
 		top: 0;
 		left: 0;
+	}
+
+	/* Over the drawing, drawing it too, once it can. */
+	.poses {
+		height: 100%;
+		visibility: hidden;
+	}
+
+	.poses.ready {
+		visibility: visible;
 	}
 
 	.glasses {
@@ -233,12 +337,38 @@
 		stroke-linecap: round;
 	}
 
-	/* The face starts once the glasses are halfway off: three strokes by the hair, as in the sketch. */
+	/* The face starts once the glasses are halfway off: three strokes by the hair, as in the sketch.
+	   Read, they pop into two exclamation marks. */
 	.startle {
 		opacity: calc(var(--off) * 2 - 1);
 		fill: none;
 		stroke: #000;
 		stroke-width: 1.5;
 		stroke-linecap: round;
+	}
+
+	.startle path {
+		transform-box: fill-box;
+		transform-origin: center;
+		transition:
+			opacity 120ms var(--ease-out),
+			scale 240ms var(--ease-out);
+	}
+
+	.alarm,
+	.reading .ticks {
+		opacity: 0;
+		scale: 0.6;
+	}
+
+	.reading .alarm {
+		opacity: 1;
+		scale: 1;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.startle path {
+			transition: none;
+		}
 	}
 </style>

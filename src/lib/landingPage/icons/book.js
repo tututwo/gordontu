@@ -17,10 +17,11 @@ import { lineGlsl, smoothstep } from './stage.js';
 /**
  * Book length along the spine (long enough that no cube ever hangs off the end), thickness of each
  * half closed, width spine to fore-edge: a thin book, nearly as wide as it is long, so it opens on a
- * big spread. Opening, the halves thin to sheets, so the spread is drawn in single lines.
+ * big spread. Closed it lies flat, one slab with no seam between its halves; opening, the seam comes
+ * back and the halves thin to sheets, so the spread is drawn in single lines.
  */
 const SPINE = 0.82;
-const HALF = 0.1;
+const HALF = 0.08;
 const WIDE = 0.66;
 /** Open this far, the halves have thinned to sheets. */
 const SHEET = 0.6;
@@ -254,12 +255,11 @@ export function createBookIcon(stage) {
 	stage.pivot.add(book);
 
 	// The spine runs along x through the origin at page level; both halves reach out towards +z, the
-	// bottom one below the page, the top one above it. Their pages lie against each other closed, so
-	// each draws half the seam between them; open, so do their spine ends, the gutter.
+	// bottom one below the page, the top one above it. Closed, their pages lie against each other and
+	// the two read as one; opening, each draws half the seam between them, and so do their spine ends,
+	// the gutter.
 	const looks = [stage.inked(), stage.inked()];
 	const [bottomGlued, topGlued] = looks.map((look) => /** @type {Vector3[]} */ (look.uniforms.uGlued.value));
-	bottomGlued[1].y = 1;
-	topGlued[0].y = 1;
 	const halves = looks.map((look) => stage.box([SPINE, HALF, WIDE], [0, 0, WIDE / 2], look));
 	const [bottom, top] = halves.map((half) => new Group().add(half));
 	book.add(bottom, top);
@@ -324,6 +324,7 @@ export function createBookIcon(stage) {
 				half.position.y = ((i ? 1 : -1) * thick) / 2;
 			});
 			bottomGlued[0].z = topGlued[0].z = p;
+			bottomGlued[1].y = topGlued[0].y = 2 - smoothstep(0, 0.15, p);
 			top.rotation.x = -TURN * open.value;
 			bottom.rotation.x = -TILT * open.value;
 			// The page faces' normals into the air: the bottom half's top face and the top half's

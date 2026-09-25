@@ -227,4 +227,27 @@
 		font-size: 0.8em;
 		line-height: 1.8;
 	}
+
+	/*
+	 * A phone fits the headline, the bio and the start of its barred last line in one screen (Gordon's
+	 * iPhone 16 Pro mock-up): little air above the headline, the social links right under it, and the
+	 * tabs right under them, without the rule. The tabs keep clear of the links' 44px targets.
+	 */
+	@media (max-width: 30em) {
+		.landing {
+			padding-top: 1.5em;
+		}
+
+		.socials {
+			margin-top: 0.2em;
+		}
+
+		hr {
+			display: none;
+		}
+
+		nav {
+			margin-top: 0.625em;
+		}
+	}
 </style>
