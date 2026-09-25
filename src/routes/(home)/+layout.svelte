@@ -229,7 +229,7 @@
 	}
 
 	/*
-	 * A phone fits the headline, the bio and the start of its barred last line in one screen (Gordon's
+	 * A phone fits the headline, the bio and the start of its scrambled last line in one screen (Gordon's
 	 * iPhone 16 Pro mock-up): little air above the headline, the social links right under it, and the
 	 * tabs right under them, without the rule. The tabs keep clear of the links' 44px targets.
 	 */

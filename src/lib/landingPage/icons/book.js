@@ -1,5 +1,5 @@
+import { gsap } from 'gsap';
 import { BoxGeometry, Group, Mesh, Vector3, Vector4 } from 'three';
-import { sineInOut } from 'svelte/easing';
 import { Spring } from '../spring.js';
 import { lineGlsl, smoothstep } from './stage.js';
 
@@ -64,34 +64,17 @@ const PAIRS = [[-0.2, 0.34, -0.12], [0.1, 0.71, -0.1], [0.27, 0.34, 0.14], [-0.1
 const ALL = [[-0.08, 0.38, -0.04], [0.08, 0.4, 0.06], [0.16, 0.34, -0.06], [-0.04, 0.56, 0.02], [0.1, 0.56, -0.02]];
 /** New partners: the two biggest below, the two smallest above; the third waits apart. */
 const CROSS = [[-0.18, 0.35, -0.08], [0, 0.37, 0.04], [0.3, 0.36, 0.17], [-0.06, 0.66, -0.04], [0.06, 0.66, 0.02]];
-/** The goo script, 7 s: [time, positions]. Apart; two pairs; one blob; new pairs; apart; hold. */
-const SCRIPT = /** @type {[number, number[][]][]} */ ([
-	[0, APART],
-	[0.8, APART],
-	[1.8, PAIRS],
-	[2.4, PAIRS],
-	[3.4, ALL],
-	[3.8, ALL],
-	[4.8, CROSS],
-	[5.4, CROSS],
-	[6.4, APART],
-	[7, APART]
-]);
-const LOOP = 7;
-
-/** @param {number} t loop time in seconds */
-function scripted(t) {
-	const at = t % LOOP;
-	for (let k = 1; k < SCRIPT.length; k++) {
-		const [t0, a] = SCRIPT[k - 1];
-		const [t1, b] = SCRIPT[k];
-		if (at <= t1) {
-			const e = sineInOut((at - t0) / (t1 - t0));
-			return a.map((from, i) => from.map((v, axis) => v + (b[i][axis] - v) * e));
-		}
-	}
-	return APART;
+/**
+ * The goo script, looped every 7 s: apart until 0.8 s, then two pairs, one blob at 2.4 s, new pairs at
+ * 3.8 s, apart again at 5.4 s; each move takes a second, and the pose holds until the next. Paused:
+ * each frame seeks it to the icon's own time and reads the cubes' places from `posed`.
+ */
+const posed = APART.map(([x, y, z]) => ({ x, y, z }));
+const script = gsap.timeline({ paused: true, defaults: { duration: 1, ease: 'sine.inOut' } });
+for (const [at, pose] of /** @type {[number, number[][]][]} */ ([[0.8, PAIRS], [2.4, ALL], [3.8, CROSS], [5.4, APART]])) {
+	pose.forEach(([x, y, z], i) => script.to(posed[i], { x, y, z }, at));
 }
+const LOOP = 7;
 
 const gooVertex = /* glsl */ `
 varying vec3 vLocal;
@@ -315,7 +298,7 @@ export function createBookIcon(stage) {
 			const t = time / 1000;
 			// The script eases in over its first 0.4 s so the rise isn't yanked sideways.
 			const amount = smoothstep(0, 0.4, t);
-			const at = scripted(t);
+			script.time(t % LOOP);
 
 			const p = Math.min(1, Math.max(0, open.value));
 			const thick = Math.max(1e-4, HALF * (1 - smoothstep(0, SHEET, p)));
@@ -339,9 +322,10 @@ export function createBookIcon(stage) {
 			CUBES.forEach((c, i) => {
 				const lift = lifts[i].value;
 				const [x0, y0, z0] = APART[i];
-				const x = x0 + (at[i][0] - x0) * amount;
-				const height = y0 + (at[i][1] - y0) * amount + BOB * Math.sin((2 * Math.PI * t) / c.bob + c.phase) * amount;
-				const z = z0 + (at[i][2] - z0) * amount;
+				const at = posed[i];
+				const x = x0 + (at.x - x0) * amount;
+				const height = y0 + (at.y - y0) * amount + BOB * Math.sin((2 * Math.PI * t) / c.bob + c.phase) * amount;
+				const z = z0 + (at.z - z0) * amount;
 				// Up through the gutter: from just below the page to its hover height, drifting out to
 				// its place in front of or behind the spine as it goes.
 				cubes[i].set(x, -c.half + (height + c.half) * lift, z * lift, c.half);

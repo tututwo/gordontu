@@ -1,14 +1,24 @@
 <script module>
 	/**
-	 * The glasses' lenses while they are off the face, as circles in viewport pixels, for text that
-	 * shows only through them (the bio's afterword, see About.svelte), and that text, which the face
-	 * watches for them to read. Empty while they are on.
-	 * @type {{ circles: { x: number, y: number, r: number }[], text: HTMLElement | null }}
+	 * What the glasses and the bio's afterword (About.svelte) tell each other: the lenses while the
+	 * glasses are off the face, as circles in viewport pixels (empty while they are on), and whether
+	 * they are held; and the words the lenses read, which the face watches for them to reach.
+	 * @type {{ circles: { x: number, y: number, r: number }[], held: boolean, text: HTMLElement | null }}
 	 */
-	export const lenses = $state({ circles: [], text: null });
+	export const lenses = $state({ circles: [], held: false, text: null });
+
+	/** Whether a lens is over any of an element's line boxes. @param {Element} element */
+	export const under = (element) =>
+		[...element.getClientRects()].some((box) =>
+			lenses.circles.some(({ x, y, r }) => Math.hypot(x - Math.max(box.left, Math.min(x, box.right)), y - Math.max(box.top, Math.min(y, box.bottom))) < r)
+		);
+
+	/** The nudge the afterword gives anyone curious about it; the avatar on the page sets it (see `nudging`). */
+	export const hint = { peek() {} };
 </script>
 
 <script>
+	import { gsap } from 'gsap';
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
 	// The avatar in two layers, split from static/landing/avatar.png: the drawing without its glasses,
@@ -113,14 +123,8 @@
 		morph?.glasses({ up: pose.up * (1 - off), down: pose.down * (1 - off), turn: 0 }, [BRIDGE[0] / 134, BRIDGE[1] / 134]) ?? ''
 	);
 
-	/** A lens over the words under the grey bar: he is being read, and the start turns to alarm. */
-	const reading = $derived.by(() => {
-		const { text, circles } = lenses;
-		if (!text || !circles.length) return false;
-		return [...text.getClientRects()].some((box) =>
-			circles.some(({ x, y, r }) => Math.hypot(x - Math.max(box.left, Math.min(x, box.right)), y - Math.max(box.top, Math.min(y, box.bottom))) < r)
-		);
-	});
+	/** A lens over the scrambled afterword's words: he is being read, and the start turns to alarm. */
+	const reading = $derived(!!lenses.text && under(lenses.text));
 	/** Whether a finger holds the glasses: on a phone he is alarmed as soon as he looks down after them. */
 	let finger = $state(false);
 	const alarmed = $derived(reading || (finger && pose.down > 0.6));
@@ -153,8 +157,9 @@
 
 	/**
 	 * Watches the pointer anywhere on the page (the page scrolling under it too) and, while it holds the
-	 * glasses, turns the head up or down to it; the glasses back on, a finger lifted, or the mouse gone
-	 * from the window, and it looks ahead again.
+	 * glasses, turns the head up or down to it; a finger lifted, or the mouse gone from the window, and
+	 * it looks ahead again (as it does when the glasses go back on, see `drop`). Not holding them, it
+	 * leaves the head to the nudge (see `nudging`).
 	 * @param {HTMLElement} avatar
 	 */
 	function watching(avatar) {
@@ -162,8 +167,9 @@
 		let pointer = null;
 		const plumb = Math.tan((PLUMB * Math.PI) / 180);
 		const follow = () => {
+			if (!grab) return;
 			let target = 0;
-			if (morph && pointer && grab) {
+			if (morph && pointer) {
 				const box = avatar.getBoundingClientRect();
 				const dx = pointer.x - (box.left + box.width * HEAD.x);
 				const dy = pointer.y - (box.top + box.width * HEAD.y);
@@ -207,13 +213,46 @@
 
 	/** @param {{ x: number, y: number }} to */
 	const move = (to) => glasses.set(to, { instant: prefersReducedMotion.current });
+	/** The roomier side of the window for the glasses, from the avatar's box. @param {DOMRect} box */
+	const roomier = (box) => (box.left + box.width / 2 < innerWidth / 2 ? 1 : -1);
+
+	/**
+	 * The nudge for anyone curious about the scrambled afterword (a pointer over it, or a tap): he
+	 * glances down at it and lifts his glasses a little way off, the way they come off, then puts them
+	 * back and looks up again. Taking hold of the glasses cuts it short.
+	 */
+	const PEEK = { x: 0.3, y: -0.12 };
+	/** @type {gsap.core.Timeline | undefined} */
+	let peeking;
+
+	/** @param {HTMLElement} avatar */
+	function nudging(avatar) {
+		hint.peek = () => {
+			if (grab || peeking?.isActive()) return;
+			side = roomier(avatar.getBoundingClientRect());
+			const still = { instant: prefersReducedMotion.current };
+			peeking = gsap
+				.timeline()
+				.call(() => pitch.set(1, still))
+				.call(() => move({ x: side * PEEK.x, y: PEEK.y }), [], 0.2)
+				// Off long enough for an eye on the words to find him.
+				.call(() => move({ x: 0, y: 0 }), [], 0.9)
+				.call(() => pitch.set(0, still), [], 1.1);
+		};
+		return () => {
+			hint.peek = () => {};
+			peeking?.kill();
+		};
+	}
 
 	/** @param {PointerEvent & { currentTarget: HTMLElement }} event */
 	function press(event) {
 		if (event.button || grab) return;
 		const box = event.currentTarget.getBoundingClientRect();
 		event.currentTarget.setPointerCapture(event.pointerId);
-		side = box.left + box.width / 2 < innerWidth / 2 ? 1 : -1;
+		peeking?.kill();
+		lenses.held = true;
+		side = roomier(box);
 		finger = event.pointerType === 'touch';
 		const near = {
 			x: (event.clientX - box.left) / box.width - BRIDGE[0] / 134,
@@ -254,6 +293,7 @@
 
 	function drop() {
 		grab = null;
+		lenses.held = false;
 		move({ x: 0, y: 0 });
 		pitch.set(0, { instant: prefersReducedMotion.current });
 	}
@@ -265,6 +305,7 @@
 	aria-hidden="true"
 	{@attach aim}
 	{@attach watching}
+	{@attach nudging}
 	style:--off={off}
 	onpointerdown={press}
 	onpointermove={drag}
