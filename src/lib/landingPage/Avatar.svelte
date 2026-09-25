@@ -47,9 +47,10 @@
 	let side = $state(1);
 	/**
 	 * Carried this far from where they came off (in avatar sides), the glasses have come round from the
-	 * side to sit this far above the pointer: clear of a finger, and able to reach both ends of a line.
+	 * side to sit this far above the pointer, or further above a finger, which is broader: clear of it,
+	 * and able to reach both ends of a line.
 	 */
-	const CARRY = { reach: 1.5, above: 0.7 };
+	const CARRY = { reach: 1.5, above: 0.7, aboveFinger: 1.1 };
 	/**
 	 * Where the pointer took hold (`y` on the page, `from` in the window), where it is now (`at`, in
 	 * the window), so the glasses stay with it when the page scrolls under it, and where the glasses sit
@@ -75,13 +76,32 @@
 	 * within this many degrees of straight up, or down, from the head's centre (in avatar sides from
 	 * the top left), and further from it than `r`.
 	 */
-	const PLUMB = { up: 15, down: 75 };
+	const PLUMB = 75;
 	const HEAD = { x: 0.48, y: 0.37, r: 0.25 };
 	/**
 	 * Where the start by the hair moves to as the head looks down, in avatar sides: to where the
 	 * drawing looking down has its own (painted out of it, so the start can turn to alarm there too).
 	 */
 	const STARTLED_DOWN = { x: 0.0302, y: 0.2295 };
+	/**
+	 * The start: three strokes by the hair, as in the sketch, [lower end, upper end] in the drawing's
+	 * 134 px. Alarmed, each stands up into an exclamation mark: a stem at `x` from `top` to `bottom`,
+	 * and a dot below it at `dot`. A mark is drawn upright and, at rest, turned, shortened and moved
+	 * onto its stroke.
+	 */
+	const STROKES = [
+		[[101.9, 21.3], [105.2, 15.1]],
+		[[104.7, 23.6], [110, 19.1]],
+		[[106.9, 28.4], [113.8, 27.3]]
+	];
+	const MARK = { x: [101.6, 107.2, 112.8], top: 11.5, bottom: 21.5, dot: 25.5 };
+	const MARKS = STROKES.map(([[x0, y0], [x1, y1]], i) => ({
+		x: MARK.x[i],
+		dx: (x0 + x1) / 2 - MARK.x[i],
+		dy: (y0 + y1) / 2 - (MARK.top + MARK.bottom) / 2,
+		turn: (Math.atan2(x1 - x0, y0 - y1) * 180) / Math.PI,
+		length: Math.hypot(x1 - x0, y1 - y0) / (MARK.bottom - MARK.top)
+	}));
 	/** -1 looking up, 1 looking down; unhurried, like a head. */
 	const pitch = new Spring(0, { stiffness: 0.08, damping: 0.6 });
 	let morph = $state.raw(/** @type {ReturnType<typeof import('./avatarMorph.js').createMorph> | null} */ (null));
@@ -101,6 +121,9 @@
 			circles.some(({ x, y, r }) => Math.hypot(x - Math.max(box.left, Math.min(x, box.right)), y - Math.max(box.top, Math.min(y, box.bottom))) < r)
 		);
 	});
+	/** Whether a finger holds the glasses: on a phone he is alarmed as soon as he looks down after them. */
+	let finger = $state(false);
+	const alarmed = $derived(reading || (finger && pose.down > 0.6));
 
 	$effect(() => morph?.draw(pose, Math.round(size * (devicePixelRatio.current ?? 1))));
 
@@ -137,14 +160,13 @@
 	function watching(avatar) {
 		/** @type {{ x: number, y: number } | null} */
 		let pointer = null;
-		const slope = (/** @type {number} */ degrees) => Math.tan((degrees * Math.PI) / 180);
+		const plumb = Math.tan((PLUMB * Math.PI) / 180);
 		const follow = () => {
 			let target = 0;
 			if (morph && pointer && grab) {
 				const box = avatar.getBoundingClientRect();
 				const dx = pointer.x - (box.left + box.width * HEAD.x);
 				const dy = pointer.y - (box.top + box.width * HEAD.y);
-				const plumb = slope(dy < 0 ? PLUMB.up : PLUMB.down);
 				if (Math.abs(dy) > box.width * HEAD.r && Math.abs(dx) <= Math.abs(dy) * plumb) target = Math.sign(dy);
 			}
 			if (target !== pitch.target) pitch.set(target, { instant: prefersReducedMotion.current });
@@ -192,9 +214,10 @@
 		const box = event.currentTarget.getBoundingClientRect();
 		event.currentTarget.setPointerCapture(event.pointerId);
 		side = box.left + box.width / 2 < innerWidth / 2 ? 1 : -1;
+		finger = event.pointerType === 'touch';
 		const near = {
 			x: (event.clientX - box.left) / box.width - BRIDGE[0] / 134,
-			y: (event.clientY - box.top) / box.width - BRIDGE[1] / 134 - CARRY.above
+			y: (event.clientY - box.top) / box.width - BRIDGE[1] / 134 - (event.pointerType === 'touch' ? CARRY.aboveFinger : CARRY.above)
 		};
 		grab = { x: event.clientX, y: event.clientY + scrollY, from: event.clientY, size: box.width, at: event, near };
 		drag(event);
@@ -250,12 +273,17 @@
 	<img src={face} alt="" width="134" height="134" draggable="false" />
 	<canvas class={['poses', { ready: morph }]} bind:clientWidth={size} {@attach morphing}></canvas>
 	<svg
-		class={['startle', { reading }]}
+		class={['startle', { alarmed }]}
 		viewBox="0 0 134 134"
 		style:transform="translate({pose.down * STARTLED_DOWN.x * 100}%, {pose.down * STARTLED_DOWN.y * 100}%)"
+		style:--up={pose.up}
 	>
-		<path class="ticks" d="M101.9 21.3 105.2 15.1M104.7 23.6 110 19.1M106.9 28.4 113.8 27.3" />
-		<path class="alarm" d="M103.6 13.6 102.3 22.4M101.8 26.4h0M110.3 14.6 108.7 23.2M108.1 27.2h0" />
+		{#each MARKS as { x, dx, dy, turn, length }, i (x)}
+			<g style:--dx="{dx}px" style:--dy="{dy}px" style:--turn="{turn}deg" style:--length={length} style:--i={i}>
+				<path class="stem" d="M{x} {MARK.top}V{MARK.bottom}" />
+				<path class="dot" d="M{x} {MARK.dot}h0" />
+			</g>
+		{/each}
 	</svg>
 	<span
 		class="glasses"
@@ -338,36 +366,51 @@
 	}
 
 	/* The face starts once the glasses are halfway off: three strokes by the hair, as in the sketch.
-	   Read, they pop into two exclamation marks. */
+	   Alarmed, they stand up one after another into three exclamation marks; looking up, he has none. */
 	.startle {
-		opacity: calc(var(--off) * 2 - 1);
+		opacity: calc((var(--off) * 2 - 1) * (1 - var(--up)));
 		fill: none;
 		stroke: #000;
 		stroke-width: 1.5;
 		stroke-linecap: round;
 	}
 
-	.startle path {
+	.stem,
+	.dot {
 		transform-box: fill-box;
 		transform-origin: center;
 		transition:
-			opacity 120ms var(--ease-out),
-			scale 240ms var(--ease-out);
+			transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--i) * 60ms),
+			opacity 120ms var(--ease-out) calc(var(--i) * 60ms),
+			stroke-width 300ms var(--ease-out) calc(var(--i) * 60ms);
 	}
 
-	.alarm,
-	.reading .ticks {
+	/* At rest each mark lies along its stroke, its dot not there yet. */
+	.stem {
+		transform: translate(var(--dx), var(--dy)) rotate(var(--turn)) scale(1, var(--length));
+	}
+
+	.dot {
 		opacity: 0;
-		scale: 0.6;
+		transform: scale(0);
+		stroke-width: 2.2;
 	}
 
-	.reading .alarm {
+	.alarmed .stem {
+		transform: none;
+		stroke-width: 1.8;
+	}
+
+	/* A dot pops in once its stem is up. */
+	.alarmed .dot {
 		opacity: 1;
-		scale: 1;
+		transform: none;
+		transition-delay: calc(var(--i) * 60ms + 160ms);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.startle path {
+		.stem,
+		.dot {
 			transition: none;
 		}
 	}
