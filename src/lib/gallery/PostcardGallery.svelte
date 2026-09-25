@@ -220,13 +220,13 @@
 	<h1 class="sr-only">{category.label}</h1>
 
 	<div class={['intro', { ready }]} aria-hidden={ready}>
-		<strong>{category.label}</strong>
-		<p>{category.description}</p>
+		<strong class="text-heading-32 sm:text-heading-48">{category.label}</strong>
+		<p class="text-copy-18">{category.description}</p>
 	</div>
 
 	<!-- Tooltips follow a mouse or the keyboard; a finger taps straight through. -->
 	<nav
-		class="tool-rail frosted"
+		class="tool-rail chrome"
 		aria-label="Gallery navigation"
 		onpointerover={(event) => event.pointerType === 'mouse' && showTip(event.target)}
 		onpointerleave={(event) => event.pointerType === 'mouse' && hideTip()}
@@ -260,13 +260,13 @@
 			<CrosshairSimpleIcon size={20} weight="regular" aria-hidden="true" />
 		</button>
 		<span
-			class={['tip', { shown: tip.shown, glide: tip.glide }]}
+			class={['tip', 'text-copy-13', { shown: tip.shown, glide: tip.glide }]}
 			aria-hidden="true"
 			style:width="{tip.w}px"
 			style:translate="{tip.x}px 0"
 		>
 			<span class="tip-strip" bind:this={tipStrip} style:translate="{-tip.offset}px 0">
-				{#each tips as { label, key }}<span>{label}{#if key}<kbd>{key}</kbd>{/if}</span>{/each}
+				{#each tips as { label, key }}<span>{label}{#if key}<kbd class="text-label-12-mono">{key}</kbd>{/if}</span>{/each}
 			</span>
 		</span>
 	</nav>
@@ -300,12 +300,12 @@
 			{/if}
 			<!-- Everything else about the Project is on the back, so the caption points there. -->
 			<div
-				class="caption"
+				class="caption text-copy-14"
 				style:top="calc(50% + {heroBox.y + heroBox.h / 2}px)"
 				style:width="max({heroBox.w}px, min(20rem, 100vw - 2rem))"
 			>
-				<h2 id="open-title">{selected.projectName}</h2>
-				<span class="year">{selected.date.slice(0, 4)}</span>
+				<h2 id="open-title" class="text-heading-16">{selected.projectName}</h2>
+				<span class="year text-label-12-mono">{selected.date.slice(0, 4)}</span>
 				<!-- The back, in words, for screen readers. -->
 				<dl class="sr-only">
 					<dt>Date</dt>
@@ -328,24 +328,24 @@
 	<!-- Keyed so it closes again after changing section (the component instance survives navigation). -->
 	{#key category.slug}
 	<div class="project-index bottom-chrome">
-		<button class="frosted" type="button" popovertarget="project-index" aria-label="Open the project index">
+		<button class="chrome text-copy-14" type="button" popovertarget="project-index" aria-label="Open the project index">
 			<ListIcon size={18} weight="regular" aria-hidden="true" />
 			<span class="index-label">Project index</span>
-			<span class="index-count">{projects.length}</span>
+			<span class="index-count text-label-12-mono">{projects.length}</span>
 			<span class="index-caret">
 				<CaretDownIcon size={14} weight="bold" aria-hidden="true" />
 			</span>
 		</button>
-		<nav id="project-index" class="frosted" popover aria-label="{category.label} projects">
-			<div class="index-heading">
+		<nav id="project-index" class="chrome" popover aria-label="{category.label} projects">
+			<div class="index-heading text-eyebrow">
 				<strong>{category.label}</strong>
 				<span>Select a postcard</span>
 			</div>
 			{#each projects as project, index (project.slug)}
-				<a href={urlFor(project)} onclick={(event) => pick(event, project)}>
-					<span>{String(index + 1).padStart(2, '0')}</span>
+				<a class="text-copy-14" href={urlFor(project)} onclick={(event) => pick(event, project)}>
+					<span class="text-label-12-mono">{String(index + 1).padStart(2, '0')}</span>
 					<strong>{project.projectName}</strong>
-					<span>{project.date.slice(0, 4)}</span>
+					<span class="text-label-12-mono">{project.date.slice(0, 4)}</span>
 				</a>
 			{/each}
 		</nav>
@@ -353,11 +353,11 @@
 	{/key}
 
 	<div class="gallery-status bottom-chrome">
-		<button class="help frosted" type="button" popovertarget="gallery-help" aria-label="How to use the gallery">
+		<button class="help chrome" type="button" popovertarget="gallery-help" aria-label="How to use the gallery">
 			<QuestionIcon size={18} weight="regular" aria-hidden="true" />
 		</button>
-		<div id="gallery-help" class="help-popover frosted" popover>
-			<strong>Explore the canvas</strong>
+		<div id="gallery-help" class="help-popover chrome text-copy-13" popover>
+			<strong class="text-eyebrow">Explore the canvas</strong>
 			<p>Drag or use the arrow keys to move. Scroll, pinch, or use + / − to zoom.</p>
 			<span>Press 0 or use Recenter to return home.</span>
 			<span>Open a postcard to flip it and view the project.</span>
@@ -368,9 +368,10 @@
 
 <style>
 	/*
-	 * The landing's page, type and greys (app.css), with one addition it has no need for: the floating
-	 * controls, all of one material and one height, set one distance in from the window's edges, so
-	 * the index, the rail and help line up along their tops and their bottoms.
+	 * The site's page and type, with one thing the landing has no need for: floating controls, all of
+	 * one material and one height, set one distance in from the window's edges, so the index, the rail
+	 * and help line up along their tops and their bottoms. The material is the landing's own: white, a
+	 * hairline, square corners. No glass and no shadow: in Vercel's system depth is a hairline.
 	 */
 	.gallery {
 		--bar: 3rem;
@@ -380,7 +381,7 @@
 		position: fixed;
 		inset: 0;
 		z-index: 1;
-		color: var(--ink);
+		color: var(--color-obsidian);
 	}
 
 	canvas {
@@ -398,24 +399,23 @@
 	}
 
 	canvas:focus-visible {
-		outline: 2px solid var(--ink);
+		outline: 2px solid var(--color-obsidian);
 		outline-offset: -4px;
 	}
 
-	.frosted {
-		border: 1px solid var(--hairline);
-		background: rgb(255 255 255 / 0.82);
-		box-shadow: 0 8px 24px rgb(0 0 0 / 0.06);
-		backdrop-filter: blur(20px) saturate(1.8);
-		-webkit-backdrop-filter: blur(20px) saturate(1.8);
+	.chrome {
+		border: 1px solid var(--color-hairline);
+		background: var(--color-pure-white);
 	}
 
+	/* The section's name as the page opens, in Geist's display size, fading once the postcards are in. */
 	.intro {
 		position: absolute;
 		inset: 0;
 		display: grid;
 		place-content: center;
-		gap: 0.75rem;
+		gap: var(--spacing-12);
+		padding: 0 var(--spacing-24);
 		text-align: center;
 		pointer-events: none;
 		transition: opacity 420ms var(--ease-out);
@@ -425,16 +425,8 @@
 		opacity: 0;
 	}
 
-	.intro strong {
-		font-size: clamp(2rem, 4vw, 3rem);
-		font-weight: 400;
-		letter-spacing: -0.03em;
-		line-height: 1.1;
-	}
-
 	.intro p {
-		margin: 0;
-		color: var(--muted-ink);
+		color: var(--color-stone);
 	}
 
 	.tool-rail {
@@ -444,10 +436,9 @@
 		left: 50%;
 		display: flex;
 		align-items: center;
-		gap: 0.125rem;
+		gap: 2px;
 		height: var(--bar);
-		padding: 0 calc(0.25rem - 1px);
-		border-radius: 999px;
+		padding: 0 3px;
 		transform: translateX(-50%);
 		transition:
 			opacity 180ms var(--ease-out),
@@ -460,7 +451,7 @@
 		pointer-events: none;
 	}
 
-	/* Grey until pointed at, like the landing's nav; the current section white on black, like the bar
+	/* Grey until pointed at, like the landing's tabs; the current section white on ink, like the bar
 	   that wipes across a lit Category link. */
 	.tool-button {
 		display: grid;
@@ -469,9 +460,8 @@
 		place-items: center;
 		padding: 0;
 		border: 0;
-		border-radius: 50%;
 		background: transparent;
-		color: var(--muted-ink);
+		color: var(--color-stone);
 		text-decoration: none;
 		cursor: pointer;
 		transition:
@@ -480,21 +470,21 @@
 	}
 
 	.tool-button[aria-current='page'] {
-		background: var(--ink);
-		color: #fff;
+		background: var(--color-obsidian);
+		color: var(--color-pure-white);
 	}
 
 	.tool-button:hover:not([aria-current='page']) {
-		background: rgb(0 0 0 / 0.05);
-		color: var(--ink);
+		background: var(--color-gray-alpha-100);
+		color: var(--color-obsidian);
 	}
 
 	.tool-divider {
 		display: block;
 		width: 1px;
 		height: 1.25rem;
-		margin: 0 0.1875rem;
-		background: var(--hairline);
+		margin: 0 3px;
+		background: var(--color-hairline);
 	}
 
 	/*
@@ -507,15 +497,12 @@
 		bottom: calc(100% + 0.625rem);
 		left: 0;
 		overflow: hidden;
-		border-radius: 0.375rem;
-		background: var(--ink);
-		color: #fff;
-		font-size: 0.75rem;
-		line-height: 1.3;
+		background: var(--color-obsidian);
+		color: var(--color-pure-white);
 		white-space: nowrap;
 		opacity: 0;
 		pointer-events: none;
-		transition: opacity 150ms var(--ease-out);
+		transition: opacity 160ms var(--ease-out);
 	}
 
 	.tip.shown {
@@ -524,7 +511,7 @@
 
 	.tip.glide {
 		transition:
-			opacity 150ms var(--ease-out),
+			opacity 160ms var(--ease-out),
 			translate 220ms var(--ease-out),
 			width 220ms var(--ease-out);
 	}
@@ -541,16 +528,13 @@
 	.tip-strip > span {
 		display: flex;
 		align-items: center;
-		gap: 0.375rem;
-		padding: 0.3125rem 0.5rem;
+		gap: var(--spacing-6);
+		padding: var(--spacing-4) var(--spacing-8);
 	}
 
 	kbd {
-		padding: 0 0.25rem;
+		padding: 0 var(--spacing-4);
 		border: 1px solid rgb(255 255 255 / 0.3);
-		border-radius: 0.25rem;
-		font: inherit;
-		font-size: 0.6875rem;
 	}
 
 	.hero-hit {
@@ -566,7 +550,7 @@
 	}
 
 	.hero-hit:focus-visible {
-		outline: 2px solid var(--ink);
+		outline: 2px solid var(--color-obsidian);
 		outline-offset: 4px;
 	}
 
@@ -579,13 +563,11 @@
 		display: grid;
 		grid-template-columns: 1fr auto;
 		align-items: baseline;
-		column-gap: 1.25rem;
-		margin-top: 1rem;
-		background: var(--paper);
-		box-shadow: 0 0 0.5rem 0.25rem var(--paper);
+		column-gap: var(--spacing-20);
+		margin-top: var(--spacing-16);
+		background: var(--color-pure-white);
+		box-shadow: 0 0 0.5rem 0.25rem var(--color-pure-white);
 		translate: -50% 0;
-		font-size: 0.875rem;
-		line-height: 1.5;
 	}
 
 	.caption h2 {
@@ -593,41 +575,36 @@
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
-		margin: 0;
 		overflow: hidden;
-		font-size: 1rem;
-		font-weight: 400;
-		line-height: 1.4;
 	}
 
 	.year {
-		color: var(--muted-ink);
+		color: var(--color-stone);
 	}
 
 	.actions {
 		display: flex;
 		grid-column: 1 / -1;
 		justify-content: space-between;
-		gap: 1.25rem;
-		margin-top: 0.375rem;
+		gap: var(--spacing-20);
+		margin-top: var(--spacing-6);
 	}
 
-	/* Grey until pointed at, like the landing's links; padding grows the tap target to 44px without
+	/* Grey until pointed at, like the landing's tabs; padding grows the tap target to 44px without
 	   moving the text. */
 	.actions button {
-		margin-block: -0.6875rem;
-		padding: 0.6875rem 0;
+		margin-block: -0.75rem;
+		padding: 0.75rem 0;
 		border: 0;
 		background: none;
-		color: var(--muted-ink);
+		color: var(--color-stone);
 		font: inherit;
-		text-decoration: none;
 		cursor: pointer;
 		transition: color 160ms var(--ease-out);
 	}
 
 	.actions button:hover {
-		color: var(--ink);
+		color: var(--color-obsidian);
 	}
 
 	/* Exactly over the words drawn on the back, padded to a 44px target without moving; it lights like
@@ -637,16 +614,15 @@
 		box-sizing: content-box;
 		margin: -0.8125rem -0.5rem;
 		padding: 0.8125rem 0.5rem;
-		border-radius: 0.5rem;
-		transition: background 140ms ease;
+		transition: background 160ms var(--ease-out);
 	}
 
 	.back-link:hover {
-		background: rgb(0 0 0 / 0.05);
+		background: var(--color-gray-alpha-100);
 	}
 
 	.back-link:active {
-		background: rgb(0 0 0 / 0.1);
+		background: var(--color-gray-alpha-200);
 	}
 
 	.bottom-chrome {
@@ -672,17 +648,15 @@
 		display: flex;
 		height: var(--bar);
 		align-items: center;
-		gap: 0.625rem;
-		padding: 0 1rem;
-		border-radius: 999px;
+		gap: var(--spacing-12);
+		padding: 0 var(--spacing-16);
 		color: inherit;
-		font-size: 0.875rem;
 		cursor: pointer;
 	}
 
 	.index-count,
 	.index-caret {
-		color: var(--muted-ink);
+		color: var(--color-stone);
 	}
 
 	.index-caret {
@@ -701,30 +675,26 @@
 		inset: auto auto calc(var(--chrome-bottom) + var(--bar) + 0.5rem) var(--edge);
 		margin: 0;
 		display: grid;
+		align-content: start;
 		width: min(24rem, calc(100vw - 2 * var(--edge)));
 		max-height: min(62vh, 34rem);
-		padding: 0.5rem;
+		padding: 0;
 		overflow: auto;
-		border-radius: 1rem;
 		overscroll-behavior: contain;
 	}
 
-	/* Headings in the landing's label type (its Project cards' "Client"). */
-	.index-heading,
-	.help-popover strong {
-		color: var(--muted-ink);
-		font-size: 0.6875rem;
-		font-weight: 400;
-		letter-spacing: 0.08em;
-		line-height: 1.6;
-		text-transform: uppercase;
-	}
-
+	/* A list like the landing's projects: rows between hairlines, under a heading that stays put. */
 	.index-heading {
+		position: sticky;
+		z-index: 1;
+		top: 0;
 		display: flex;
 		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.5rem 0.625rem;
+		gap: var(--spacing-16);
+		padding: var(--spacing-12) var(--spacing-16);
+		border-bottom: 1px solid var(--color-hairline);
+		background: var(--color-pure-white);
+		color: var(--color-stone);
 	}
 
 	.index-heading strong {
@@ -736,27 +706,32 @@
 		display: grid;
 		grid-template-columns: 1.5rem 1fr auto;
 		align-items: baseline;
-		gap: 0.75rem;
-		padding: 0.5625rem 0.625rem;
-		border-radius: 0.5rem;
-		color: var(--ink);
-		font-size: 0.875rem;
-		line-height: 1.4;
+		gap: var(--spacing-12);
+		padding: var(--spacing-12) var(--spacing-16);
+		color: var(--color-obsidian);
 		text-decoration: none;
-		transition: background 140ms ease;
+		transition: background 160ms var(--ease-out);
+	}
+
+	.project-index nav a + a {
+		border-top: 1px solid var(--color-hairline);
 	}
 
 	.project-index nav a:hover {
-		background: rgb(0 0 0 / 0.05);
+		background: var(--color-gray-alpha-100);
+	}
+
+	/* Inside the panel, so a ring outside the row would be cut off by its scroll box. */
+	.project-index nav a:focus-visible {
+		outline-offset: -2px;
 	}
 
 	.project-index nav a > span {
-		color: var(--muted-ink);
-		font-size: 0.75rem;
+		color: var(--color-stone);
 	}
 
 	.project-index nav a > strong {
-		font-weight: 400;
+		font-weight: inherit;
 	}
 
 	.gallery-status {
@@ -771,33 +746,29 @@
 		height: var(--bar);
 		place-items: center;
 		padding: 0;
-		border-radius: 50%;
-		color: var(--muted-ink);
+		color: var(--color-stone);
 		cursor: pointer;
 		transition: color 160ms var(--ease-out);
 	}
 
 	.help:hover,
 	.gallery-status:has(:popover-open) .help {
-		color: var(--ink);
+		color: var(--color-obsidian);
 	}
 
 	.help-popover:popover-open {
 		inset: auto var(--edge) calc(var(--chrome-bottom) + var(--bar) + 0.5rem) auto;
 		margin: 0;
 		display: grid;
-		gap: 0.375rem;
+		gap: var(--spacing-6);
 		width: min(17rem, calc(100vw - 2 * var(--edge)));
-		padding: 1rem;
-		border-radius: 1rem;
+		padding: var(--spacing-16);
+		color: var(--color-charcoal);
 	}
 
-	.help-popover p,
-	.help-popover span {
-		margin: 0;
-		color: var(--ink);
-		font-size: 0.8125rem;
-		line-height: 1.5;
+	.help-popover strong {
+		margin-bottom: var(--spacing-4);
+		color: var(--color-stone);
 	}
 
 	/* A browser from before popovers (Safari 16, Firefox 124) would stand both panels open over the
@@ -809,23 +780,13 @@
 		}
 	}
 
-	/* The landing's press and focus, on every control. */
+	/* The landing's press on every control; the focus ring is the site's (app.css). */
 	.tool-button:active,
 	.project-index > button:active,
 	.project-index nav a:active,
 	.help:active,
 	.actions button:active {
 		opacity: 0.55;
-	}
-
-	.tool-button:focus-visible,
-	.project-index > button:focus-visible,
-	.project-index nav a:focus-visible,
-	.help:focus-visible,
-	.actions button:focus-visible,
-	.back-link:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -846,10 +807,6 @@
 			--bar: 2.75rem;
 			--edge: 0.75rem;
 			--chrome-bottom: calc(var(--edge) + env(safe-area-inset-bottom));
-		}
-
-		.intro {
-			padding: 0 1rem;
 		}
 
 		.tool-rail {
@@ -877,17 +834,9 @@
 		}
 	}
 
-	@media (prefers-reduced-transparency: reduce) {
-		.frosted {
-			background: #fff;
-			backdrop-filter: none;
-			-webkit-backdrop-filter: none;
-		}
-	}
-
 	@media (prefers-contrast: more) {
-		.frosted {
-			border-color: var(--ink);
+		.chrome {
+			border-color: var(--color-obsidian);
 		}
 	}
 </style>

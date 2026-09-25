@@ -261,7 +261,7 @@
 		position: absolute;
 		inset: 0;
 		/* The page's own colour, so it only shows where it hides a letter sliding out from under it. */
-		background: color-mix(in srgb, var(--paper, #fff) clamp(0%, calc((var(--zoom) - 1) * 2000%), 100%), transparent);
+		background: color-mix(in srgb, var(--color-pure-white) clamp(0%, calc((var(--zoom) - 1) * 2000%), 100%), transparent);
 		transform: scale(var(--zoom));
 	}
 
@@ -288,7 +288,7 @@
 		position: absolute;
 		top: 0;
 		content: '';
-		background: #000;
+		background: var(--color-carbon);
 	}
 
 	.corners span::before {
@@ -365,25 +365,25 @@
 	}
 
 	/* The black bar reaches `--bar` past the text either side; the negative margin gives that room back,
-	   so the name and the comma after it sit exactly where plain text would. */
+	   so the name and the comma after it sit exactly where plain text would. The name is in the
+	   headline's own type. */
 	.label {
 		--bar: 0.1em;
 		position: relative;
 		display: inline-block;
 		margin: 0 calc(-1 * var(--bar));
 		padding: 0 var(--bar);
-		font-weight: 400;
 		line-height: 1.3;
 	}
 
-	/* The black bar is a white-on-black copy of the label, revealed from the left. The copy is
-	   generated content so find-in-page and copy see the name once. */
+	/* The black bar is a white-on-ink copy of the label, revealed from the left, filled like Vercel's
+	   primary button. The copy is generated content so find-in-page and copy see the name once. */
 	.bar {
 		position: absolute;
 		inset: 0;
 		padding: inherit;
-		color: #fff;
-		background: #000;
+		color: var(--color-pure-white);
+		background: var(--color-obsidian);
 		clip-path: inset(0 calc(var(--wipe) * 1%) 0 0);
 	}
 

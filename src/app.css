@@ -1,26 +1,115 @@
-@import "@fontsource-variable/inter";
-/* Vercel's design system tokens, for pages built with the vercel-design skill. */
-@import "../docs/vercel-design-system/variables.css" layer(base);
+/*
+ * The site's design system is Vercel's (docs/vercel-design-system), on Tailwind v4:
+ * - theme.css as Vercel wrote it: its colours, spacing, radii and shadows are the only ones there are.
+ * - Type is Geist and Geist Mono, in Geist's roles, sized as Vercel's own brand stylesheet sizes them
+ *   (vercel.com/geist/vercel-brand.css). They replace theme.css's marketing sizes.
+ * - No Tailwind default theme and no preflight: only these tokens exist as utilities, and every page
+ *   keeps the small base below.
+ */
+@layer theme, base, components, utilities;
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "../docs/vercel-design-system/theme.css" layer(theme) theme(static);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme static {
+	--font-geist-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+	--font-geist-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	/* Geist's translucent greys: a wash over whatever is under it, for hover and press. */
+	--color-gray-alpha-100: rgb(0 0 0 / 0.05);
+	--color-gray-alpha-200: rgb(0 0 0 / 0.08);
+
+	--font-weight-regular: 400;
+	--font-weight-heading: 450;
+	--font-weight-medium: 500;
+
+	--breakpoint-sm: 40rem;
+
+	/*
+	 * Geist's type roles. Headings are 450 and tighten as they grow (-0.02em at 16–20, -0.04em at 24,
+	 * -0.06em from 32); copy is regular and untracked. Each utility sets size, leading, tracking and
+	 * weight together: `text-heading-24`, `text-copy-14`.
+	 */
+	--text-*: initial;
+	--leading-*: initial;
+	--tracking-*: initial;
+
+	--text-heading-48: 3rem;
+	--text-heading-48--line-height: 3.5rem;
+	--text-heading-48--letter-spacing: -0.06em;
+	--text-heading-48--font-weight: 450;
+	--text-heading-40: 2.5rem;
+	--text-heading-40--line-height: 3rem;
+	--text-heading-40--letter-spacing: -0.06em;
+	--text-heading-40--font-weight: 450;
+	--text-heading-32: 2rem;
+	--text-heading-32--line-height: 2.5rem;
+	--text-heading-32--letter-spacing: -0.06em;
+	--text-heading-32--font-weight: 450;
+	--text-heading-24: 1.5rem;
+	--text-heading-24--line-height: 2rem;
+	--text-heading-24--letter-spacing: -0.04em;
+	--text-heading-24--font-weight: 450;
+	--text-heading-20: 1.25rem;
+	--text-heading-20--line-height: 1.625rem;
+	--text-heading-20--letter-spacing: -0.02em;
+	--text-heading-20--font-weight: 450;
+	--text-heading-16: 1rem;
+	--text-heading-16--line-height: 1.5rem;
+	--text-heading-16--letter-spacing: -0.02em;
+	--text-heading-16--font-weight: 450;
+
+	--text-copy-18: 1.125rem;
+	--text-copy-18--line-height: 1.75rem;
+	--text-copy-18--font-weight: 400;
+	--text-copy-16: 1rem;
+	--text-copy-16--line-height: 1.5rem;
+	--text-copy-16--font-weight: 400;
+	--text-copy-14: 0.875rem;
+	--text-copy-14--line-height: 1.25rem;
+	--text-copy-14--font-weight: 400;
+	--text-copy-13: 0.8125rem;
+	--text-copy-13--line-height: 1.125rem;
+	--text-copy-13--font-weight: 400;
+
+	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/*
+ * Geist Mono is for stamping, never for reading (DESIGN.md): the uppercase eyebrow on labels ("Client",
+ * "Tools", a panel's heading), and Geist's label-12-mono on numbers and dates. Write labels in sentence
+ * case; the eyebrow capitalises them.
+ */
+@utility text-eyebrow {
+	font-family: var(--font-geist-mono);
+	font-size: 0.6875rem;
+	font-weight: 400;
+	line-height: 1rem;
+	letter-spacing: 0.071em;
+	text-transform: uppercase;
+}
+
+@utility text-label-12-mono {
+	font-family: var(--font-geist-mono);
+	font-size: 0.75rem;
+	font-weight: 400;
+	line-height: 1rem;
+}
 
 @layer base {
-	/* The landing's page, for every page: plain white, black, one grey, one hairline, one typeface. */
+	/* One white page in near-black Geist, as Vercel sets it: #000 is kept for drawings, not words. */
 	:root {
-		--paper: #fff;
-		--ink: #000;
-		/* The lightest grey that still reads at 4.5:1 on white. */
-		--muted-ink: #767676;
-		--hairline: #e3e3e3;
-		--font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
-			Arial, sans-serif;
-		/* Geist isn't installed; Vercel's DESIGN.md names Inter as its substitute. */
-		--font-geist-sans: var(--font-sans);
-		--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-
 		min-width: 320px;
-		background: var(--paper);
-		color: var(--ink);
+		background: var(--color-pure-white);
+		color: var(--color-obsidian);
 		color-scheme: light;
-		font-family: var(--font-sans);
+		font-family: var(--font-geist-sans);
+		/* Vercel's Geist settings (vercel-brand.css). */
+		font-feature-settings:
+			"rlig" 1,
+			"calt" 0,
+			"ss11" 1;
 		font-synthesis: none;
 		font-variant-numeric: tabular-nums;
 		text-rendering: optimizeLegibility;
@@ -28,8 +117,19 @@
 		-moz-osx-font-smoothing: grayscale;
 	}
 
+	*,
+	::before,
+	::after {
+		box-sizing: border-box;
+	}
+
 	body {
 		min-height: 100vh;
+		margin: 0;
+	}
+
+	/* Spacing is each component's, never the browser's. */
+	:where(h1, h2, h3, h4, h5, h6, p, ul, ol, dl, dd, figure, blockquote) {
 		margin: 0;
 	}
 
@@ -38,21 +138,12 @@
 	textarea,
 	select {
 		font: inherit;
+		font-feature-settings: inherit;
 	}
-}
 
-* {
-	box-sizing: border-box;
-}
-
-.sr-only {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	white-space: nowrap;
-	border: 0;
+	/* One focus ring for every control: 2px of ink, just clear of it. */
+	:focus-visible {
+		outline: 2px solid var(--color-obsidian);
+		outline-offset: 2px;
+	}
 }

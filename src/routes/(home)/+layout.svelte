@@ -52,14 +52,15 @@
 	const tabs = /** @type {const} */ ([
 		['about', '/(home)/about'],
 		['projects', '/(home)/projects'],
-		['writing', '/(home)/writing']
+		['writing', '/(home)/writing'],
+		['contact', '/(home)/contact']
 	]);
 	const current = $derived(page.route.id === '/(home)' ? '/(home)/about' : page.route.id);
 </script>
 
 <div class="landing">
 	<div class="intro">
-		<h1 {@attach headlineFlow}>
+		<h1 class="text-heading-20" {@attach headlineFlow}>
 			{#each headline as piece}{#if piece.space}{' '}{/if}{#if 'word' in piece}<span class="word"
 						>{piece.word}</span
 					>{:else if 'avatar' in piece}<Avatar />{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
@@ -78,13 +79,13 @@
 		<hr />
 
 		<!-- Only the panel below changes between tabs, so switching keeps the scroll and the focus. -->
-		<nav aria-label="Site" data-sveltekit-noscroll data-sveltekit-keepfocus>
+		<nav class="text-copy-14" aria-label="Site" data-sveltekit-noscroll data-sveltekit-keepfocus>
 			{#each tabs as [label, route] (route)}
 				<a href={resolve(route)} aria-current={route === current ? 'page' : undefined}>{label}</a>
 			{/each}
 		</nav>
 
-		<div class="panel">{@render children()}</div>
+		<div class="panel text-copy-16">{@render children()}</div>
 	</div>
 </div>
 
@@ -115,27 +116,19 @@
 		transition: color 160ms var(--ease-out);
 	}
 
-	a:focus-visible {
-		outline: 2px solid #000;
-		outline-offset: 2px;
-	}
-
 	/* Press feedback lands on pointer-down, not on the navigation that follows. */
 	a:active {
 		opacity: 0.55;
 	}
 
 	/*
-	 * Every line is the same height: the Category link icons overhang their lines instead of stretching
-	 * them, so this line-height alone spaces the headline. It is loose because the icons (2.625em)
-	 * overhang it: at 2 they clear each other and the text around them. On a phone two icons can start
-	 * consecutive lines, one above the other, so lines there are a little further apart.
+	 * Geist's heading-20, but for its leading. Every line is the same height: the Category link icons
+	 * overhang their lines instead of stretching them, so this line-height alone spaces the headline.
+	 * It is loose because the icons (2.625em) overhang it: at 2 they clear each other and the text
+	 * around them. On a phone two icons can start consecutive lines, one above the other, so lines
+	 * there are a little further apart.
 	 */
 	h1 {
-		margin: 0;
-		font-size: 1em;
-		font-weight: 400;
-		letter-spacing: -0.015em;
 		line-height: 2;
 	}
 
@@ -172,7 +165,7 @@
 		place-items: center;
 		width: 1.5em;
 		height: 1.5em;
-		color: #838383;
+		color: var(--color-slate);
 	}
 
 	/* Fingers get 44px targets (Apple's minimum); the icons keep their size and spread a little. */
@@ -190,42 +183,39 @@
 	hr {
 		margin: 1.2em 0 0;
 		border: 0;
-		border-top: 1px solid #e3e3e3;
+		border-top: 1px solid var(--color-hairline);
 	}
 
-	/* #767676 is the lightest grey that still reads at 4.5:1 on white; the mockup's #9a9a9a did not. */
+	/* The tabs in Geist's copy-14, grey until pointed at; the open one in ink, underlined. */
 	nav {
 		display: flex;
-		gap: 1.33em;
-		margin-top: 2.6em;
-		color: #767676;
-		font-size: 0.8em;
-		line-height: 1.5;
+		gap: 1.33rem;
+		margin-top: 2.6rem;
+		color: var(--color-stone);
 	}
 
 	/* Padding grows the tap target to 44px without moving the text. */
 	nav a {
-		margin: -0.625em 0;
-		padding: 0.625em 0;
+		margin: -0.75rem 0;
+		padding: 0.75rem 0;
 		text-underline-offset: 0.3em;
 		text-decoration-thickness: 1px;
 	}
 
 	nav a[aria-current='page'] {
+		color: var(--color-obsidian);
 		text-decoration-line: underline;
 	}
 
 	.socials a:hover,
 	nav a:hover {
-		color: #000;
+		color: var(--color-obsidian);
 	}
 
-	/* The tabs' shared text; each page styles its own blocks. */
+	/* The tabs' shared text, Geist's copy-16 in grey; each page styles its own blocks. */
 	.panel {
 		margin-top: 1.9em;
-		color: #707070;
-		font-size: 0.8em;
-		line-height: 1.8;
+		color: var(--color-stone);
 	}
 
 	/*
@@ -247,7 +237,7 @@
 		}
 
 		nav {
-			margin-top: 0.625em;
+			margin-top: 0.625rem;
 		}
 	}
 </style>

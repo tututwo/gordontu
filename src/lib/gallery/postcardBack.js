@@ -2,7 +2,15 @@ import { CanvasTexture, SRGBColorSpace } from 'three';
 import { categoryLabel, formatDate } from '../project/project.js';
 
 /** Design-token values the canvas needs (it cannot resolve `var()`). */
-const TOKENS = ['--paper', '--ink', '--muted-ink', '--hairline', '--font-sans'];
+const TOKENS = [
+	'--color-pure-white',
+	'--color-obsidian',
+	'--color-charcoal',
+	'--color-stone',
+	'--color-hairline',
+	'--font-geist-sans',
+	'--font-geist-mono'
+];
 
 /** Read the tokens once per session; the site has a single light theme. */
 export function readTokens() {
@@ -10,9 +18,12 @@ export function readTokens() {
 	return Object.fromEntries(TOKENS.map((name) => [name, style.getPropertyValue(name).trim()]));
 }
 
-/** Make sure the web font is usable on a canvas before we draw with it. @param {Record<string, string>} tokens */
+/** Make sure the web fonts are usable on a canvas before we draw with them. @param {Record<string, string>} tokens */
 export function loadBackFont(tokens) {
-	return document.fonts.load(`400 20px ${tokens['--font-sans']}`).catch(() => undefined);
+	return Promise.all([
+		document.fonts.load(`400 20px ${tokens['--font-geist-sans']}`),
+		document.fonts.load(`400 12px ${tokens['--font-geist-mono']}`)
+	]).catch(() => undefined);
 }
 
 /**
@@ -48,6 +59,8 @@ function wrap(ctx, text, maxWidth, maxLines) {
  * @property {string} color
  * @property {number} lines at most
  * @property {number} [tracking] em
+ * @property {number} [weight]
+ * @property {boolean} [mono] Geist Mono rather than Geist
  * @property {boolean} [upper]
  * @property {number} [gap] space above, px
  */
@@ -65,16 +78,18 @@ function wrap(ctx, text, maxWidth, maxLines) {
  *   `link` is where the Open project link is drawn, card px from the top left of the back, if it is
  */
 export function backTexture(project, { w, h }, pixelRatio, tokens) {
-	const ink = tokens['--ink'] || '#000';
-	const muted = tokens['--muted-ink'] || '#767676';
-	const hairline = tokens['--hairline'] || '#e3e3e3';
-	const font = tokens['--font-sans'] || 'sans-serif';
+	const ink = tokens['--color-obsidian'] || '#171717';
+	const body = tokens['--color-charcoal'] || '#4d4d4d';
+	const muted = tokens['--color-stone'] || '#666';
+	const hairline = tokens['--color-hairline'] || '#ebebeb';
+	const font = tokens['--font-geist-sans'] || 'sans-serif';
+	const mono = tokens['--font-geist-mono'] || 'monospace';
 	const canvas = document.createElement('canvas');
 	canvas.width = Math.max(1, Math.round(w * pixelRatio));
 	canvas.height = Math.max(1, Math.round(h * pixelRatio));
 	const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
 	ctx.scale(canvas.width / w, canvas.height / h);
-	ctx.fillStyle = tokens['--paper'] || '#fff';
+	ctx.fillStyle = tokens['--color-pure-white'] || '#fff';
 	ctx.fillRect(0, 0, w, h);
 
 	// Message and address halves, split by a hairline like a real postcard's.
@@ -99,22 +114,25 @@ export function backTexture(project, { w, h }, pixelRatio, tokens) {
 	}
 	ctx.stroke();
 
-	// The letter, in the landing Project card's type: grey date, black title, then labelled client and tools.
+	// The letter, in the landing Project card's type: the date in Geist Mono, the title in Geist's
+	// heading-20, then client and tools under mono eyebrows, in copy-14.
 	/** @type {Block} */
-	const label = { text: '', size: 11, leading: 1.6, color: muted, lines: 1, tracking: 0.08, upper: true };
+	const label = { text: '', size: 11, leading: 16 / 11, color: muted, lines: 1, tracking: 0.071, mono: true, upper: true };
+	/** @type {Block} */
+	const value = { text: '', size: 14, leading: 20 / 14, color: body, lines: 2 };
 	/** @type {Block[][]} */
 	let sections = [
 		[
-			{ text: formatDate(project.date), size: 14, leading: 1.5, color: muted, lines: 1 },
-			{ text: project.projectName, size: 20, leading: 1.35, color: ink, lines: 4, tracking: -0.015, gap: 6 }
+			{ text: formatDate(project.date), size: 12, leading: 16 / 12, color: muted, lines: 1, mono: true },
+			{ text: project.projectName, size: 20, leading: 26 / 20, color: ink, lines: 4, tracking: -0.02, weight: 450, gap: 6 }
 		],
 		[
 			{ ...label, text: 'Client', gap: 20 },
-			{ text: project.client ?? 'Self-initiated', size: 14, leading: 1.5, color: ink, lines: 2 }
+			{ ...value, text: project.client ?? 'Self-initiated' }
 		],
 		[
 			{ ...label, text: 'Tools', gap: 12 },
-			{ text: project.tools.join(', '), size: 14, leading: 1.5, color: ink, lines: 3 }
+			{ ...value, text: project.tools.join(', '), lines: 3 }
 		]
 	];
 
@@ -126,7 +144,7 @@ export function backTexture(project, { w, h }, pixelRatio, tokens) {
 		for (const block of sections.flat()) {
 			const size = block.size * k;
 			y += (block.gap ?? 0) * k;
-			ctx.font = `${size}px ${font}`;
+			ctx.font = `${block.weight ?? 400} ${size}px ${block.mono ? mono : font}`;
 			ctx.letterSpacing = `${(block.tracking ?? 0) * size}px`;
 			for (const text of wrap(ctx, block.upper ? block.text.toUpperCase() : block.text, letter.w, block.lines)) {
 				runs.push({ text, font: ctx.font, spacing: ctx.letterSpacing, color: block.color, y: y + (size * block.leading) / 2 });
@@ -152,19 +170,19 @@ export function backTexture(project, { w, h }, pixelRatio, tokens) {
 		ctx.fillText(run.text, letter.x, letter.y + run.y);
 	}
 
-	// Stamp: a thin black frame at the address side's top-right, the category inside in label type.
+	// Stamp: a thin black frame at the address side's top-right, the category inside in the eyebrow's type.
 	const stampW = Math.min(88, Math.max(44, address.w * 0.3));
 	const stampH = stampW * 1.2;
 	const stampX = address.x + address.w - stampW;
 	ctx.strokeStyle = ink;
 	ctx.strokeRect(stampX, address.y, stampW, stampH);
 	const words = categoryLabel(project.category).toUpperCase().split(' ');
-	ctx.font = `100px ${font}`;
-	ctx.letterSpacing = '8px';
+	ctx.font = `100px ${mono}`;
+	ctx.letterSpacing = '7.1px';
 	const widest = Math.max(...words.map((word) => ctx.measureText(word).width));
 	const size = Math.min(stampW * 0.12, (stampW * 0.76 * 100) / widest);
-	ctx.font = `${size}px ${font}`;
-	ctx.letterSpacing = `${size * 0.08}px`;
+	ctx.font = `${size}px ${mono}`;
+	ctx.letterSpacing = `${size * 0.071}px`;
 	ctx.fillStyle = ink;
 	ctx.textAlign = 'center';
 	for (const [index, word] of words.entries()) {

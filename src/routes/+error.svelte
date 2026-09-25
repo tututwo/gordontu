@@ -1,4 +1,5 @@
 <script>
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 </script>
 
@@ -6,27 +7,50 @@
 	<title>{page.status} — Gordon Tu</title>
 </svelte:head>
 
-<section class="hero">
-	<h1>{page.status}</h1>
-	<p>{page.error?.message ?? 'Something went wrong.'}</p>
+<!-- In the landing's column, so a wrong turn still looks like the site. -->
+<section class="error">
+	<p class="text-eyebrow">Error</p>
+	<h1 class="text-heading-48">{page.status}</h1>
+	<p class="text-copy-16">{page.error?.message ?? 'Something went wrong.'}</p>
+	<a class="text-copy-16" href={resolve('/')}>← Back to the home page</a>
 </section>
 
 <style>
-	.hero {
-		padding: clamp(2rem, 4.6vh, 2.75rem) 1.25rem 0;
-		text-align: center;
+	.error {
+		display: grid;
+		justify-items: start;
+		max-width: 37.5rem;
+		margin: 0 auto;
+		padding: max(5rem, 12vh) 1.25rem 5rem;
+		color: var(--color-stone);
 	}
 
 	h1 {
-		margin: 0;
-		font-size: clamp(3rem, 3.45vw, 3.7rem);
-		font-weight: 400;
-		letter-spacing: -0.035em;
-		line-height: 0.99;
+		margin-top: var(--spacing-8);
+		color: var(--color-obsidian);
 	}
 
-	p {
-		margin: 1.25rem 0 0;
-		color: var(--muted-ink);
+	h1 + p {
+		margin-top: var(--spacing-12);
+	}
+
+	/* Padding grows the tap target to 44px without moving the text. */
+	a {
+		margin-top: var(--spacing-24);
+		padding: 0.625rem 0;
+		color: var(--color-obsidian);
+		text-decoration: underline;
+		text-decoration-color: var(--color-ash);
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.3em;
+		transition: text-decoration-color 160ms var(--ease-out);
+	}
+
+	a:hover {
+		text-decoration-color: currentColor;
+	}
+
+	a:active {
+		opacity: 0.55;
 	}
 </style>

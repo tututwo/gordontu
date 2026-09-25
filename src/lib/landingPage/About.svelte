@@ -229,10 +229,6 @@
 </p>
 
 <style>
-	p {
-		margin: 0;
-	}
-
 	p + p {
 		margin-top: 1em;
 	}
@@ -250,7 +246,7 @@
 	/* Scrambled letters are lighter, as in the reference, and only to look at: selecting the paragraph
 	   copies the words themselves. */
 	.afterword :global(.scrambled) {
-		color: #bcbcbc;
+		color: var(--color-ash);
 	}
 
 	.words {
@@ -261,7 +257,7 @@
 	.through {
 		position: absolute;
 		inset: 0;
-		background: var(--paper);
+		background: var(--color-pure-white);
 	}
 
 	.char {
@@ -290,7 +286,7 @@
 
 	.scratch path {
 		fill: none;
-		stroke: #000;
+		stroke: var(--color-carbon);
 		stroke-width: 1;
 		stroke-dasharray: 1;
 	}
