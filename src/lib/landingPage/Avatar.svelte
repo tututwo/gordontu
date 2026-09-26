@@ -147,6 +147,12 @@
 			dot: 'M122.91 17.78h0'
 		}
 	];
+	/**
+	 * Looking up at the held glasses, a bead of sweat on his cheek: the drawing's own, one stroke like a
+	 * small U, traced from looking-up.png and drawn 2.5 times its size about its centre, in the drawing's
+	 * 134 px (at the avatar's size it was a speck of two pixels, so it is painted out of looking-up.webp).
+	 */
+	const SWEAT = 'M86.9 54.95C87.3 58.56 88.37 61.23 89.84 61.23C91.58 61.23 91.98 58.83 91.84 54.55';
 	/** -1 looking up, 1 looking down; unhurried, like a head. */
 	const pitch = new Spring(0, { stiffness: 0.08, damping: 0.6 });
 	let morph = $state.raw(/** @type {ReturnType<typeof import('./avatarMorph.js').createMorph> | null} */ (null));
@@ -359,6 +365,7 @@
 >
 	<img src={face} alt="" width="134" height="134" draggable="false" />
 	<canvas class={['poses', { ready: morph }]} bind:clientWidth={size} {@attach morphing}></canvas>
+	<svg class="sweat" viewBox="0 0 134 134" style:--up={pose.up}><path d={SWEAT} /></svg>
 	<svg
 		class={['startle', { alarmed }]}
 		viewBox="0 0 134 134"
@@ -426,6 +433,7 @@
 	}
 
 	.poses,
+	.sweat,
 	.startle,
 	.wonder,
 	.glasses,
@@ -459,6 +467,16 @@
 		opacity: calc(var(--off) * 5);
 		fill: none;
 		stroke: #000;
+		stroke-linecap: round;
+	}
+
+	/* The sweat comes with the look up, and slides a little down the cheek as the head tips back. */
+	.sweat {
+		opacity: calc(var(--up) * 1.4 - 0.4);
+		transform: translateY(calc((var(--up) - 1) * 1.5%));
+		fill: none;
+		stroke: #42140a;
+		stroke-width: 1.55;
 		stroke-linecap: round;
 	}
 
