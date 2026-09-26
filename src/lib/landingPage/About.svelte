@@ -243,6 +243,7 @@
 	 */
 	function reveal() {
 		if (!ready || !read || revealed) return;
+		window.posthog.capture?.('secret_line_decoded');
 		read = false;
 		revealed = kept.leftRead = true;
 		pointing = null;

@@ -33,6 +33,7 @@
 		// Mail wants CRLF line breaks (RFC 6068), the visitor's own included.
 		draft = field('body').replace(/\r?\n/g, '\r\n');
 		const subject = field('subject') || 'Hello';
+		window.posthog.capture?.('contact_form_submitted');
 		location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(draft)}`;
 	}
 
@@ -43,6 +44,7 @@
 		} catch {
 			return;
 		}
+		window.posthog.capture?.(which === 'email' ? 'email_copied' : 'message_copied');
 		copied = which;
 		clearTimeout(copiedTimer);
 		copiedTimer = setTimeout(() => (copied = ''), 1600);

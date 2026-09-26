@@ -298,6 +298,7 @@
 	/** @param {PointerEvent & { currentTarget: HTMLElement }} event */
 	function press(event) {
 		if (event.button || grab) return;
+		window.posthog.capture?.('glasses_lifted');
 		const box = event.currentTarget.getBoundingClientRect();
 		event.currentTarget.setPointerCapture(event.pointerId);
 		glance?.kill();
