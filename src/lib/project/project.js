@@ -4,6 +4,8 @@
  * @property {string} [projectLink] - the Project's own web page; absent when the Project is its image
  * @property {string} projectImgSource - the image: an external URL, or its original's path (`/projects/…`),
  *   of which only the webp copy is kept and served (toOptimizedImage)
+ * @property {string} [projectVideoSource] - a short muted 16:9 clip, served as is; the Project card plays it
+ *   over the image while a mouse is on the card
  * @property {string[]} tools
  * @property {string} category
  * @property {string} date
@@ -72,6 +74,7 @@ const data = [
 		projectName: "Erhai Moon",
 		projectLink: "https://erhai-diorama.vercel.app/?zhongqiu",
 		projectImgSource: "/projects/Maps/erhai/erhai-zhongqiu-cover.png",
+		projectVideoSource: "/projects-optimized/Maps/erhai/erhai-zhongqiu-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "Blender"],
 		category: "maps",
 		date: "2026-09-25",

@@ -1,8 +1,29 @@
 <script>
 	import { resolve } from '$app/paths';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { allProjects, categorySlug, projects, toOptimizedImage } from '$lib/project/project.js';
 
 	const featured = projects.filter((p) => p.featured);
+
+	/** The card whose video lies over its image, while it plays. */
+	let playing = $state('');
+
+	/**
+	 * A mouse over a card plays its video from the start. A finger keeps the image (its tap goes
+	 * straight through to the postcard), and so does reduced motion.
+	 * @param {PointerEvent & { currentTarget: HTMLElement }} event
+	 */
+	function play(event) {
+		const video = event.currentTarget.querySelector('video');
+		if (!video || event.pointerType === 'touch' || prefersReducedMotion.current) return;
+		video.currentTime = 0;
+		video.play().catch(() => {}); // the mouse left before it started
+	}
+
+	/** Leaving pauses it, and the image fades back. @param {PointerEvent & { currentTarget: HTMLElement }} event */
+	function stop(event) {
+		event.currentTarget.querySelector('video')?.pause();
+	}
 </script>
 
 <svelte:head>
@@ -14,10 +35,28 @@
 </svelte:head>
 
 <ul>
-	{#each featured as { projectName, projectImgSource, category, slug, date, client } (slug)}
+	{#each featured as { projectName, projectImgSource, projectVideoSource, category, slug, date, client } (slug)}
 		<li>
-			<a class="card" href={resolve('/[category]/[[slug]]', { category: categorySlug(category), slug })}>
+			<a
+				class="card"
+				href={resolve('/[category]/[[slug]]', { category: categorySlug(category), slug })}
+				onpointerenter={play}
+				onpointerleave={stop}
+			>
 				<img src={toOptimizedImage(projectImgSource)} alt="" loading="lazy" decoding="async" />
+				{#if projectVideoSource}
+					<video
+						src={projectVideoSource}
+						class:shown={playing === slug}
+						muted
+						loop
+						playsinline
+						preload="none"
+						aria-hidden="true"
+						onplaying={() => (playing = slug)}
+						onpause={() => (playing = '')}
+					></video>
+				{/if}
 				<span class="words">
 					<span class="title text-heading-16">{projectName}</span>
 					<span class="label text-eyebrow">Client</span>
@@ -83,8 +122,11 @@
 		opacity: 0.55;
 	}
 
-	/* One crop for every image, centred: the poster maps lose their printed headline, not the map. */
-	img {
+	/* One crop for every image, centred: the poster maps lose their printed headline, not the map.
+	   A Project's video shares the image's cell, over it. */
+	img,
+	video {
+		grid-area: 1 / 1;
 		display: block;
 		align-self: start;
 		width: 100%;
@@ -94,6 +136,17 @@
 		background: var(--color-paper-white);
 		outline: 1px solid var(--color-gray-alpha-200);
 		outline-offset: -1px;
+	}
+
+	/* Shown only once it plays, so a loading video never blanks the image; clicks go to the card. */
+	video {
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 160ms var(--ease-out);
+	}
+
+	video.shown {
+		opacity: 1;
 	}
 
 	.title,
@@ -120,7 +173,8 @@
 			grid-template-columns: 1fr auto;
 		}
 
-		img {
+		img,
+		video {
 			grid-column: 1 / -1;
 		}
 	}

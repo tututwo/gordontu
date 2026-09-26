@@ -17,7 +17,7 @@ A Project Gordon has picked to show on the landing's projects tab. The rest are 
 _Avoid_: Highlight, selected work, pick
 
 **Project card**:
-How a Featured Project appears on the landing's projects tab: its image, then its title with its Client beneath, and its year at the right edge.
+How a Featured Project appears on the landing's projects tab: its image, then its title with its Client beneath, and its year at the right edge. A Project with a video plays it over the image, from the start, while a mouse is on the card, and the image comes back when the mouse leaves; a finger, or reduced motion, keeps the image.
 _Avoid_: Row, tile, profile pic (for the image: that is Gordon's avatar)
 
 **Landing**:
