@@ -152,7 +152,8 @@ void main() {
 
 /** @param {HTMLCanvasElement} canvas */
 export function createStage(canvas) {
-	const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true });
+	// The drawing buffer is kept between frames so the Peel's picture of the page has the icon (peel.js).
+	const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
 	const camera = new OrthographicCamera(-HALF_VIEW, HALF_VIEW, HALF_VIEW, -HALF_VIEW, 1, 1000);
 	camera.position.z = 500;
 

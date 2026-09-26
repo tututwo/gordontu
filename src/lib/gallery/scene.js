@@ -52,7 +52,8 @@ const CAPTION = 96;
  *   `onheroresize` gets the open card's box when it opens, on every resize, and when its back is drawn.
  */
 export function createScene(canvas, projects, { pan, reduced, onready, onheroresize }) {
-	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+	// The drawing buffer is kept between frames so the Peel's picture of the page has the postcards (peel.js).
+	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
 	const scene = new THREE.Scene();
 	const camera = new THREE.PerspectiveCamera(30, 1, 1, 2000);
 	let cameraZ = 1000;

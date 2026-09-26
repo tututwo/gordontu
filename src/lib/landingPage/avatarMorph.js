@@ -95,7 +95,10 @@ function glassesOn(pose, [ox, oy]) {
  * @param {() => void} lost called if the context is lost, when the page should show the picture again
  */
 export function createMorph(canvas, images, lost) {
-	const gl = /** @type {WebGLRenderingContext} */ (canvas.getContext('webgl', { alpha: false, antialias: false }));
+	// The drawing buffer is kept between frames so the Peel's picture of the page has the avatar (peel.js).
+	const gl = /** @type {WebGLRenderingContext} */ (
+		canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true })
+	);
 
 	/** @param {number} type @param {string} source */
 	const shader = (type, source) => {

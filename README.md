@@ -8,5 +8,5 @@ npm install
 npm run dev     # Vite dev server
 npm run check   # svelte-check
 npm run build
-node src/lib/frameLoop.check.js && node src/lib/gallery/layout.check.js && node src/lib/gallery/pan.check.js && node src/lib/landingPage/spring.check.js
+node src/lib/frameLoop.check.js && node src/lib/gallery/layout.check.js && node src/lib/gallery/pan.check.js && node src/lib/landingPage/spring.check.js && node src/lib/peel.check.js
 ```

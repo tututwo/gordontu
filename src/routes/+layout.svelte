@@ -1,7 +1,11 @@
 <script>
 	import '../app.css';
+	import { onNavigate } from '$app/navigation';
+	import { peel } from '$lib/peel.js';
 
 	let { children } = $props();
+
+	onNavigate(peel);
 </script>
 
 <div class="site-shell">
