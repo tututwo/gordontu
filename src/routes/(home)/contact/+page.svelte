@@ -1,11 +1,16 @@
 <script>
-	/** Where every message goes: the mailto link, the form, and both copy buttons. */
-	const EMAIL = 'tugordon@outlook.com';
+	import { EMAIL } from '$lib/contact.js';
 
 	/** From the bio (VISA) and the Projects' Clients (project.js). */
 	const workedWith = ['VISA', 'Yale University', 'UC Berkeley', 'World Bank'];
 
-	/** The message as the form wrote it out, once sent: kept to copy if no email app opened. */
+	/** Where the last send got to. @type {'' | 'sending' | 'sent' | 'invalid' | 'failed'} */
+	let status = $state('');
+	/** The server's reason, when it turned the message away. */
+	let reason = $state('');
+	/** The address a sent message will be answered at. */
+	let sentTo = $state('');
+	/** The message as written, kept to copy if it could not be sent. */
 	let draft = $state('');
 	/** Which copy button last worked, for its "Copied". @type {'' | 'email' | 'draft'} */
 	let copied = $state('');
@@ -13,28 +18,40 @@
 	let copiedTimer;
 
 	/**
-	 * The site is static, so the form has no server to post to: it opens the message in the visitor's
-	 * email app, addressed and ready to send. Just a subject and a message: their email app already
-	 * knows who they are and where to reply. Without script the browser does the same.
+	 * Sends the message from the page, to /api/contact, which emails it to Gordon with Reply-To set to
+	 * the visitor. Without script the form falls back to opening their email app (its mailto action).
 	 * @param {SubmitEvent & { currentTarget: HTMLFormElement }} event
 	 */
-	function send(event) {
+	async function send(event) {
 		event.preventDefault();
-		const data = new FormData(event.currentTarget);
-		/** @param {string} name */
-		const field = (name) => String(data.get(name) ?? '').trim();
-		// Spaces alone pass `required`, but make an empty email.
-		const body = /** @type {HTMLTextAreaElement} */ (event.currentTarget.elements.namedItem('body'));
-		if (!field('body')) {
+		const form = event.currentTarget;
+		const data = new FormData(form);
+		// Spaces alone pass `required`, but make an empty message.
+		const body = /** @type {HTMLTextAreaElement} */ (form.elements.namedItem('body'));
+		if (!String(data.get('body') ?? '').trim()) {
 			body.setCustomValidity('Write a message first.');
 			body.reportValidity();
 			return;
 		}
-		// Mail wants CRLF line breaks (RFC 6068), the visitor's own included.
-		draft = field('body').replace(/\r?\n/g, '\r\n');
-		const subject = field('subject') || 'Hello';
-		window.posthog.capture?.('contact_form_submitted');
-		location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(draft)}`;
+		draft = String(data.get('body')).trim();
+		status = 'sending';
+		try {
+			const response = await fetch('/api/contact', { method: 'POST', body: data });
+			const result = await response.json().catch(() => ({}));
+			if (response.status === 400) {
+				status = 'invalid';
+				reason = result.error ?? 'Check the form and try again.';
+				return;
+			}
+			if (!response.ok) throw new Error(result.error);
+			status = 'sent';
+			sentTo = String(data.get('email')).trim();
+			form.reset();
+			window.posthog.capture?.('contact_form_submitted');
+		} catch {
+			status = 'failed';
+			window.posthog.capture?.('contact_form_failed');
+		}
 	}
 
 	/** @param {string} text @param {'email' | 'draft'} which */
@@ -83,6 +100,10 @@
 		onsubmit={send}
 	>
 		<label>
+			<span class="text-eyebrow">Your email</span>
+			<input name="email" type="email" autocomplete="email" required placeholder="So I can write back" />
+		</label>
+		<label>
 			<span class="text-eyebrow">Subject <span class="optional">Optional</span></span>
 			<input name="subject" placeholder="What would you like to talk about?" />
 		</label>
@@ -96,18 +117,26 @@
 				placeholder="What are you working on? It helps to hear what data you have, who it is for, whether it should be static or interactive, and any budget or deadline."
 			></textarea>
 		</label>
+		<!-- A trap for bots, which fill in every field: hidden from people and screen readers. -->
+		<div class="trap" aria-hidden="true">
+			<input name="website" tabindex="-1" autocomplete="off" />
+		</div>
 		<div class="send">
-			<button class="submit text-copy-14" type="submit">Send message</button>
-			<span class="text-copy-13">Opens your email app with the message written out.</span>
+			<button class="submit text-copy-14" type="submit" disabled={status === 'sending'}>
+				{status === 'sending' ? 'Sending…' : 'Send message'}
+			</button>
 		</div>
 	</form>
 
 	<div class="status" role="status">
-		{#if draft}
+		{#if status === 'sent'}
 			<p class="text-copy-14">
-				<span class="check" aria-hidden="true">✓</span> Your email app should now be open, with the message
-				ready to send. Nothing opened? Copy it and send it to {EMAIL}.
+				<span class="check" aria-hidden="true">✓</span> Sent. I’ll write back to {sentTo}.
 			</p>
+		{:else if status === 'invalid'}
+			<p class="text-copy-14">{reason}</p>
+		{:else if status === 'failed'}
+			<p class="text-copy-14">It didn’t send, sorry. Copy your message and email it to {EMAIL}.</p>
 			<button class="copy text-copy-14" type="button" onclick={() => copy(draft, 'draft')}>
 				{copied === 'draft' ? 'Copied' : 'Copy message'}
 			</button>
@@ -230,6 +259,12 @@
 		opacity: 1;
 	}
 
+	/* Off the page rather than display: none, which some bots know to skip. */
+	.trap {
+		position: absolute;
+		left: -9999px;
+	}
+
 	.send {
 		display: flex;
 		flex-wrap: wrap;
@@ -256,6 +291,11 @@
 
 	.copy:active,
 	.submit:active {
+		opacity: 0.55;
+	}
+
+	.submit:disabled {
+		cursor: progress;
 		opacity: 0.55;
 	}
 

@@ -25,7 +25,7 @@ The home page and its four tabs, on plain white. A headline ("I'm Gordon", his a
 _Avoid_: Hero, landing nav, card deck, menu
 
 **Contact page**:
-The landing's contact tab: an invitation to write about a project, a collaboration or a question, Gordon's email address as plain words with a small bordered Copy button beside it, a form of just a subject (optional) and a message (their own email app already knows who they are), and the names he has worked with (VISA from the bio, then the Projects' Clients). The site is static, so the form sends nothing itself: it opens the subject and message in the visitor's own email app, addressed to him, and keeps a copy to paste if no app opened.
+The landing's contact tab: an invitation to write about a project, a collaboration or a question, Gordon's email address as plain words with a small bordered Copy button beside it, a form of the visitor's email address, a subject (optional) and a message, and the names he has worked with (VISA from the bio, then the Projects' Clients). The form sends the message itself, without the visitor leaving the page or opening an email app, to Gordon's inbox, where replying answers the visitor's address. His inbox is where messages are kept; the site keeps none.
 _Avoid_: Inquiry, lead, contact form (for the whole page)
 
 **Category link**:
