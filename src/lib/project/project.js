@@ -69,6 +69,15 @@ export function formatDate(value) {
 /** @type {Omit<Project, 'seed' | 'slug'>[]} */
 const data = [
 	{
+		projectName: "Erhai Moon",
+		projectLink: "https://erhai-diorama.vercel.app/?zhongqiu",
+		projectImgSource: "/projects/Maps/erhai/erhai-zhongqiu-cover.png",
+		tools: ["Three.js", "React.js", "GLSL", "Blender"],
+		category: "maps",
+		date: "2026-09-25",
+		featured: true,
+	},
+	{
 		projectName: "Gas Is Everywhere in California. Fast Charging Isn't.",
 		projectImgSource: "/projects/Maps/isochrone-charging-stations.png",
 		tools: ["QGIS"],
