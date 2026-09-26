@@ -2,9 +2,8 @@
 	import { gsap } from 'gsap';
 
 	/**
-	 * How wide each word of a text is, set in the page's own type: read off the screen readers' copy of
-	 * it (one clipped line, but laid out all the same). The scramble keeps each word in a box this wide,
-	 * so while its letters flicker nothing after it on the line moves.
+	 * How wide each word of a text is, set in the page's own type: read off a hidden copy of it (one
+	 * clipped line, but laid out all the same).
 	 * @param {HTMLElement} copy an element holding just the text
 	 */
 	function widths(copy) {
@@ -23,11 +22,10 @@
 	const px = (width) => (width ? `${width}px` : null);
 
 	/**
-	 * Kept between visits to the about tab (not between page loads): the cipher's fitted spacing,
-	 * measured once, and whether the afterword is decoded, so coming back to it plays it scrambling back
-	 * into its cipher.
+	 * Kept between visits to the about tab (not between page loads): whether the afterword is decoded,
+	 * so coming back to it plays it scrambling back into its cipher.
 	 */
-	const kept = { fits: /** @type {number[]} */ ([]), leftRead: false };
+	const kept = { leftRead: false };
 
 	/**
 	 * Look-alikes by width. The reference's type is monospace, so its random letters sit exactly where
@@ -98,6 +96,8 @@
 	 */
 	const RATE = 40;
 	const FLICKER = 0.03;
+	/** The pen's height through the struck list, of its letters' height: where it starts each line, and where it would end the whole list. */
+	const SINK = [0.46, 0.62];
 	/** Read, the afterword turns back into its scramble after this long on the page (s), or once the page is left. */
 	const FORGET = 180;
 
@@ -109,7 +109,7 @@
 	let revealed = $state(cameBackRead);
 	/** Read once, on arrival: flipping it mid-visit leaves the page as it is rather than replaying it. */
 	let reduced = false;
-	/** Whether the words' boxes are measured: until then the afterword is hidden, and cannot scramble. */
+	/** Whether the cipher's spacing is measured: until then the afterword is hidden, and cannot scramble. */
 	let ready = $state(false);
 	/** The mouse over the afterword, if one is: where the drawn glasses go. @type {{ x: number, y: number } | null} */
 	let mouse = null;
@@ -133,20 +133,19 @@
 	/** The scratch: one straight stroke per line box of the <del>, and the stretch of the pen's run it takes. */
 	/** @type {{ d: string, start: number, length: number }[]} */
 	let strokes = $state.raw([]);
-	/** The boxes the words keep while they scramble (see `widths`), px. */
-	let boxes = $state.raw({ tools: /** @type {number[]} */ ([]), words: /** @type {number[]} */ ([]) });
 	/**
-	 * The letter spacing that fits each word of the cipher to its box (px), so it keeps the spacing of
-	 * the sentence under it.
+	 * The letter spacing that makes each word of the cipher as wide as the word it stands for (px), so
+	 * it keeps the spacing of the sentence under it.
+	 * @type {number[]}
 	 */
-	let fits = $state.raw(kept.fits);
+	let fits = $state.raw([]);
 	const clamp01 = gsap.utils.clamp(0, 1);
 	/** @type {HTMLElement} */
 	let del;
-	/** The screen readers' copies of the new tools and of the afterword. @type {HTMLElement} */
-	let toolsCopy;
-	/** @type {HTMLElement} */
+	/** The screen readers' copy of the afterword, and a hidden one of its cipher, to measure. @type {HTMLElement} */
 	let wordsCopy;
+	/** @type {HTMLElement} */
+	let cipherCopy;
 	/** The new tools as the page shows them, word by word. @type {HTMLElement} */
 	let shownTools;
 	/** The afterword's words as the page shows them: scrambled, until they are read. @type {HTMLElement} */
@@ -175,6 +174,10 @@
 	 */
 	function scramble(spans, texts, { settle = '', calm = false } = {}) {
 		stop(spans);
+		// Each word keeps the width it has now while it scrambles, so the line around it stays put; its
+		// look-alike letters come within about 0.15 em of it. Settled, it is let go again.
+		const held = spans.map((span) => span.getBoundingClientRect().width);
+		spans.forEach((span, i) => (/** @type {HTMLElement} */ (span).style.width = `${held[i]}px`));
 		const tl = gsap.timeline();
 		const flicker = calm ? 0.14 : FLICKER;
 		// Letters before the word, spaces included: how long the front takes to reach it.
@@ -198,7 +201,10 @@
 						drawn = time;
 						show(span, text, n, settle);
 					},
-					onComplete: () => show(span, text, text.length, settle)
+					onComplete: () => {
+						show(span, text, text.length, settle);
+						/** @type {HTMLElement} */ (span).style.width = '';
+					}
 				}
 			);
 			running.set(span, tween);
@@ -310,29 +316,29 @@
 		// Taking over from the CSS failsafe that reveals the revision if this never runs.
 		revising = true;
 
-		// The list is struck as if it were one unbroken line, then cut at its line breaks: one stroke that
-		// sinks from 40% of its letters' height to 72% across the whole list (from the mockup) and runs half an em past its end (not past a line break, where it
-		// would poke into the margin), so a wrapped list is struck in reading order at one speed.
-		// Redrawn whenever the paragraph reflows, as are the words' boxes.
+		// The list is struck in one stroke, in reading order at one speed, cut at its line breaks; on
+		// each line the pen sinks a little as it goes (`SINK`, of the letters' height, over the whole
+		// list's length), through the middle of the letters, and past the list's end it runs on a
+		// little, but stops short of the next word on its line. Redrawn whenever the paragraph reflows,
+		// as is the cipher's spacing.
 		const measure = () => {
-			boxes = { tools: widths(toolsCopy), words: widths(wordsCopy) };
-			// Measured once, on the cipher as the server set it, before any spacing is fitted.
-			kept.fits = fits = kept.fits.length
-				? kept.fits
-				: [...shownWords.children].map((span, i) => (boxes.words[i] - span.getBoundingClientRect().width) / cipher[i].length);
+			const real = widths(wordsCopy);
+			const faked = widths(cipherCopy);
+			fits = real.map((width, i) => (width - faked[i]) / cipher[i].length);
 			const box = node.getBoundingClientRect();
 			const rects = [...del.getClientRects()];
-			const overshoot = (rects.at(-1)?.height ?? 0) * 0.35;
-			const width = rects.reduce((sum, rect) => sum + rect.width, 0);
-			const total = width + overshoot;
-			const sink = gsap.utils.mapRange(0, total, 0.4, 0.72);
+			const last = rects.at(-1);
+			const next = shownTools.getClientRects()[0];
+			const room = last && next && Math.abs(next.top - last.top) < last.height / 2 ? next.left - last.right - 2 : Infinity;
+			const overshoot = Math.max(0, Math.min((last?.height ?? 0) * 0.35, room));
+			const total = rects.reduce((sum, rect) => sum + rect.width, 0) + overshoot;
 			let run = 0;
 			strokes = rects.map((rect, i) => {
 				const length = rect.width + (i === rects.length - 1 ? overshoot : 0);
 				const x = rect.left - box.left;
-				/** @param {number} at */
-				const y = (at) => rect.top - box.top + rect.height * sink(at);
-				const stroke = { d: `M${x} ${y(run)}L${x + length} ${y(run + length)}`, start: run / total, length: length / total };
+				/** @param {number} along px from the line's start */
+				const y = (along) => rect.top - box.top + rect.height * (SINK[0] + ((SINK[1] - SINK[0]) * along) / total);
+				const stroke = { d: `M${x} ${y(0)}L${x + length} ${y(length)}`, start: run / total, length: length / total };
 				run += length;
 				return stroke;
 			});
@@ -351,6 +357,8 @@
 			measure();
 			ready = true;
 			observer.observe(node);
+			// A face that arrives later changes the words' widths even where the paragraph keeps its size.
+			document.fonts.addEventListener('loadingdone', measure);
 			// The glasses come closer over the afterword's words, secret or read (see Avatar's `CLOSER`).
 			lenses.text = shownWords;
 			scrambling = [...shownTools.children, ...shownWords.children];
@@ -372,6 +380,7 @@
 			stop(scrambling);
 			clearTimeout(forgetting);
 			observer.disconnect();
+			document.fonts.removeEventListener('loadingdone', measure);
 		};
 	}
 </script>
@@ -388,8 +397,8 @@
 	I use <del bind:this={del}>d3.js, three.js+GLSL/TSL, React&amp;Svelte, QGIS, Blender etc..</del>
 	<!-- Read once as a sentence; the words one by one are only for the scramble. -->
 	<ins
-		><span class="sr-only" bind:this={toolsCopy}>{sentence}</span><span class="words" aria-hidden="true" bind:this={shownTools}
-			>{#each tools as word, i}{#if i}{' '}{/if}<span class="word" style:width={px(boxes.tools[i])}>{word}</span>{/each}</span
+		><span class="sr-only">{sentence}</span><span class="words" aria-hidden="true" bind:this={shownTools}
+			>{#each tools as word, i}{#if i}{' '}{/if}<span class="word">{word}</span>{/each}</span
 		></ins
 	>
 	<svg class="scratch" aria-hidden="true">
@@ -412,14 +421,15 @@
 	onpointercancel={() => (touched = false)}
 >
 	<span class="sr-only" bind:this={wordsCopy}>{afterword}</span>
+	<span class="sr-only" aria-hidden="true" bind:this={cipherCopy}>{cipher.join(' ')}</span>
 	<span class="words" aria-hidden="true" bind:this={shownWords}
-		>{#each cipher as word, i}{#if i}{' '}{/if}<span class="word" style:width={px(boxes.words[i])} style:--fit={px(fits[i])}
+		>{#each cipher as word, i}{#if i}{' '}{/if}<span class="word" style:--fit={px(fits[i])}
 				>{#if cameBackRead}{words[i]}{:else}<span class="cipher">{word}</span>{/if}</span
 			>{/each}</span
 	>
 	{#if ready && through}<span class="through" aria-hidden="true" style:mask-image={through}
 			><span {@attach decoding}
-				>{#each words as word, i}{#if i}{' '}{/if}<span class="word" style:width={px(boxes.words[i])}>{word}</span>{/each}</span
+				>{#each words as word, i}{#if i}{' '}{/if}<span class="word">{word}</span>{/each}</span
 			></span
 		>{/if}
 </p>
@@ -460,14 +470,11 @@
 	}
 
 	/*
-	 * Each word in the box it takes when read (see `widths`), so a scramble moves nothing around it; a
-	 * random letter wider than the one it stands in for is cut at the box's edge rather than run into
-	 * the next word.
+	 * Each word is one box that never breaks, so a line wraps the same whether it is scrambling (held at
+	 * its width, see `scramble`) or not; at rest it is as wide as its letters, like any word.
 	 */
 	.word {
 		display: inline-block;
-		overflow: clip;
-		overflow-clip-margin: 0.1em;
 		white-space: nowrap;
 	}
 
@@ -492,7 +499,7 @@
 		transition: color 240ms var(--ease-out);
 	}
 
-	/* Until its words are measured into their boxes, the afterword is not shown (it would shift). */
+	/* Until its cipher's spacing is measured, the afterword is not shown (it would shift). */
 	@media (scripting: enabled) {
 		.afterword:not(.ready) .words {
 			opacity: 0;
