@@ -1,56 +1,158 @@
 <script module>
 	import { gsap } from 'gsap';
-	import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 
-	gsap.registerPlugin(ScrambleTextPlugin);
+	/**
+	 * How wide each word of a text is, set in the page's own type: read off the screen readers' copy of
+	 * it (one clipped line, but laid out all the same). The scramble keeps each word in a box this wide,
+	 * so while its letters flicker nothing after it on the line moves.
+	 * @param {HTMLElement} copy an element holding just the text
+	 */
+	function widths(copy) {
+		const text = /** @type {Text} */ (copy.firstChild);
+		const range = document.createRange();
+		let at = 0;
+		return text.data.split(' ').map((word) => {
+			range.setStart(text, at);
+			range.setEnd(text, (at += word.length));
+			at += 1;
+			return range.getBoundingClientRect().width;
+		});
+	}
+
+	/** @param {number | undefined} width */
+	const px = (width) => (width ? `${width}px` : null);
+
+	/**
+	 * Kept between visits to the about tab (not between page loads): the cipher's fitted spacing,
+	 * measured once, and whether the afterword is decoded, so coming back to it plays it scrambling back
+	 * into its cipher.
+	 */
+	const kept = { fits: /** @type {number[]} */ ([]), leftRead: false };
+
+	/**
+	 * Look-alikes by width. The reference's type is monospace, so its random letters sit exactly where
+	 * the real ones do; in Geist a letter flickers through others of about its own width, so the letters
+	 * after it stay where they are. (GSAP's ScrambleTextPlugin draws every letter from one set, which in
+	 * a proportional face cuts letters at word edges and runs words together, so the scramble is our own
+	 * GSAP tween.) Anything not in a set (punctuation, &) stays itself.
+	 */
+	// Geist's advances, measured, in groups within 0.04 em (most within 0.02): i j l I about 0.24 em, f t r
+	// 0.33, s z 0.52, a c e k v x y 0.54, h n o u 0.57, b d g p q 0.585, m w 0.84; capitals likewise;
+	// digits are tabular. M and W have no match, so they keep still.
+	const ALIKE = ['ijlI', 'ftr', 'sz', 'acekvxy', 'hnou', 'bdgpq', 'mw', 'FJLTZ', 'EXY', 'KPS', 'ABRV', 'CDGHU', 'NOQ', '0123456789'];
+	/** @param {string} text */
+	const jumble = (text) =>
+		text.replace(/[a-z0-9]/gi, (letter) => {
+			const alike = ALIKE.find((set) => set.includes(letter)) ?? letter;
+			return alike[Math.floor(Math.random() * alike.length)];
+		});
+
+	/**
+	 * Shows a word found up to its `n`th letter, in the look it will keep (plain, or in `settle`'s
+	 * class), and the rest as look-alikes, light (`.scrambled`), spaced as what they stand in for.
+	 * @param {Element} span @param {string} text @param {number} n @param {string} settle
+	 */
+	function show(span, text, n, settle) {
+		const found = text.slice(0, n);
+		/** @type {(Node | string)[]} */
+		const parts = [];
+		if (n) parts.push(settle ? Object.assign(document.createElement('span'), { className: settle, textContent: found }) : found);
+		if (n < text.length)
+			parts.push(Object.assign(document.createElement('span'), { className: settle ? `scrambled ${settle}-like` : 'scrambled', textContent: jumble(text.slice(n)) }));
+		span.replaceChildren(...parts);
+	}
+
+	/** The scramble running on each word, so a new one takes over from it (and leaving stops it). */
+	const running = new WeakMap();
+	/** @param {Element[]} spans */
+	const stop = (spans) => spans.forEach((span) => running.get(span)?.kill());
 </script>
 
 <script>
 	import { hint, lenses, under } from './Avatar.svelte';
 
+	/** The new tools, which come in scrambled after the old ones are struck out. */
 	const sentence = 'Claude Code, Codex & Jev across my toolkit to design and build interactive 2D&3D experiences.';
-	const typed = [...sentence];
+	const tools = sentence.split(' ');
 	/**
-	 * The bio's last line, an afterthought: once the revision has sat a beat it comes in scrambled, and
-	 * only the avatar's glasses read what it says.
+	 * The bio's last line, an afterthought: it reads scrambled, and only the avatar's glasses read what
+	 * it says.
 	 */
 	const afterword =
 		'Alright, you really wanna know ha: I practice Chen- and Yang-style tai chi, play acoustic guitar, and I’m learning tango with my retired neighbor.';
 	const words = afterword.split(' ');
 	/**
 	 * The afterword as it reads without the glasses: each small letter swapped for another of about its
-	 * width, so it wraps as the words do, and the same on the server as in the browser.
+	 * width (see `ALIKE`), capitals and punctuation kept, the same on the server as in the browser.
 	 */
 	const cipher = afterword
 		.replace(/[a-z]/g, (letter, i) => {
-			const alike = ['ijl', 'frt', 'mw', 'abcdeghknopqsuvxyz'].find((set) => set.includes(letter)) ?? letter;
+			const alike = /** @type {string} */ (ALIKE.find((set) => set.includes(letter))).replace(/[^a-z]/g, '');
 			return alike[(i * 7 + 3) % alike.length];
 		})
 		.split(' ');
-	/** Read through the glasses, the afterword stays decoded for a day on this browser, then is a secret again. */
-	const READ = { key: 'afterword-read', for: 24 * 60 * 60 * 1000 };
-
 	/**
-	 * The Bio revision, played on arrival by one timeline (see `revise`): how far the scratch has run
-	 * across the tool list (0–1 along the pen's run), how many letters of the <ins> are typed, and the
-	 * caret after them.
+	 * The scramble's pace, from the reference: its front reveals 40 letters a second (spaces included),
+	 * and the letters not yet found change about every 30 ms; the lenses read a word calmly, slower on
+	 * both counts.
 	 */
-	const bio = $state({ strike: 0, letters: 0, caret: true });
-	const shown = $derived(Math.floor(bio.letters));
+	const RATE = 40;
+	const FLICKER = 0.03;
+	/** Read, the afterword turns back into its scramble after this long on the page (s), or once the page is left. */
+	const FORGET = 180;
+
+	/** The Bio revision's pen: how far the scratch has run across the tool list, 0–1 along its run. */
+	const bio = $state({ strike: 0 });
 	let revising = $state(false);
-	let revealed = $state(false);
+	/** Left decoded last time: it comes back decoded, then scrambles into its cipher (see `revise`). */
+	const cameBackRead = kept.leftRead;
+	let revealed = $state(cameBackRead);
 	/** Read once, on arrival: flipping it mid-visit leaves the page as it is rather than replaying it. */
 	let reduced = false;
+	/** Whether the words' boxes are measured: until then the afterword is hidden, and cannot scramble. */
+	let ready = $state(false);
+	/** The mouse over the afterword, if one is: where the drawn glasses go. @type {{ x: number, y: number } | null} */
+	let mouse = null;
+	/**
+	 * Whether a finger is down on the afterword and has not started a scroll (the browser cancels the
+	 * pointer when it takes over the pan), so lifting it is a tap (see `tapped`).
+	 */
+	let touched = false;
+	/**
+	 * A mouse over the scrambled afterword, where the glasses drawn in place of its pointer sit (see the
+	 * `.glasses-pointer`); null when there is none.
+	 * @type {{ x: number, y: number } | null}
+	 */
+	let pointing = $state(null);
+	/** A pointer on the afterword: it reads dark and a little heavier until the pointer leaves, as in the reference. */
+	let hovered = $state(false);
+	/** Whether a lens has been over the afterword's words while the glasses were held. */
+	let read = false;
+	/** A timer, not a tween: three idle minutes should not keep GSAP drawing frames. @type {ReturnType<typeof setTimeout> | undefined} */
+	let forgetting;
 	/** The scratch: one straight stroke per line box of the <del>, and the stretch of the pen's run it takes. */
 	/** @type {{ d: string, start: number, length: number }[]} */
 	let strokes = $state.raw([]);
+	/** The boxes the words keep while they scramble (see `widths`), px. */
+	let boxes = $state.raw({ tools: /** @type {number[]} */ ([]), words: /** @type {number[]} */ ([]) });
+	/**
+	 * The letter spacing that fits each word of the cipher to its box (px), so it keeps the spacing of
+	 * the sentence under it.
+	 */
+	let fits = $state.raw(kept.fits);
 	const clamp01 = gsap.utils.clamp(0, 1);
 	/** @type {HTMLElement} */
 	let del;
-	/** @type {HTMLElement | undefined} */
-	let secret = $state();
+	/** The screen readers' copies of the new tools and of the afterword. @type {HTMLElement} */
+	let toolsCopy;
+	/** @type {HTMLElement} */
+	let wordsCopy;
+	/** The new tools as the page shows them, word by word. @type {HTMLElement} */
+	let shownTools;
 	/** The afterword's words as the page shows them: scrambled, until they are read. @type {HTMLElement} */
 	let shownWords;
+	/** @type {HTMLElement | undefined} */
+	let secret = $state();
 
 	/** The afterword as seen through the glasses: a mask of their lenses, in its own pixels. */
 	const through = $derived.by(() => {
@@ -62,88 +164,162 @@
 	});
 
 	/**
-	 * The scramble from the reference: word after word, left to right, each span flickers through
-	 * random letters (light grey, as `.scrambled`) and settles on its entry in `texts`, wrapped in
-	 * `settle`'s class if one is given.
+	 * The scramble, as in Gordon's reference recording: the whole text turns at once into light random
+	 * letters (each of about the width of the one it stands in for, see `ALIKE`), changing every
+	 * `FLICKER`, and one front sweeps across it left to right at `RATE`, each letter it passes landing
+	 * as it will stay (plain, or in `settle`'s class), so only the word under the front is ever
+	 * part-found. `calm` is how the lenses read one word: slower, easy on the eyes.
 	 * @param {Element[]} spans
 	 * @param {string[]} texts
+	 * @param {{ settle?: string, calm?: boolean }} [how]
 	 */
-	function scramble(spans, texts, settle = '') {
+	function scramble(spans, texts, { settle = '', calm = false } = {}) {
+		stop(spans);
 		const tl = gsap.timeline();
-		spans.forEach((span, i) =>
-			tl.to(span, { duration: 0.4, overwrite: 'auto', scrambleText: { text: texts[i], chars: 'lowerCase', oldClass: 'scrambled', newClass: settle } }, i * 0.03)
-		);
+		const flicker = calm ? 0.14 : FLICKER;
+		// Letters before the word, spaces included: how long the front takes to reach it.
+		let before = 0;
+		spans.forEach((span, i) => {
+			const text = texts[i];
+			const delay = calm ? 0 : before / RATE;
+			const reveal = calm ? 0.9 : text.length / RATE;
+			before += text.length + 1;
+			let found = -1;
+			let drawn = -Infinity;
+			const tween = gsap.to(
+				{},
+				{
+					duration: delay + reveal,
+					onUpdate() {
+						const time = this.time();
+						const n = Math.round(clamp01((time - delay) / reveal) * text.length);
+						if (n === found && time - drawn < flicker) return;
+						found = n;
+						drawn = time;
+						show(span, text, n, settle);
+					},
+					onComplete: () => show(span, text, text.length, settle)
+				}
+			);
+			running.set(span, tween);
+			tl.add(tween, 0);
+		});
 		return reduced ? tl.progress(1) : tl;
 	}
 
-	/** Whether a lens has been over the words while the glasses were held. */
-	let read = false;
-
 	/**
-	 * The words through the lenses, which the avatar's face watches. While the glasses are held, each
-	 * word a lens comes over decodes, as the reference's menu does under the pointer.
+	 * The words through the lenses. While the glasses are held, each word a lens comes over decodes,
+	 * calmly, once for each time they are taken up.
 	 * @param {HTMLElement} node
 	 */
 	function decoding(node) {
-		lenses.text = node;
 		const spans = [...node.children];
-		/** @type {Element[]} */
-		let seen = [];
+		/** @type {Set<Element>} */
+		const decoded = new Set();
 		$effect(() => {
-			const now = lenses.held ? spans.filter(under) : [];
-			for (const span of now) if (!seen.includes(span)) scramble([span], [words[spans.indexOf(span)]]);
-			seen = now;
-			read ||= now.length > 0;
+			if (!lenses.held) {
+				decoded.clear();
+				return;
+			}
+			for (const span of spans.filter(under)) {
+				if (decoded.has(span)) continue;
+				decoded.add(span);
+				read = true;
+				scramble([span], [words[spans.indexOf(span)]], { calm: true });
+			}
 		});
-		return () => {
-			lenses.text = null;
-		};
+		return () => stop(spans);
 	}
 
 	/**
-	 * Let go of the glasses after reading, and the afterword decodes where it stands, for good (cutting
-	 * short its arrival, if it was still coming in).
+	 * Let go of the glasses after reading, and the afterword decodes where it stands, until it turns back
+	 * into its scramble.
 	 */
 	function reveal() {
-		if (!read || revealed) return;
-		revealed = true;
-		const spans = [...shownWords.children];
-		gsap.set(spans, { opacity: 1, overwrite: true });
-		scramble(spans, words);
-		try {
-			localStorage.setItem(READ.key, String(Date.now()));
-		} catch {
-			// Without storage it is a secret again on the next visit.
-		}
+		if (!ready || !read || revealed) return;
+		read = false;
+		revealed = kept.leftRead = true;
+		pointing = null;
+		scramble([...shownWords.children], words);
+		forgetting = setTimeout(conceal, FORGET * 1000);
 	}
 
-	function readRecently() {
-		try {
-			return Date.now() - Number(localStorage.getItem(READ.key)) < READ.for;
-		} catch {
-			return false;
-		}
+	/** Back into its scramble, played rather than switched: after a while on the page, or once it is left. */
+	function conceal() {
+		if (!revealed) return;
+		clearTimeout(forgetting);
+		revealed = kept.leftRead = false;
+		// A secret again: a mouse still resting on it is a pair of glasses again.
+		pointing = mouse;
+		scramble([...shownWords.children], cipher, { settle: 'cipher' });
 	}
 
 	/**
-	 * Plays the Bio revision forward from the start state the CSS below holds (unstruck list, untyped
-	 * sentence, no afterword) while scripting runs without reduced motion: after a beat a pen-like
-	 * scratch sweeps across the tool list, the <ins> is typed out behind a caret, and a beat later the
-	 * afterword comes in word by word, scrambled (or decoded, if it was read in the last day). With
+	 * Someone curious about the afterword while it is a secret: it scrambles, as the reference's menu
+	 * does under the pointer, the avatar wonders at it and a mouse turns into a pair of glasses. Read
+	 * (decoded), these hints have done their work and rest until it is a secret again; only the glasses
+	 * still read it.
+	 */
+	function stir() {
+		if (!ready || revealed) return;
+		hint.wonder();
+		pointing = mouse;
+		scramble([...shownWords.children], cipher, { settle: 'cipher' });
+	}
+
+	/**
+	 * While it is a secret, a mouse or pen coming over the afterword stirs it, and it reads dark until
+	 * the pointer leaves. A finger's touch only stirs it if it is a tap (see `tapped`), not a scroll that
+	 * starts on it.
+	 * @param {PointerEvent} event
+	 */
+	function entered(event) {
+		if (event.pointerType === 'touch' || revealed) return;
+		hovered = true;
+		point(event);
+		stir();
+	}
+
+	function tapped() {
+		if (touched) stir();
+		touched = false;
+	}
+
+	/** @param {PointerEvent} event */
+	function point(event) {
+		if (event.pointerType !== 'mouse') return;
+		mouse = { x: event.clientX, y: event.clientY };
+		if (pointing) pointing = mouse;
+	}
+
+	function left() {
+		hovered = false;
+		mouse = pointing = null;
+	}
+
+	/**
+	 * Plays the Bio revision forward from the start state the CSS below holds (unstruck list, no new
+	 * tools) while scripting runs without reduced motion: after a beat a pen-like scratch sweeps across
+	 * the tool list, and the new tools come in scrambled, word by word, and settle. The afterword is
+	 * simply there, scrambled, from the start (or, left decoded last time, scrambles back into it). With
 	 * reduced motion it jumps to the end.
 	 * @param {HTMLElement} node
 	 */
 	function revise(node) {
 		reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-		revealed = readRecently();
 		// Taking over from the CSS failsafe that reveals the revision if this never runs.
 		revising = true;
 
 		// The list is struck as if it were one unbroken line, then cut at its line breaks: one stroke that
 		// sinks from 40% of its letters' height to 72% across the whole list (from the mockup) and runs half an em past its end (not past a line break, where it
 		// would poke into the margin), so a wrapped list is struck in reading order at one speed.
-		// Redrawn whenever the paragraph reflows.
-		const observer = new ResizeObserver(() => {
+		// Redrawn whenever the paragraph reflows, as are the words' boxes.
+		const measure = () => {
+			boxes = { tools: widths(toolsCopy), words: widths(wordsCopy) };
+			// Measured once, on the cipher as the server set it, before any spacing is fitted.
+			kept.fits = fits = kept.fits.length
+				? kept.fits
+				: [...shownWords.children].map((span, i) => (boxes.words[i] - span.getBoundingClientRect().width) / cipher[i].length);
 			const box = node.getBoundingClientRect();
 			const rects = [...del.getClientRects()];
 			const overshoot = (rects.at(-1)?.height ?? 0) * 0.35;
@@ -160,38 +336,48 @@
 				run += length;
 				return stroke;
 			});
-		});
+		};
+		const observer = new ResizeObserver(measure);
 		let disposed = false;
 		/** @type {gsap.core.Timeline | undefined} */
 		let tl;
+		/** Every word a scramble may be running on, to stop them all on leaving. @type {Element[]} */
+		let scrambling = [];
 
 		// Line boxes are only final once the web font has swapped in. A tab opened in the background has
 		// no frames, and GSAP runs on frames: the revision plays when the tab is first seen.
 		document.fonts.ready.then(() => {
 			if (disposed) return;
+			measure();
+			ready = true;
 			observer.observe(node);
-			const spans = [...shownWords.children];
+			// The glasses come closer over the afterword's words, secret or read (see Avatar's `CLOSER`).
+			lenses.text = shownWords;
+			scrambling = [...shownTools.children, ...shownWords.children];
+			const newTools = [...shownTools.children];
 			tl = gsap
 				.timeline()
 				.to(bio, { strike: 1, duration: 0.6, ease: 'power2.inOut' }, 0.8)
-				.to(bio, { letters: typed.length, duration: typed.length * 0.035, ease: 'none' }, '+=0.2')
-				// The caret waits at the end of the revision for a beat while the afterword comes in.
-				.to(spans, { opacity: 1, duration: 0.4, stagger: 0.03 }, '+=1.5')
-				.add(revealed ? scramble(spans, words) : scramble(spans, cipher, 'scrambled'), '<')
-				// The caret blinks a few more times at the end of the sentence, then goes.
-				.set(bio, { caret: false }, '+=1.6');
+				.to(newTools, { opacity: 1, duration: 0.2 }, '+=0.2')
+				.add(scramble(newTools, tools), '<');
+			// Left decoded, it is back as the words, and a moment later scrambles into its cipher.
+			if (cameBackRead) tl.call(conceal, [], 0.5);
 			if (reduced) tl.progress(1);
 		});
 
 		return () => {
 			disposed = true;
+			lenses.text = null;
 			tl?.kill();
+			stop(scrambling);
+			clearTimeout(forgetting);
 			observer.disconnect();
 		};
 	}
 </script>
 
 <svelte:window onpointerup={reveal} onpointercancel={reveal} />
+<svelte:document onvisibilitychange={() => document.hidden && conceal()} />
 
 <p>
 	I’m a design engineer based in the Bay Area. I’ve worked on design systems and AI workflows at VISA
@@ -200,13 +386,10 @@
 
 <p class={['revision', { revising }]} {@attach revise}>
 	I use <del bind:this={del}>d3.js, three.js+GLSL/TSL, React&amp;Svelte, QGIS, Blender etc..</del>
-	<!-- Read once as a sentence; the per-letter copy is only for the typing. -->
+	<!-- Read once as a sentence; the words one by one are only for the scramble. -->
 	<ins
-		><span class="sr-only">{sentence}</span><span aria-hidden="true"
-			>{#each typed as char, i}<span
-					class={['char', { caret: bio.caret && i === shown - 1 }]}
-					style:opacity={i < shown ? 1 : null}>{char}</span
-				>{/each}</span
+		><span class="sr-only" bind:this={toolsCopy}>{sentence}</span><span class="words" aria-hidden="true" bind:this={shownTools}
+			>{#each tools as word, i}{#if i}{' '}{/if}<span class="word" style:width={px(boxes.tools[i])}>{word}</span>{/each}</span
 		></ins
 	>
 	<svg class="scratch" aria-hidden="true">
@@ -217,16 +400,45 @@
 </p>
 
 <!-- The words themselves are for screen readers, find and copy; the scrambles are only to look at.
-     A pointer over the scramble, or a tap on it, nudges the avatar to show where to look. -->
-<p class={['afterword', { revising }]} bind:this={secret}>
-	<span class="sr-only">{afterword}</span>
-	<span class="words" aria-hidden="true" bind:this={shownWords} onpointerenter={() => revealed || hint.peek()}
-		>{#each cipher as word, i}{#if i}{' '}{/if}<span><span class="scrambled">{word}</span></span>{/each}</span
+     A pointer over the afterword, or a tap on it, scrambles it and makes the avatar wonder. -->
+<p
+	class={['afterword', { ready, secret: !revealed, pointing, hovered }]}
+	bind:this={secret}
+	onpointerenter={entered}
+	onpointermove={point}
+	onpointerleave={left}
+	onpointerdown={(event) => (touched = event.pointerType === 'touch')}
+	onpointerup={tapped}
+	onpointercancel={() => (touched = false)}
+>
+	<span class="sr-only" bind:this={wordsCopy}>{afterword}</span>
+	<span class="words" aria-hidden="true" bind:this={shownWords}
+		>{#each cipher as word, i}{#if i}{' '}{/if}<span class="word" style:width={px(boxes.words[i])} style:--fit={px(fits[i])}
+				>{#if cameBackRead}{words[i]}{:else}<span class="cipher">{word}</span>{/if}</span
+			>{/each}</span
 	>
-	{#if through}<span class="through" aria-hidden="true" style:mask-image={through}
-			><span {@attach decoding}>{#each words as word, i}{#if i}{' '}{/if}<span>{word}</span>{/each}</span></span
+	{#if ready && through}<span class="through" aria-hidden="true" style:mask-image={through}
+			><span {@attach decoding}
+				>{#each words as word, i}{#if i}{' '}{/if}<span class="word" style:width={px(boxes.words[i])}>{word}</span>{/each}</span
+			></span
 		>{/if}
 </p>
+
+<!-- The mouse over the scramble, as a pair of glasses and a question mark that draw themselves in. -->
+{#if pointing}
+	<svg class="glasses-pointer" viewBox="0 0 44 32" aria-hidden="true" style:translate="{pointing.x - 20}px {pointing.y - 20}px">
+		<g class="halo">
+			<circle cx="7.3" cy="16.5" r="5.7" /><circle cx="24.7" cy="15.5" r="5.7" /><path d="M14.1 15.8 17.9 15.6" />
+		</g>
+		<circle class="rim" cx="7.3" cy="16.5" r="5.7" pathLength="1" />
+		<circle class="rim" cx="24.7" cy="15.5" r="5.7" pathLength="1" style:--i={1} />
+		<path class="bridge" d="M14.1 15.8 17.9 15.6" />
+		<g class="query">
+			<path d="M32.6 6.2C32.7 4.3 34.1 3.4 35.7 3.5C37.4 3.6 38.4 4.9 38.2 6.4C38 8 36.8 8.4 35.9 8.9C35.2 9.3 34.9 9.9 34.8 11" />
+			<path class="point" d="M34.6 13.9h0" />
+		</g>
+	</svg>
+{/if}
 
 <style>
 	p + p {
@@ -243,14 +455,148 @@
 		text-decoration: none;
 	}
 
-	/* Scrambled letters are lighter, as in the reference, and only to look at: selecting the paragraph
-	   copies the words themselves. */
-	.afterword :global(.scrambled) {
+	.words {
+		user-select: none;
+	}
+
+	/*
+	 * Each word in the box it takes when read (see `widths`), so a scramble moves nothing around it; a
+	 * random letter wider than the one it stands in for is cut at the box's edge rather than run into
+	 * the next word.
+	 */
+	.word {
+		display: inline-block;
+		overflow: clip;
+		overflow-clip-margin: 0.1em;
+		white-space: nowrap;
+	}
+
+	/*
+	 * The scramble's look, as in the reference, and all of it in the bio's own weight: letters go light
+	 * while they flicker, and land in the look they keep, the bio's grey. At rest the cipher is light
+	 * too. Pointed at, the afterword reads dark, and eases back when the pointer leaves. Scrambled
+	 * letters are only to look at: selecting the paragraph copies the words themselves.
+	 */
+	p :global(.cipher),
+	p :global(.scrambled) {
 		color: var(--color-ash);
 	}
 
-	.words {
-		user-select: none;
+	.afterword.hovered .words,
+	.afterword.hovered :global(.cipher) {
+		color: var(--color-obsidian);
+	}
+
+	.afterword .words,
+	.afterword :global(.cipher) {
+		transition: color 240ms var(--ease-out);
+	}
+
+	/* Until its words are measured into their boxes, the afterword is not shown (it would shift). */
+	@media (scripting: enabled) {
+		.afterword:not(.ready) .words {
+			opacity: 0;
+			animation: bio-failsafe-shown 0s 5s forwards;
+		}
+	}
+
+	/* The cipher, and letters flickering towards it, spaced out (or in) to fill its word's box. */
+	.words > .word > :global(:is(.cipher, .cipher-like)) {
+		letter-spacing: var(--fit, 0);
+	}
+
+	/*
+	 * A hint over the scramble: the pointer turns into a pair of glasses. Drawn by the page for a mouse
+	 * (`.glasses-pointer`), so it can draw itself in; this still one (2x for sharp screens) is for when
+	 * the page's script is not running.
+	 */
+	@media (scripting: none) {
+		.afterword.secret {
+			cursor:
+				url('/landing/glasses-cursor.svg') 16 16,
+				help;
+			cursor:
+				image-set(url('/landing/glasses-cursor@2x.svg') 2x) 16 16,
+				help;
+		}
+	}
+
+	.afterword.pointing {
+		cursor: none;
+	}
+
+	/*
+	 * In the avatar's line: thin black rims, a white halo to read over the letters, and a question mark;
+	 * drawn at 1.25x (55 by 40 px, the bridge on the pointer), its line still about a pixel.
+	 */
+	.glasses-pointer {
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: 10;
+		width: 55px;
+		height: 40px;
+		overflow: visible;
+		fill: none;
+		stroke: var(--color-carbon);
+		stroke-width: 0.8;
+		stroke-linecap: round;
+		pointer-events: none;
+	}
+
+	.glasses-pointer .halo {
+		stroke: var(--color-pure-white);
+		stroke-width: 2.2;
+		stroke-opacity: 0.9;
+	}
+
+	.glasses-pointer .point {
+		stroke-width: 1.5;
+	}
+
+	/* Coming over the words, the rims draw on, left then right, then the question mark rises, unhurried. */
+	.rim {
+		stroke-dasharray: 1;
+		animation: draw-rim 260ms var(--ease-out) calc(var(--i, 0) * 70ms) backwards;
+	}
+
+	.bridge,
+	.halo {
+		animation: appear 160ms var(--ease-out) 60ms backwards;
+	}
+
+	.query {
+		transform-box: fill-box;
+		transform-origin: center bottom;
+		animation: pop 560ms cubic-bezier(0.34, 1.4, 0.64, 1) 280ms backwards;
+	}
+
+	@keyframes draw-rim {
+		from {
+			stroke-dashoffset: 1;
+		}
+	}
+
+	@keyframes appear {
+		from {
+			opacity: 0;
+		}
+	}
+
+	@keyframes pop {
+		from {
+			opacity: 0;
+			transform: translateY(2px) scale(0.5);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.rim,
+		.bridge,
+		.halo,
+		.query {
+			animation: none;
+		}
 	}
 
 	/* The words themselves laid over the scramble, and shown only inside the lenses. */
@@ -258,21 +604,6 @@
 		position: absolute;
 		inset: 0;
 		background: var(--color-pure-white);
-	}
-
-	.char {
-		position: relative;
-	}
-
-	.char.caret::after {
-		position: absolute;
-		top: 0.05em;
-		bottom: -0.1em;
-		left: 100%;
-		width: 1px;
-		content: '';
-		background: currentColor;
-		animation: blink 1s steps(1) infinite;
 	}
 
 	.scratch {
@@ -292,22 +623,22 @@
 	}
 
 	/*
-	 * The Bio revision's start state (and the afterword's, not yet in), held only while the script
-	 * that plays it can run. If that script never arrives, a zero-length animation shows the finished
-	 * revision after 5 s; the script marks both paragraphs `revising` on arrival and takes over.
+	 * The Bio revision's start state (the new tools not in yet), held only while the script that
+	 * plays it can run. If that script never arrives, a zero-length animation shows the finished
+	 * revision after 5 s; the script marks the revision `revising` on arrival and takes over (the
+	 * afterword has its own gate, `ready`).
 	 */
 	@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
 		del {
 			animation: bio-failsafe-del 0s 5s forwards;
 		}
 
-		.char,
-		.words > span {
+		ins .word {
 			opacity: 0;
 			animation: bio-failsafe-shown 0s 5s forwards;
 		}
 
-		.revising :is(del, .char, .words > span) {
+		.revising :is(del, ins .word) {
 			animation: none;
 		}
 	}
@@ -328,12 +659,6 @@
 	@media (scripting: none) {
 		del {
 			text-decoration: line-through;
-		}
-	}
-
-	@keyframes blink {
-		50% {
-			opacity: 0;
 		}
 	}
 </style>

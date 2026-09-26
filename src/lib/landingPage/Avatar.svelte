@@ -13,12 +13,13 @@
 			lenses.circles.some(({ x, y, r }) => Math.hypot(x - Math.max(box.left, Math.min(x, box.right)), y - Math.max(box.top, Math.min(y, box.bottom))) < r)
 		);
 
-	/** The nudge the afterword gives anyone curious about it; the avatar on the page sets it (see `nudging`). */
-	export const hint = { peek() {} };
+	/** What the afterword asks of the avatar when someone is curious about it; the avatar on the page sets it (see `wonder`). */
+	export const hint = { wonder() {} };
 </script>
 
 <script>
 	import { gsap } from 'gsap';
+	import { onMount } from 'svelte';
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
 	import { frameLoop } from '../frameLoop.js';
@@ -78,7 +79,15 @@
 	// through), they level out, so both lenses sit on the same line.
 	const carried = $derived(Math.hypot(glasses.current.x - side * OFF.x, glasses.current.y - OFF.y));
 	const tilt = $derived(off * OFF.turn * side * Math.max(0, 1 - carried * 2));
-	const zoom = $derived(1 + (ZOOM - 1) * off);
+	/**
+	 * Over the afterword's words, the held glasses grow this much more (at most 30%, so they still sit
+	 * on a line), as if brought closer to read.
+	 */
+	const CLOSER = 0.25;
+	/** A lens over the afterword's words: the glasses come closer (see `CLOSER`). */
+	const reading = $derived(!!lenses.text && under(lenses.text));
+	const closer = Spring.of(() => (reading ? 1 : 0), { stiffness: 0.12, damping: 0.8 });
+	const zoom = $derived((1 + (ZOOM - 1) * off) * (1 + CLOSER * (prefersReducedMotion.current ? +reading : closer.current)));
 	const clampLook = gsap.utils.clamp(-1, 1);
 	/** Which way the head faces, -1–1: towards the side the glasses are on, fully once they are off. */
 	const look = $derived(clampLook(glasses.current.x / OFF.x));
@@ -90,6 +99,12 @@
 	 */
 	const PLUMB = 75;
 	const HEAD = { x: 0.48, y: 0.37, r: 0.25 };
+	/**
+	 * Held within this many degrees of straight below his head (the glasses themselves, wherever the
+	 * pointer holding them is), they alarm him: the start stands up into three exclamation marks.
+	 * Further round, it stays three strokes.
+	 */
+	const ALARM = 45;
 	/**
 	 * Where the start by the hair moves to as the head looks down, in avatar sides: to where the
 	 * drawing looking down has its own (painted out of it, so the start can turn to alarm there too).
@@ -114,6 +129,24 @@
 		turn: (Math.atan2(x1 - x0, y0 - y1) * 180) / Math.PI,
 		length: Math.hypot(x1 - x0, y1 - y0) / (MARK.bottom - MARK.top)
 	}));
+	/**
+	 * Wondering, three question marks by the hair, bigger than the start and rising away from it, drawn
+	 * in the same line: each a hook and a dot, in the drawing's 134 px.
+	 */
+	const QUESTIONS = [
+		{
+			hook: 'M102.08 18.79C102.23 16.44 104.04 15.41 106.01 15.61C108.06 15.83 109.32 17.38 109.12 19.25C108.92 21.21 107.45 21.72 106.24 22.35C105.34 22.82 104.99 23.54 104.85 24.85',
+			dot: 'M104.44 28.77h0'
+		},
+		{
+			hook: 'M112.4 12.7C112.86 10.25 114.91 9.38 116.96 9.86C119.1 10.35 120.22 12.15 119.77 14.1C119.3 16.15 117.68 16.49 116.33 17C115.32 17.38 114.85 18.09 114.54 19.46',
+			dot: 'M113.59 23.55h0'
+		},
+		{
+			hook: 'M123.06 6.44C123.85 3.96 126.07 3.33 128.13 4.07C130.28 4.86 131.21 6.86 130.5 8.81C129.75 10.86 128.03 11.01 126.58 11.37C125.48 11.64 124.91 12.31 124.41 13.68',
+			dot: 'M122.91 17.78h0'
+		}
+	];
 	/** -1 looking up, 1 looking down; unhurried, like a head. */
 	const pitch = new Spring(0, { stiffness: 0.08, damping: 0.6 });
 	let morph = $state.raw(/** @type {ReturnType<typeof import('./avatarMorph.js').createMorph> | null} */ (null));
@@ -125,11 +158,10 @@
 		morph?.glasses({ up: pose.up * (1 - off), down: pose.down * (1 - off), turn: 0 }, [BRIDGE[0] / 134, BRIDGE[1] / 134]) ?? ''
 	);
 
-	/** A lens over the scrambled afterword's words: he is being read, and the start turns to alarm. */
-	const reading = $derived(!!lenses.text && under(lenses.text));
-	/** Whether a finger holds the glasses: on a phone he is alarmed as soon as he looks down after them. */
-	let finger = $state(false);
-	const alarmed = $derived(reading || (finger && pose.down > 0.6));
+	/** The glasses held right below him (see `ALARM`). */
+	let alarmed = $state(false);
+	/** Wondering at the scrambled afterword: three question marks by the hair while he glances at it. */
+	let wondering = $state(false);
 
 	$effect(() => morph?.draw(pose, Math.round(size * (devicePixelRatio.current ?? 1))));
 
@@ -161,7 +193,7 @@
 	 * Watches the pointer anywhere on the page (the page scrolling under it too) and, while it holds the
 	 * glasses, turns the head up or down to it; a finger lifted, or the mouse gone from the window, and
 	 * it looks ahead again (as it does when the glasses go back on, see `drop`). Not holding them, it
-	 * leaves the head to the nudge (see `nudging`).
+	 * leaves the head to his wondering (see `wonder`).
 	 * @param {HTMLElement} avatar
 	 */
 	function watching(avatar) {
@@ -194,10 +226,19 @@
 		};
 	}
 
-	// Where the lenses are, for the text they read: each centre carried through the glasses' transform.
-	/** @param {HTMLElement} avatar */
+	const alarm = Math.tan((ALARM * Math.PI) / 180);
+
+	/**
+	 * Where the lenses are, for the text they read: each centre carried through the glasses' transform.
+	 * And whether the glasses, held, are right below his head (their bridge, in avatar sides from it),
+	 * which alarms him.
+	 * @param {HTMLElement} avatar
+	 */
 	function aim(avatar) {
 		const { x, y } = glasses.current;
+		const dx = BRIDGE[0] / 134 + x - HEAD.x;
+		const dy = BRIDGE[1] / 134 + y - HEAD.y;
+		alarmed = !!grab && dy > HEAD.r && Math.abs(dx) <= dy * alarm;
 		if (off < 0.01) {
 			lenses.circles = [];
 			return;
@@ -222,44 +263,41 @@
 	/** The roomier side of the window for the glasses, from the avatar's box. @param {DOMRect} box */
 	const roomier = (box) => (box.left + box.width / 2 < innerWidth / 2 ? 1 : -1);
 
-	/**
-	 * The nudge for anyone curious about the scrambled afterword (a pointer over it, or a tap): he
-	 * glances down at it and lifts his glasses a little way off, the way they come off, then puts them
-	 * back and looks up again. Taking hold of the glasses cuts it short.
-	 */
-	const PEEK = { x: 0.3, y: -0.12 };
 	/** @type {gsap.core.Timeline | undefined} */
-	let peeking;
+	let glance;
 
-	/** @param {HTMLElement} avatar */
-	function nudging(avatar) {
-		hint.peek = () => {
-			if (grab || peeking?.isActive()) return;
-			side = roomier(avatar.getBoundingClientRect());
-			const still = { instant: prefersReducedMotion.current };
-			peeking = gsap
-				.timeline()
-				.call(() => pitch.set(1, still))
-				.call(() => move({ x: side * PEEK.x, y: PEEK.y }), [], 0.2)
-				// Off long enough for an eye on the words to find him.
-				.call(() => move({ x: 0, y: 0 }), [], 0.9)
-				.call(() => pitch.set(0, still), [], 1.1);
-		};
-		return () => {
-			hint.peek = () => {};
-			peeking?.kill();
-		};
+	/**
+	 * For anyone curious about the scrambled afterword (a pointer over it, or a tap): he glances down at
+	 * it, wondering (three question marks by the hair), then looks up again. Taking hold of the glasses
+	 * cuts it short.
+	 */
+	function wonder() {
+		if (grab || glance?.isActive()) return;
+		const still = { instant: prefersReducedMotion.current };
+		glance = gsap
+			.timeline()
+			// Without the poses (no WebGL yet, or none) the head cannot look down, and the marks stay put.
+			.call(() => (morph && pitch.set(1, still), (wondering = true)))
+			.call(() => (pitch.set(0, still), (wondering = false)), [], 1.4);
 	}
+
+	onMount(() => {
+		hint.wonder = wonder;
+		return () => {
+			hint.wonder = () => {};
+			glance?.kill();
+		};
+	});
 
 	/** @param {PointerEvent & { currentTarget: HTMLElement }} event */
 	function press(event) {
 		if (event.button || grab) return;
 		const box = event.currentTarget.getBoundingClientRect();
 		event.currentTarget.setPointerCapture(event.pointerId);
-		peeking?.kill();
+		glance?.kill();
+		wondering = false;
 		lenses.held = true;
 		side = roomier(box);
-		finger = event.pointerType === 'touch';
 		const near = {
 			x: (event.clientX - box.left) / box.width - BRIDGE[0] / 134,
 			y: (event.clientY - box.top) / box.width - BRIDGE[1] / 134 - (event.pointerType === 'touch' ? CARRY.aboveFinger : CARRY.above)
@@ -302,6 +340,7 @@
 		grab = null;
 		edgeScroll.stop();
 		lenses.held = false;
+		alarmed = false;
 		move({ x: 0, y: 0 });
 		pitch.set(0, { instant: prefersReducedMotion.current });
 	}
@@ -313,7 +352,6 @@
 	aria-hidden="true"
 	{@attach aim}
 	{@attach watching}
-	{@attach nudging}
 	style:--off={off}
 	onpointerdown={press}
 	onpointermove={drag}
@@ -332,6 +370,15 @@
 				<path class="stem" d="M{x} {MARK.top}V{MARK.bottom}" />
 				<path class="dot" d="M{x} {MARK.dot}h0" />
 			</g>
+		{/each}
+	</svg>
+	<svg
+		class={['wonder', { wondering }]}
+		viewBox="0 0 134 134"
+		style:transform="translate({pose.down * STARTLED_DOWN.x * 100}%, {pose.down * STARTLED_DOWN.y * 100}%)"
+	>
+		{#each QUESTIONS as { hook, dot }, i (dot)}
+			<g style:--i={i}><path d={hook} /><path class="point" d={dot} /></g>
 		{/each}
 	</svg>
 	<span
@@ -380,6 +427,7 @@
 
 	.poses,
 	.startle,
+	.wonder,
 	.glasses,
 	.glasses svg {
 		position: absolute;
@@ -457,9 +505,42 @@
 		transition-delay: calc(var(--i) * 60ms + 160ms);
 	}
 
+	/* Wondering, the question marks pop up one after another, rising; they go all at once. */
+	.wonder {
+		overflow: visible;
+		fill: none;
+		stroke: #000;
+		stroke-width: 1.7;
+		stroke-linecap: round;
+	}
+
+	.wonder g {
+		opacity: 0;
+		transform: translateY(3px) scale(0.8);
+		transform-box: fill-box;
+		transform-origin: center bottom;
+		transition:
+			opacity 160ms var(--ease-out),
+			transform 160ms var(--ease-out);
+	}
+
+	.wonder .point {
+		stroke-width: 2.3;
+	}
+
+	/* Shown a third bigger than drawn: well above the start's size, next to a 20px headline. */
+	.wondering g {
+		opacity: 1;
+		transform: scale(1.35);
+		transition:
+			opacity 120ms var(--ease-out) calc(var(--i) * 110ms),
+			transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--i) * 110ms);
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.stem,
-		.dot {
+		.dot,
+		.wonder g {
 			transition: none;
 		}
 	}

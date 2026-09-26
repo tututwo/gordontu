@@ -13,9 +13,9 @@
 	let copiedTimer;
 
 	/**
-	 * The site is static, so the form has no server to post to: it writes the message out and opens
-	 * it in the visitor's email app, addressed and ready to send. Without script the browser does the
-	 * same with the subject and message alone.
+	 * The site is static, so the form has no server to post to: it opens the message in the visitor's
+	 * email app, addressed and ready to send. Just a subject and a message: their email app already
+	 * knows who they are and where to reply. Without script the browser does the same.
 	 * @param {SubmitEvent & { currentTarget: HTMLFormElement }} event
 	 */
 	function send(event) {
@@ -23,13 +23,16 @@
 		const data = new FormData(event.currentTarget);
 		/** @param {string} name */
 		const field = (name) => String(data.get(name) ?? '').trim();
-		const name = field('name');
-		const reference = field('reference');
-		// Mail wants CRLF line breaks (RFC 6068), the visitor's own included; a blank line before the signature.
-		const message = field('body').replace(/\r?\n/g, '\r\n');
-		const signature = [`— ${name}`, field('email'), reference && `Found you through: ${reference}`].filter(Boolean);
-		draft = [message, '', ...signature].join('\r\n');
-		const subject = field('subject') || `Hello from ${name}`;
+		// Spaces alone pass `required`, but make an empty email.
+		const body = /** @type {HTMLTextAreaElement} */ (event.currentTarget.elements.namedItem('body'));
+		if (!field('body')) {
+			body.setCustomValidity('Write a message first.');
+			body.reportValidity();
+			return;
+		}
+		// Mail wants CRLF line breaks (RFC 6068), the visitor's own included.
+		draft = field('body').replace(/\r?\n/g, '\r\n');
+		const subject = field('subject') || 'Hello';
 		location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(draft)}`;
 	}
 
@@ -62,10 +65,11 @@
 	</p>
 
 	<p class="direct">
-		Email me at <a class="email" href="mailto:{EMAIL}">{EMAIL}</a>
+		Email me at <span class="email">{EMAIL}</span>
 		<button class="copy text-copy-14" type="button" onclick={() => copy(EMAIL, 'email')}>
 			{copied === 'email' ? 'Copied' : 'Copy'}
 		</button>
+		<span class="sr-only" aria-live="polite">{copied === 'email' ? 'Email address copied' : ''}</span>
 		<br />or write below, and I’ll get back to you soon.
 	</p>
 
@@ -76,20 +80,6 @@
 		aria-label="Write to Gordon"
 		onsubmit={send}
 	>
-		<div class="pair">
-			<label>
-				<span class="text-eyebrow">Name</span>
-				<input name="name" autocomplete="name" required />
-			</label>
-			<label>
-				<span class="text-eyebrow">Email</span>
-				<input name="email" type="email" autocomplete="email" required />
-			</label>
-		</div>
-		<label>
-			<span class="text-eyebrow">How did you find me? <span class="optional">Optional</span></span>
-			<input name="reference" placeholder="A search, a friend, a project of mine…" />
-		</label>
 		<label>
 			<span class="text-eyebrow">Subject <span class="optional">Optional</span></span>
 			<input name="subject" placeholder="What would you like to talk about?" />
@@ -100,6 +90,7 @@
 				name="body"
 				rows="6"
 				required
+				oninput={(event) => event.currentTarget.setCustomValidity('')}
 				placeholder="What are you working on? It helps to hear what data you have, who it is for, whether it should be static or interactive, and any budget or deadline."
 			></textarea>
 		</label>
@@ -140,45 +131,59 @@
 		margin-top: 1em;
 	}
 
-	/* Links in the panel's words: ink, over a light rule that darkens when pointed at. */
+	/* The address is plain words, in ink; the Copy button beside it is the thing to press. */
 	.email {
 		color: var(--color-obsidian);
-		text-decoration: underline;
-		text-decoration-color: var(--color-ash);
-		text-decoration-thickness: 1px;
-		text-underline-offset: 0.3em;
-		transition: text-decoration-color 160ms var(--ease-out);
+		text-decoration: none;
 	}
 
-	.email:hover {
-		text-decoration-color: currentColor;
-	}
-
-	/* A quiet text button; padding grows its target to 44px without moving the line. */
+	/*
+	 * A plain button: a hairline box, square like everything here, sitting in the line. Wide enough for
+	 * "Copied" so the box does not jump, and its target grown to 44px tall without moving the line.
+	 */
 	.copy {
-		margin: -0.75rem 0 -0.75rem var(--spacing-4);
-		padding: 0.75rem var(--spacing-4);
-		border: 0;
-		background: none;
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 5em;
+		height: 1.375rem;
+		margin-left: var(--spacing-4);
+		padding: 0 var(--spacing-8);
+		border: 1px solid var(--color-hairline);
+		border-radius: 0;
+		background: var(--color-pure-white);
 		color: var(--color-stone);
 		cursor: pointer;
-		transition: color 160ms var(--ease-out);
+		transition:
+			color 160ms var(--ease-out),
+			border-color 160ms var(--ease-out);
 	}
 
-	.copy:hover {
-		color: var(--color-obsidian);
+	/* From the padding box, which is 20px tall inside the border: 12px more above and below makes 44. */
+	.copy::after {
+		position: absolute;
+		inset: -0.75rem 0;
+		content: '';
+	}
+
+	/* Only where there is a real hover: on a phone a tapped button would keep it. */
+	@media (hover: hover) {
+		.copy:hover {
+			border-color: var(--color-ash);
+			color: var(--color-obsidian);
+		}
+	}
+
+	.copy:focus-visible {
+		outline: 2px solid var(--color-carbon);
+		outline-offset: 2px;
 	}
 
 	.form {
 		display: grid;
 		gap: var(--spacing-20);
 		margin-top: var(--spacing-40);
-	}
-
-	.pair {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-		gap: var(--spacing-20);
 	}
 
 	label {
@@ -206,9 +211,11 @@
 		transition: border-color 160ms var(--ease-out);
 	}
 
-	input:hover,
-	textarea:hover {
-		border-color: var(--color-ash);
+	@media (hover: hover) {
+		input:hover,
+		textarea:hover {
+			border-color: var(--color-ash);
+		}
 	}
 
 	textarea {
@@ -239,13 +246,14 @@
 		transition: background 160ms var(--ease-out);
 	}
 
-	.submit:hover {
-		background: var(--color-charcoal);
+	@media (hover: hover) {
+		.submit:hover {
+			background: var(--color-charcoal);
+		}
 	}
 
 	.copy:active,
-	.submit:active,
-	.email:active {
+	.submit:active {
 		opacity: 0.55;
 	}
 
@@ -262,7 +270,6 @@
 
 	.status .copy {
 		margin-left: 0;
-		padding-left: 0;
 	}
 
 	/* Vercel keeps its one colour for confirmations, with the tick as its non-colour cue. */

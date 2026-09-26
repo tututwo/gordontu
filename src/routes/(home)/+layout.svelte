@@ -56,6 +56,36 @@
 		['contact', '/(home)/contact']
 	]);
 	const current = $derived(page.route.id === '/(home)' ? '/(home)/about' : page.route.id);
+
+	/**
+	 * Whether the underline has had its first place, after which it glides. Until then (and without
+	 * script) the open tab keeps a plain text underline.
+	 */
+	let placed = $state(false);
+
+	/**
+	 * The open tab's underline: one rule under the tabs that glides to the tab you open (a CSS
+	 * transition, which turns round mid-way if you switch again), placed under its word again whenever
+	 * a tab's word changes width (the web font swapping in) or the tabs reflow.
+	 * @param {HTMLElement} nav
+	 */
+	function underline(nav) {
+		const rule = /** @type {HTMLElement} */ (nav.lastElementChild);
+		const link = /** @type {HTMLElement} */ (nav.children[tabs.findIndex(([, route]) => route === current)]);
+		const place = () => {
+			rule.style.translate = `${link.offsetLeft}px 0`;
+			rule.style.width = `${link.offsetWidth}px`;
+		};
+		place();
+		// It glides only once the web font is in and its place settled, so it never sweeps in on arrival.
+		const observer = new ResizeObserver(() => {
+			place();
+			if (!placed) document.fonts.ready.then(() => requestAnimationFrame(() => (placed = true)));
+		});
+		observer.observe(nav);
+		for (const a of nav.querySelectorAll('a')) observer.observe(a);
+		return () => observer.disconnect();
+	}
 </script>
 
 <div class="landing">
@@ -79,10 +109,11 @@
 		<hr />
 
 		<!-- Only the panel below changes between tabs, so switching keeps the scroll and the focus. -->
-		<nav class="text-copy-14" aria-label="Site" data-sveltekit-noscroll data-sveltekit-keepfocus>
+		<nav class={['text-copy-14', { placed }]} aria-label="Site" data-sveltekit-noscroll data-sveltekit-keepfocus {@attach underline}>
 			{#each tabs as [label, route] (route)}
 				<a href={resolve(route)} aria-current={route === current ? 'page' : undefined}>{label}</a>
 			{/each}
+			<span class="underline" aria-hidden="true"></span>
 		</nav>
 
 		<div class="panel text-copy-16">{@render children()}</div>
@@ -188,6 +219,7 @@
 
 	/* The tabs in Geist's copy-14, grey until pointed at; the open one in ink, underlined. */
 	nav {
+		position: relative;
 		display: flex;
 		gap: 1.33rem;
 		margin-top: 2.6rem;
@@ -204,7 +236,37 @@
 
 	nav a[aria-current='page'] {
 		color: var(--color-obsidian);
+	}
+
+	/* Until the rule has its place (and without script), the open tab keeps a plain text underline. */
+	nav:not(.placed) a[aria-current='page'] {
 		text-decoration-line: underline;
+	}
+
+	/* The rule, where a text underline 0.3em below the tab's words would be (see `underline`). */
+	.underline {
+		position: absolute;
+		top: calc(100% - 1px);
+		left: 0;
+		height: 1px;
+		background: var(--color-obsidian);
+		pointer-events: none;
+	}
+
+	nav:not(.placed) .underline {
+		visibility: hidden;
+	}
+
+	.placed .underline {
+		transition:
+			translate 360ms var(--ease-out),
+			width 360ms var(--ease-out);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.placed .underline {
+			transition: none;
+		}
 	}
 
 	.socials a:hover,
