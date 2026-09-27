@@ -10,7 +10,10 @@
 		topic: '',
 		body: '',
 		email: '',
-		note: '',
+		/** Anything added once the letter is shown, sent as its P.S. Never removed, so `id` is its place. @type {{ id: number, text: string }[]} */
+		notes: [],
+		/** What is typed in the composer and not yet sent. */
+		draft: '',
 		/** The honeypot: only a bot fills it in. */
 		website: ''
 	});
@@ -25,8 +28,9 @@
 <script>
 	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
 	import gsap from 'gsap';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { EMAIL } from '$lib/contact.js';
 
 	/** Gordon's calendar, for anyone who would rather talk than type. */
@@ -43,14 +47,30 @@
 		{ label: 'Something else', ask: 'Sure thing. What’s on your mind?' }
 	];
 
+	/**
+	 * What the composer can be filling in, what a changed answer is called, and its hint.
+	 * @typedef {'name' | 'topic' | 'body' | 'email' | 'note'} Field
+	 */
+	const fields = {
+		name: { called: 'your name', hint: 'Your name', max: 80 },
+		topic: { called: 'what you’re working on', hint: 'Or type it here', max: 80 },
+		body: { called: 'your message', hint: 'Type away…', max: 8000 },
+		email: { called: 'your email', hint: 'you@example.com', max: 254 },
+		note: { called: 'your P.S.', hint: 'Anything else? Add a P.S.', max: 1000 }
+	};
+
+	/** On a computer, Enter sends; with a finger, Return starts a new line and the arrow sends. */
+	const mouse = new MediaQuery('(pointer: fine)');
+
 	/** Set once the page runs in the browser: until then, and without script, nothing can be typed. */
 	let live = $state(false);
-	/** An earlier answer opened again to change it. @type {'' | 'name' | 'body' | 'email'} */
+	/** An earlier answer being changed in the composer, and which P.S. if it is one. @type {'' | Field} */
 	let editing = $state('');
-	/** The answer just changed, whose reply takes the cursor back. @type {'' | 'name' | 'body' | 'email'} */
-	let edited = $state('');
-	/** Whether the letter has its P.S. field open. */
-	let adding = $state(false);
+	let editingNote = $state(-1);
+	/** The draft put aside while an earlier answer is changed. */
+	let stash = '';
+	/** Where the cursor goes next: set by what the visitor just did, never on arrival. @type {'' | 'composer' | 'review' | 'sent'} */
+	let want = $state('');
 	/** Where the send got to. @type {'' | 'sending' | 'invalid' | 'failed'} */
 	let status = $state('');
 	/** The server's reason, when it turned the message away. */
@@ -59,63 +79,124 @@
 	let copied = $state('');
 	/** @type {ReturnType<typeof setTimeout> | undefined} */
 	let copiedTimer;
-	/** Whether the visitor has said anything yet: only then do new lines move and take the cursor. */
+	/** Whether the visitor has said anything yet: only then do new lines move. */
 	let engaged = false;
+	/** @type {HTMLElement | undefined} */
+	let thread;
+	/** @type {HTMLElement | undefined} */
+	let log;
+	/** @type {HTMLElement | undefined} */
+	let composer;
 
-	const ask = $derived(topics.find((topic) => topic.label === chat.topic)?.ask);
-	/** The message as Gordon will read it. */
-	const letter = $derived(
-		chat.note.trim() ? `${chat.body.trim()}\n\nP.S. ${chat.note.trim()}` : chat.body.trim()
-	);
 	const sent = $derived(chat.step === 'sent');
+	/** What the composer is for: a changed answer, the step's own, a P.S. once the letter shows, or nothing. */
+	const mode = $derived(
+		/** @type {Field | 'sent'} */ (editing || (sent ? 'sent' : chat.step === 'review' ? 'note' : chat.step))
+	);
+	/** A new field for each thing typed, so each opens empty and focused; a P.S. keeps its field. */
+	const slot = $derived(editing ? `${editing} ${editingNote}` : mode);
+	const ask = $derived(
+		topics.find((topic) => topic.label === chat.topic)?.ask ??
+			'Ooh, tell me more! What’s it about, and who’s it for?'
+	);
+	/** The message as Gordon will read it. */
+	const ps = $derived(chat.notes.map((note) => note.text).join('\n\n'));
+	const letter = $derived(ps ? `${chat.body}\n\nP.S. ${ps}` : chat.body);
 
 	/** Whether the chat has got to this turn. @param {Step} step */
 	const reached = (step) => steps.indexOf(chat.step) >= steps.indexOf(step);
 
 	onMount(() => {
 		live = true;
-		// Once sent, the chat starts afresh the next time the tab opens.
 		return () => {
+			// A change left half done goes back to what was being typed; a sent chat starts afresh.
+			if (editing) chat.draft = stash;
 			if (chat.step === 'sent') Object.assign(chat, blank());
 		};
 	});
 
 	/**
-	 * A reply field's answer moves the chat on; a changed earlier answer just closes again.
-	 * @param {SubmitEvent} event
-	 * @param {'name' | 'body' | 'email'} step
+	 * When the newest line lands under the composer, scrolls the chat's end to the window's foot, as a
+	 * chat app does: the line then sits just above the composer, which stays at the bottom.
 	 */
-	function reply(event, step) {
-		event.preventDefault();
-		engaged = true;
-		if (editing === step) {
-			editing = '';
-			edited = step;
-			return;
-		}
-		if (step === 'name') window.posthog.capture?.('contact_chat_started');
-		chat.step = steps[steps.indexOf(step) + 1];
+	async function reveal() {
+		await tick();
+		const last = log?.lastElementChild;
+		if (!thread || !last || !composer) return;
+		if (last.getBoundingClientRect().bottom <= composer.getBoundingClientRect().top) return;
+		thread.scrollIntoView({ block: 'end', behavior: prefersReducedMotion.current ? 'auto' : 'smooth' });
 	}
 
-	/** A tapped answer opens again, to change it, and a refusal it may fix goes. @param {'name' | 'body' | 'email'} step */
-	function edit(step) {
+	/**
+	 * What the composer sends: a changed answer, the answer the chat is waiting for, or a P.S.
+	 * @param {SubmitEvent} event
+	 */
+	function submit(event) {
+		event.preventDefault();
+		const text = chat.draft.trim();
+		const at = mode;
+		if (!text || at === 'sent') return;
 		engaged = true;
-		editing = step;
+		want = 'composer';
+		if (editing) {
+			if (editing === 'note') chat.notes[editingNote].text = text;
+			else chat[editing] = text;
+			editing = '';
+			chat.draft = stash;
+			return;
+		}
+		chat.draft = '';
+		if (at === 'note') {
+			chat.notes.push({ id: chat.notes.length, text });
+		} else {
+			chat[at] = text;
+			if (at === 'name') window.posthog.capture?.('contact_chat_started');
+			if (at === 'email') want = 'review';
+			chat.step = steps[steps.indexOf(at) + 1];
+		}
+		reveal();
+	}
+
+	/** A tapped answer opens in the composer, to change it. @param {Field} key @param {number} [index] */
+	function edit(key, index = -1) {
+		if (editing === key && editingNote === index) return;
+		engaged = true;
+		if (!editing) stash = chat.draft;
+		editing = key;
+		editingNote = index;
+		chat.draft = key === 'note' ? chat.notes[index].text : chat[key];
+		want = 'composer';
 		if (status === 'invalid') status = '';
+	}
+
+	function cancel() {
+		editing = '';
+		chat.draft = stash;
+		want = 'composer';
 	}
 
 	/** @param {string} label */
 	function choose(label) {
 		engaged = true;
 		chat.topic = label;
-		if (chat.step === 'topic') chat.step = 'body';
+		if (chat.step !== 'topic') return;
+		chat.step = 'body';
+		if (!editing) chat.draft = '';
+		want = 'composer';
+		reveal();
 	}
 
-	/** In the message, Enter starts a new line and ⌘ or Ctrl + Enter sends it. @param {KeyboardEvent & { currentTarget: HTMLTextAreaElement }} event */
-	function sendOnModEnter(event) {
-		if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey) || event.isComposing) return;
+	/** @param {KeyboardEvent & { currentTarget: HTMLInputElement | HTMLTextAreaElement }} event */
+	function keydown(event) {
+		if (event.key === 'Escape' && editing) {
+			event.preventDefault();
+			cancel();
+			return;
+		}
+		// Shift+Enter starts a new line in a message; Enter with a finger does too (the arrow sends).
+		if (event.key !== 'Enter' || event.shiftKey || event.isComposing || !mouse.current) return;
 		event.preventDefault();
-		if (event.currentTarget.value.trim()) event.currentTarget.form?.requestSubmit();
+		event.currentTarget.form?.requestSubmit();
 	}
 
 	/**
@@ -125,8 +206,8 @@
 	async function send() {
 		status = 'sending';
 		const data = new FormData();
-		data.set('email', chat.email.trim());
-		data.set('subject', `${chat.topic}, from ${chat.name.trim()}`);
+		data.set('email', chat.email);
+		data.set('subject', `${chat.topic}, from ${chat.name}`);
 		data.set('body', letter);
 		data.set('website', chat.website);
 		try {
@@ -135,16 +216,19 @@
 			if (response.status === 400) {
 				status = 'invalid';
 				reason = result.error ?? 'Something’s off. Check what you wrote and try again.';
-				return;
+			} else if (!response.ok) {
+				throw new Error(result.error);
+			} else {
+				status = '';
+				chat.step = 'sent';
+				want = 'sent';
+				window.posthog.capture?.('contact_form_submitted');
 			}
-			if (!response.ok) throw new Error(result.error);
-			status = '';
-			chat.step = 'sent';
-			window.posthog.capture?.('contact_form_submitted');
 		} catch {
 			status = 'failed';
 			window.posthog.capture?.('contact_form_failed');
 		}
+		reveal();
 	}
 
 	/** @param {string} text @param {'email' | 'letter'} which */
@@ -163,10 +247,17 @@
 	/** @param {'start' | 'end'} at */
 	const called = (at) => window.posthog.capture?.('contact_call_clicked', { at });
 
-	/** A new reply field (or line) takes the cursor once the visitor is talking, never on arrival. */
-	const focus = (/** @type {HTMLElement} */ node) => {
-		if (engaged) node.focus();
-	};
+	/** Takes the cursor without jumping the page: `reveal` does the scrolling. */
+	const focus = (/** @type {HTMLElement} */ node) => node.focus({ preventScroll: true });
+
+	/** The message field grows with what is written, up to its max-height, however the draft changes. */
+	function grow(/** @type {HTMLTextAreaElement} */ node) {
+		chat.draft;
+		queueMicrotask(() => {
+			node.style.height = 'auto';
+			node.style.height = `${node.scrollHeight + 2}px`;
+		});
+	}
 
 	/** Gordon's lines rise in one after another when a reply brings them, not when the tab opens. */
 	function arrive(/** @type {HTMLElement} */ node) {
@@ -191,225 +282,226 @@
 	/>
 </svelte:head>
 
-<!-- An answer the visitor can tap to change, until it is sent. -->
-{#snippet said(/** @type {'name' | 'body' | 'email'} */ step, /** @type {string} */ text)}
+<!-- An answer the visitor can tap to change in the composer, until it is sent. -->
+{#snippet said(/** @type {Field} */ key, /** @type {string} */ text, index = -1)}
 	<button
-		class="you bubble"
+		class={['you', 'bubble', { changing: editing === key && editingNote === index }]}
 		type="button"
 		disabled={sent || status === 'sending'}
-		onclick={() => edit(step)}
-		{@attach edited === step ? focus : null}
+		onclick={() => edit(key, index)}
 	>
-		<span class="sr-only">You:{' '}</span>{text.trim()}<span class="sr-only">. Change it</span>
+		<span class="sr-only">You:{' '}</span>{text}<span class="sr-only">. Change it</span>
 	</button>
 {/snippet}
 
 <div class="contact">
-	<div class="chat" role="log" aria-label="Chat with Gordon">
-		<div class="gordon">
-			<p class="line"><span class="sr-only">Gordon:{' '}</span>Hey! I’m Gordon.</p>
-			<p class="line">
-				Got a project in mind, a question, or just want to say hi? Tell me here. It goes straight to my
-				inbox, and I read every one myself.
-			</p>
-			<p class="line" id="ask-name">First, what should I call you?</p>
-			<p class="line no-script">JavaScript’s off, so this chat can’t run. Email me instead!</p>
-		</div>
-
-		{#if chat.step === 'name' || editing === 'name'}
-			<form class="you reply" onsubmit={(event) => reply(event, 'name')}>
-				<input
-					bind:value={chat.name}
-					name="name"
-					autocomplete="name"
-					maxlength="80"
-					placeholder="Your name"
-					aria-labelledby="ask-name"
-					disabled={!live}
-					{@attach focus}
-				/>
-				<button class="go" aria-label="Reply" disabled={!live || !chat.name.trim()}>
-					<ArrowUpIcon size="1.25em" aria-hidden="true" />
-				</button>
-			</form>
-		{:else}
-			{@render said('name', chat.name)}
-		{/if}
-
-		{#if reached('topic')}
-			<div class="gordon" {@attach arrive}>
-				<p class="line"><span class="sr-only">Gordon:{' '}</span>Nice to meet you, {chat.name.trim()}!</p>
-				<p class="line" id="ask-topic">So, what are you working on?</p>
-				<div class="choices" role="group" aria-labelledby="ask-topic">
-					{#each topics as { label }, i (label)}
-						<button
-							class="choice text-copy-14"
-							type="button"
-							aria-pressed={chat.topic === label}
-							disabled={sent}
-							onclick={() => choose(label)}
-							{@attach i === 0 && !chat.topic ? focus : null}
-						>
-							{label}{#if chat.topic === label}<span class="tick" aria-hidden="true">✓</span>{/if}
-						</button>
-					{/each}
-				</div>
+	<section class="thread" aria-label="Chat with Gordon" bind:this={thread}>
+		<div class="chat" role="log" bind:this={log}>
+			<div class="gordon">
+				<p class="line"><span class="sr-only">Gordon:{' '}</span>Hey! I’m Gordon.</p>
 				<p class="line">
-					Too much to type? Let’s just talk.
-					<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('start')}
-						>Book a 30-min call ↗</a
-					>
+					Got a project in mind, a question, or just want to say hi? Tell me here. It goes straight to
+					my inbox, and I read every one myself.
 				</p>
-			</div>
-		{/if}
-
-		{#if chat.topic}
-			<p class="you bubble"><span class="sr-only">You:{' '}</span>{chat.topic}</p>
-		{/if}
-
-		{#if reached('body')}
-			<div class="gordon" {@attach arrive}>
-				<p class="line" id="ask-body"><span class="sr-only">Gordon:{' '}</span>{ask}</p>
-				{#if chat.topic !== 'Something else'}
-					<p class="line">Got a deadline or a budget? Toss those in too.</p>
-				{/if}
+				<p class="line" id="ask-name">First, what should I call you?</p>
+				<p class="line no-script">JavaScript’s off, so this chat can’t run. Email me instead!</p>
 			</div>
 
-			{#if chat.step === 'body' || editing === 'body'}
-				<form class="you reply" onsubmit={(event) => reply(event, 'body')}>
-					<textarea
-						bind:value={chat.body}
-						name="body"
-						rows="4"
-						maxlength="8000"
-						placeholder="Type away…"
-						aria-labelledby="ask-body"
-						onkeydown={sendOnModEnter}
-						{@attach focus}
-					></textarea>
-					<button class="go" aria-label="Reply" disabled={!chat.body.trim()}>
-						<ArrowUpIcon size="1.25em" aria-hidden="true" />
-					</button>
-				</form>
-			{:else}
-				{@render said('body', chat.body)}
-			{/if}
-		{/if}
-
-		{#if reached('email')}
-			<div class="gordon" {@attach arrive}>
-				<p class="line" id="ask-email"><span class="sr-only">Gordon:{' '}</span>Got it. Where should I write back?</p>
-			</div>
-
-			{#if chat.step === 'email' || editing === 'email'}
-				<form class="you reply" onsubmit={(event) => reply(event, 'email')}>
-					<!-- The same rule as the server's: one address, with a dot after the @. -->
-					<input
-						bind:value={chat.email}
-						name="email"
-						type="email"
-						autocomplete="email"
-						maxlength="254"
-						pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
-						placeholder="you@example.com"
-						aria-labelledby="ask-email"
-						{@attach focus}
-					/>
-					<button class="go" aria-label="Reply" disabled={!chat.email.trim()}>
-						<ArrowUpIcon size="1.25em" aria-hidden="true" />
-					</button>
-				</form>
-			{:else}
-				{@render said('email', chat.email)}
-			{/if}
-		{/if}
-
-		{#if reached('review')}
-			<div class="gordon" {@attach arrive}>
-				<p class="line" tabindex="-1" {@attach focus}>
-					<span class="sr-only">Gordon:{' '}</span>Here’s what I’ll get. Want to change something? Just tap it.
-				</p>
-				<div class="letter">
-					<dl>
-						<div>
-							<dt class="text-eyebrow">From</dt>
-							<dd>{chat.name.trim()} · {chat.email.trim()}</dd>
-						</div>
-						<div>
-							<dt class="text-eyebrow">About</dt>
-							<dd>{chat.topic}</dd>
-						</div>
-					</dl>
-					<p class="body">{chat.body.trim()}</p>
-					{#if sent ? chat.note.trim() : adding || chat.note}
-						<label class="ps">
-							<span class="text-eyebrow">P.S.</span>
-							{#if sent}
-								<span class="body">{chat.note.trim()}</span>
-							{:else}
-								<textarea
-									bind:value={chat.note}
-									name="note"
-									rows="2"
-									maxlength="1000"
-									placeholder="A link, a deadline, anything else"
-									{@attach focus}
-								></textarea>
-							{/if}
-						</label>
-					{/if}
-				</div>
-				{#if !sent}
-					<div class="actions">
-						<button class="button filled text-copy-14" type="button" disabled={status === 'sending'} onclick={send}>
-							{status === 'sending' ? 'Sending…' : status === 'failed' ? 'Try again' : 'Send it'}
-						</button>
-						{#if !adding && !chat.note}
+			{#if reached('topic')}
+				{@render said('name', chat.name)}
+				<div class="gordon" {@attach arrive}>
+					<p class="line"><span class="sr-only">Gordon:{' '}</span>Nice to meet you, {chat.name}!</p>
+					<p class="line" id="ask-topic">So, what are you working on?</p>
+					<div class="choices" role="group" aria-labelledby="ask-topic">
+						{#each topics as { label } (label)}
 							<button
-								class="button ghost text-copy-14"
+								class="choice text-copy-14"
 								type="button"
-								onclick={() => {
-									engaged = true;
-									adding = true;
-								}}>Add a P.S.</button
+								aria-pressed={chat.topic === label}
+								disabled={sent}
+								onclick={() => choose(label)}
 							>
-						{/if}
+								{label}{#if chat.topic === label}<span aria-hidden="true">✓</span>{/if}
+							</button>
+						{/each}
 					</div>
-				{/if}
-			</div>
-
-			{#if status === 'invalid'}
-				<div class="gordon" {@attach arrive}>
-					<p class="line"><span class="sr-only">Gordon:{' '}</span>{reason}</p>
-				</div>
-			{:else if status === 'failed'}
-				<div class="gordon" {@attach arrive}>
-					<p class="line"><span class="sr-only">Gordon:{' '}</span>Hmm, that didn’t go through. Sorry about that!</p>
 					<p class="line">
-						Try again? Or copy your message and email it to me at {EMAIL}.
-						<button class="copy text-copy-14" type="button" onclick={() => copy(letter, 'letter')}>
-							{copied === 'letter' ? 'Copied' : 'Copy message'}
-						</button>
+						Too much to type? Let’s just talk.
+						<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('start')}
+							>Book a 30-min call ↗</a
+						>
 					</p>
 				</div>
 			{/if}
-		{/if}
 
-		{#if sent}
-			<div class="gordon" {@attach arrive}>
-				<p class="line" tabindex="-1" {@attach focus}>
-					<span class="sr-only">Gordon:{' '}</span><span class="check" aria-hidden="true">✓</span> Sent!
+			{#if reached('body')}
+				{@render said('topic', chat.topic)}
+				<div class="gordon" {@attach arrive}>
+					<p class="line" id="ask-body"><span class="sr-only">Gordon:{' '}</span>{ask}</p>
+					{#if chat.topic !== 'Something else'}
+						<p class="line">Got a deadline or a budget? Toss those in too.</p>
+					{/if}
+				</div>
+			{/if}
+
+			{#if reached('email')}
+				{@render said('body', chat.body)}
+				<div class="gordon" {@attach arrive}>
+					<p class="line" id="ask-email">
+						<span class="sr-only">Gordon:{' '}</span>Got it. Where should I write back?
+					</p>
+				</div>
+			{/if}
+
+			{#if reached('review')}
+				{@render said('email', chat.email)}
+				<div class="gordon" {@attach arrive}>
+					<p class="line" id="ask-note" tabindex="-1" {@attach want === 'review' ? focus : null}>
+						<span class="sr-only">Gordon:{' '}</span>Here’s what I’ll get. Want to change something? Just tap it.
+					</p>
+					<div class="letter">
+						<dl>
+							<div>
+								<dt class="text-eyebrow">From</dt>
+								<dd>{chat.name} · {chat.email}</dd>
+							</div>
+							<div>
+								<dt class="text-eyebrow">About</dt>
+								<dd>{chat.topic}</dd>
+							</div>
+						</dl>
+						<p class="body">{chat.body}</p>
+						{#if chat.notes.length}
+							<div class="ps">
+								<span class="text-eyebrow">P.S.</span>
+								<p class="body">{ps}</p>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				{#each chat.notes as note (note.id)}
+					{@render said('note', note.text, note.id)}
+				{/each}
+				{#if chat.notes.length}
+					<div class="gordon" {@attach arrive}>
+						<p class="line"><span class="sr-only">Gordon:{' '}</span>Got it, I’ll add that as a P.S.</p>
+					</div>
+				{/if}
+
+				{#if status === 'invalid'}
+					<div class="gordon" {@attach arrive}>
+						<p class="line"><span class="sr-only">Gordon:{' '}</span>{reason}</p>
+					</div>
+				{:else if status === 'failed'}
+					<div class="gordon" {@attach arrive}>
+						<p class="line"><span class="sr-only">Gordon:{' '}</span>Hmm, that didn’t go through. Sorry about that!</p>
+						<p class="line">
+							Try again? Or copy your message and email it to me at {EMAIL}.
+							<button class="copy text-copy-14" type="button" onclick={() => copy(letter, 'letter')}>
+								{copied === 'letter' ? 'Copied' : 'Copy message'}
+							</button>
+						</p>
+					</div>
+				{/if}
+
+				<!-- The one send, under Gordon's latest line, as Muse puts its actions in the conversation. -->
+				{#if !sent}
+					<div class="actions">
+						<button
+							class="button text-copy-14"
+							type="button"
+							disabled={status === 'sending' || !!editing}
+							onclick={send}
+						>
+							{status === 'sending' ? 'Sending…' : status === 'failed' ? 'Try again' : 'Send it'}
+						</button>
+					</div>
+				{/if}
+			{/if}
+
+			{#if sent}
+				<div class="gordon" {@attach arrive}>
+					<p class="line" id="ask-sent" tabindex="-1" {@attach want === 'sent' ? focus : null}>
+						<span class="sr-only">Gordon:{' '}</span><span class="check" aria-hidden="true">✓</span> Sent!
+					</p>
+					<p class="line">
+						I’ll get back to you at {chat.email} soon. Usually within <span class="whitespace-nowrap">1–2 days</span>.
+					</p>
+					<p class="line">
+						Can’t wait?
+						<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('end')}
+							>Book a 30-min call ↗</a
+						>
+					</p>
+				</div>
+			{/if}
+		</div>
+
+		<!--
+			The composer: one field at the foot of the chat, as in Muse, for whatever Gordon is asking,
+			an answer tapped to change, or a P.S. It stays on screen while the conversation scrolls.
+		-->
+		<form class="composer" onsubmit={submit} bind:this={composer}>
+			{#if editing}
+				<p class="editing text-copy-13">
+					Editing {fields[editing].called}
+					<button class="cancel" type="button" onclick={cancel}>Cancel</button>
 				</p>
-				<p class="line">I’ll get back to you at {chat.email.trim()} soon. Usually within <span class="whitespace-nowrap">1–2 days</span>.</p>
-				<p class="line">
-					Can’t wait?
-					<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('end')}
-						>Book a 30-min call ↗</a
-					>
-				</p>
+			{/if}
+			<div class="field">
+				{#key slot}
+					{#if mode === 'body' || mode === 'note'}
+						<textarea
+							bind:value={chat.draft}
+							name={mode}
+							rows="1"
+							maxlength={fields[mode].max}
+							placeholder={fields[mode].hint}
+							aria-labelledby={editing ? undefined : `ask-${mode}`}
+							aria-label={editing ? `Change ${fields[mode].called}` : undefined}
+							onkeydown={keydown}
+							{@attach grow}
+							{@attach want === 'composer' ? focus : null}
+						></textarea>
+					{:else if mode === 'email'}
+						<!-- The same rule as the server's: one address, with a dot after the @. -->
+						<input
+							bind:value={chat.draft}
+							name="email"
+							type="email"
+							autocomplete="email"
+							enterkeyhint="send"
+							maxlength={fields.email.max}
+							pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
+							placeholder={fields.email.hint}
+							aria-labelledby={editing ? undefined : 'ask-email'}
+							aria-label={editing ? `Change ${fields.email.called}` : undefined}
+							onkeydown={keydown}
+							{@attach want === 'composer' ? focus : null}
+						/>
+					{:else}
+						<input
+							bind:value={chat.draft}
+							name={mode}
+							autocomplete={mode === 'name' ? 'name' : 'off'}
+							enterkeyhint="send"
+							maxlength={mode === 'sent' ? undefined : fields[mode].max}
+							placeholder={mode === 'sent' ? 'Sent. Talk soon!' : fields[mode].hint}
+							aria-labelledby={editing ? undefined : `ask-${mode}`}
+							aria-label={editing && mode !== 'sent' ? `Change ${fields[mode].called}` : undefined}
+							disabled={!live || sent}
+							onkeydown={keydown}
+							{@attach want === 'composer' ? focus : null}
+						/>
+					{/if}
+				{/key}
+				<button class="go" aria-label="Send" disabled={!live || sent || !chat.draft.trim()}>
+					<ArrowUpIcon size="1.25em" aria-hidden="true" />
+				</button>
 			</div>
-		{/if}
-	</div>
+		</form>
+	</section>
 
 	<!-- A trap for bots, which fill in every field: hidden from people and screen readers. -->
 	<div class="trap" aria-hidden="true">
@@ -442,9 +534,20 @@
 	 * left, in the panel's grey; the visitor's are the grey wash, on the right, in ink. Both sides are
 	 * boxed and square, and nothing types, pulses or waits: it is a letter, asked one question at a time.
 	 */
+
+	/* At least a screen tall, so the composer starts at the foot of the window, as a chat app's does. */
+	.thread {
+		display: flex;
+		flex-direction: column;
+		min-height: 100svh;
+	}
+
 	.chat {
 		display: grid;
+		flex: 1;
+		align-content: start;
 		gap: var(--spacing-16);
+		padding-bottom: var(--spacing-24);
 	}
 
 	.gordon {
@@ -467,7 +570,7 @@
 		background: var(--color-pure-white);
 	}
 
-	/* Its focus only brings it into view and tells a screen reader where the chat went. */
+	/* Its focus only tells a screen reader where the chat went. */
 	.line:focus {
 		outline: none;
 	}
@@ -476,7 +579,7 @@
 		justify-self: end;
 	}
 
-	/* The visitor's words keep their line breaks. Their answers are buttons, to tap and change. */
+	/* The visitor's words keep their line breaks. Each is a button, to tap and change. */
 	.bubble {
 		margin: 0;
 		border: 0;
@@ -484,21 +587,25 @@
 		color: var(--color-obsidian);
 		text-align: start;
 		white-space: pre-wrap;
-	}
-
-	button.bubble {
 		cursor: pointer;
-		transition: background 160ms var(--ease-out);
+		transition:
+			background 160ms var(--ease-out),
+			box-shadow 160ms var(--ease-out);
 	}
 
 	@media (hover: hover) {
-		button.bubble:hover:not(:disabled) {
+		.bubble:hover:not(:disabled) {
 			background: var(--color-gray-alpha-200);
 		}
 	}
 
-	button.bubble:disabled {
+	.bubble:disabled {
 		cursor: default;
+	}
+
+	/* The answer open in the composer, ringed in ink like a chosen topic. */
+	.changing {
+		box-shadow: inset 0 0 0 1px var(--color-obsidian);
 	}
 
 	.no-script {
@@ -517,74 +624,6 @@
 
 	a:hover {
 		text-decoration-color: var(--color-obsidian);
-	}
-
-	/* A reply field where the visitor's next line will go, with its send button joined on. */
-	.reply {
-		display: flex;
-		align-items: flex-end;
-		width: 85%;
-	}
-
-	input,
-	textarea {
-		flex: 1;
-		min-width: 0;
-		margin: 0;
-		padding: var(--spacing-12);
-		border: 1px solid var(--color-hairline);
-		border-radius: 0;
-		background: var(--color-pure-white);
-		color: var(--color-obsidian);
-		transition: border-color 160ms var(--ease-out);
-	}
-
-	@media (hover: hover) {
-		input:hover:not(:disabled),
-		textarea:hover {
-			border-color: var(--color-ash);
-		}
-	}
-
-	/* The message grows with what is written, up to about fifteen lines. */
-	textarea {
-		min-height: 7.5rem;
-		max-height: 24rem;
-		resize: vertical;
-		field-sizing: content;
-	}
-
-	::placeholder {
-		color: var(--color-slate);
-		opacity: 1;
-	}
-
-	/* The send arrow: the filled button, as tall as a one-line field. */
-	.go {
-		display: grid;
-		flex: none;
-		place-items: center;
-		width: 3.125rem;
-		height: 3.125rem;
-		border: 0;
-		border-radius: 0;
-		background: var(--color-obsidian);
-		color: var(--color-pure-white);
-		cursor: pointer;
-		transition:
-			background 160ms var(--ease-out),
-			opacity 160ms var(--ease-out);
-	}
-
-	@media (hover: hover) {
-		.go:hover:not(:disabled) {
-			background: var(--color-charcoal);
-		}
-	}
-
-	.go:disabled {
-		cursor: default;
-		opacity: 0.2;
 	}
 
 	/* Answers to tap, as Muse offers them: ghost buttons, the chosen one ringed in ink and ticked. */
@@ -680,58 +719,136 @@
 		color: var(--color-stone);
 	}
 
-	.ps textarea {
-		min-height: 4.5rem;
-	}
-
 	.actions {
 		display: flex;
-		flex-wrap: wrap;
-		gap: var(--spacing-8);
-		margin-top: var(--spacing-4);
+		margin-top: calc(-1 * var(--spacing-8));
 	}
 
-	/* The filled button (the one primary action) and a ghost beside it: square, 44px tall. */
+	/* The filled button: the one primary action, square, 44px tall. */
 	.button {
 		padding: var(--spacing-12) var(--spacing-20);
 		border: 0;
 		border-radius: 0;
-		cursor: pointer;
-		transition:
-			background 160ms var(--ease-out),
-			color 160ms var(--ease-out);
-	}
-
-	.filled {
 		background: var(--color-obsidian);
 		color: var(--color-pure-white);
-	}
-
-	.ghost {
-		background: var(--color-pure-white);
-		box-shadow: inset 0 0 0 1px var(--color-hairline);
-		color: var(--color-charcoal);
+		cursor: pointer;
+		transition: background 160ms var(--ease-out);
 	}
 
 	@media (hover: hover) {
-		.filled:hover:not(:disabled) {
+		.button:hover:not(:disabled) {
 			background: var(--color-charcoal);
-		}
-
-		.ghost:hover {
-			background: var(--color-gray-alpha-100);
-			color: var(--color-obsidian);
 		}
 	}
 
 	.button:disabled {
-		cursor: progress;
+		cursor: default;
 		opacity: 0.55;
 	}
 
 	/* Vercel keeps its one colour for confirmations, with the tick as its non-colour cue. */
 	.check {
 		color: var(--color-terminal-green);
+	}
+
+	/*
+	 * The composer stays at the foot of the window while the chat scrolls behind it, on white so the
+	 * lines pass under cleanly, and settles at the end of the chat once the page scrolls past it.
+	 */
+	.composer {
+		position: sticky;
+		bottom: 0;
+		padding: var(--spacing-12) 0 max(var(--spacing-16), env(safe-area-inset-bottom));
+		background: var(--color-pure-white);
+	}
+
+	.editing {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: var(--spacing-8);
+		color: var(--color-stone);
+	}
+
+	/* A text button, grey until pointed at, its target grown to 44px without moving the line. */
+	.cancel {
+		margin: -0.75rem 0;
+		padding: 0.75rem 0;
+		border: 0;
+		background: none;
+		color: var(--color-stone);
+		cursor: pointer;
+		transition: color 160ms var(--ease-out);
+	}
+
+	@media (hover: hover) {
+		.cancel:hover {
+			color: var(--color-obsidian);
+		}
+	}
+
+	.field {
+		display: flex;
+		align-items: flex-end;
+	}
+
+	input,
+	textarea {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+		padding: var(--spacing-12);
+		border: 1px solid var(--color-hairline);
+		border-radius: 0;
+		background: var(--color-pure-white);
+		color: var(--color-obsidian);
+		transition: border-color 160ms var(--ease-out);
+	}
+
+	@media (hover: hover) {
+		input:hover:not(:disabled),
+		textarea:hover {
+			border-color: var(--color-ash);
+		}
+	}
+
+	/* One line to start; `grow` fits it to what is written, up to about eight lines. */
+	textarea {
+		max-height: 13.5rem;
+		resize: none;
+	}
+
+	::placeholder {
+		color: var(--color-slate);
+		opacity: 1;
+	}
+
+	/* The send arrow: the filled button, as tall as a one-line field. */
+	.go {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 3.125rem;
+		height: 3.125rem;
+		border: 0;
+		border-radius: 0;
+		background: var(--color-obsidian);
+		color: var(--color-pure-white);
+		cursor: pointer;
+		transition:
+			background 160ms var(--ease-out),
+			opacity 160ms var(--ease-out);
+	}
+
+	@media (hover: hover) {
+		.go:hover:not(:disabled) {
+			background: var(--color-charcoal);
+		}
+	}
+
+	.go:disabled {
+		cursor: default;
+		opacity: 0.2;
 	}
 
 	/* Off the page rather than display: none, which some bots know to skip. */
@@ -793,9 +910,10 @@
 	}
 
 	.choice:active:not(:disabled),
-	button.bubble:active:not(:disabled),
+	.bubble:active:not(:disabled),
 	.go:active:not(:disabled),
-	.button:active,
+	.button:active:not(:disabled),
+	.cancel:active,
 	.copy:active,
 	a:active {
 		opacity: 0.55;
@@ -815,20 +933,13 @@
 		color: var(--color-charcoal);
 	}
 
-	/* On a phone the visitor's side takes the whole width to type in. */
-	@media (max-width: 30em) {
-		.reply {
-			width: 100%;
-		}
-	}
-
 	/* Without script the chat cannot run: Gordon says so, and his address sits below. */
 	@media (scripting: none) {
 		.no-script {
 			display: block;
 		}
 
-		.reply {
+		.composer {
 			display: none;
 		}
 	}
