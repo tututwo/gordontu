@@ -81,12 +81,8 @@
 	let copiedTimer;
 	/** Whether the visitor has said anything yet: only then do new lines move. */
 	let engaged = false;
-	/** @type {HTMLElement | undefined} */
-	let thread;
-	/** @type {HTMLElement | undefined} */
+	/** The chat's own scrolling list of lines. @type {HTMLElement | undefined} */
 	let log;
-	/** @type {HTMLElement | undefined} */
-	let composer;
 
 	const sent = $derived(chat.step === 'sent');
 	/** What the composer is for: a changed answer, the step's own, a P.S. once the letter shows, or nothing. */
@@ -108,6 +104,8 @@
 
 	onMount(() => {
 		live = true;
+		// A chat opens on its latest line, as a messaging app does.
+		if (log) log.scrollTop = log.scrollHeight;
 		return () => {
 			// A change left half done goes back to what was being typed; a sent chat starts afresh.
 			if (editing) chat.draft = stash;
@@ -115,16 +113,10 @@
 		};
 	});
 
-	/**
-	 * When the newest line lands under the composer, scrolls the chat's end to the window's foot, as a
-	 * chat app does: the line then sits just above the composer, which stays at the bottom.
-	 */
+	/** Scrolls the chat (never the page) down to its newest line, just above the composer. */
 	async function reveal() {
 		await tick();
-		const last = log?.lastElementChild;
-		if (!thread || !last || !composer) return;
-		if (last.getBoundingClientRect().bottom <= composer.getBoundingClientRect().top) return;
-		thread.scrollIntoView({ block: 'end', behavior: prefersReducedMotion.current ? 'auto' : 'smooth' });
+		log?.scrollTo({ top: log.scrollHeight, behavior: prefersReducedMotion.current ? 'auto' : 'smooth' });
 	}
 
 	/**
@@ -250,12 +242,17 @@
 	/** Takes the cursor without jumping the page: `reveal` does the scrolling. */
 	const focus = (/** @type {HTMLElement} */ node) => node.focus({ preventScroll: true });
 
-	/** The message field grows with what is written, up to its max-height, however the draft changes. */
+	/**
+	 * The message field grows with what is written, up to its max-height, however the draft changes;
+	 * a chat read to its end stays at its end as the field takes room from it.
+	 */
 	function grow(/** @type {HTMLTextAreaElement} */ node) {
 		chat.draft;
 		queueMicrotask(() => {
+			const atEnd = !log || log.scrollHeight - log.scrollTop - log.clientHeight < 8;
 			node.style.height = 'auto';
-			node.style.height = `${node.scrollHeight + 2}px`;
+			node.style.height = `${node.scrollHeight}px`;
+			if (log && atEnd) log.scrollTop = log.scrollHeight;
 		});
 	}
 
@@ -295,8 +292,11 @@
 {/snippet}
 
 <div class="contact">
-	<section class="thread" aria-label="Chat with Gordon" bind:this={thread}>
-		<div class="chat" role="log" bind:this={log}>
+	<!-- A chat window: its lines scroll inside it, and the page scrolls on around it as ever. -->
+	<section class="window" aria-label="Chat with Gordon">
+		<!-- Focusable, so a keyboard can scroll it too. -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<div class="chat" role="log" tabindex="0" bind:this={log}>
 			<div class="gordon">
 				<p class="line"><span class="sr-only">Gordon:{' '}</span>Hey! I’m Gordon.</p>
 				<p class="line">
@@ -439,10 +439,10 @@
 		</div>
 
 		<!--
-			The composer: one field at the foot of the chat, as in Muse, for whatever Gordon is asking,
-			an answer tapped to change, or a P.S. It stays on screen while the conversation scrolls.
+			The composer: one field at the foot of the window, as in Muse, for whatever Gordon is asking,
+			an answer tapped to change, or a P.S. It stays put while the lines scroll above it.
 		-->
-		<form class="composer" onsubmit={submit} bind:this={composer}>
+		<form class="composer" onsubmit={submit}>
 			{#if editing}
 				<p class="editing text-copy-13">
 					Editing {fields[editing].called}
@@ -535,11 +535,17 @@
 	 * boxed and square, and nothing types, pulses or waits: it is a letter, asked one question at a time.
 	 */
 
-	/* At least a screen tall, so the composer starts at the foot of the window, as a chat app's does. */
-	.thread {
+	/*
+	 * The chat window: a hairline box of its own height, whose lines scroll inside it while the page
+	 * scrolls on around it. Sized from the headline above it (about 30.5rem to here), so on most
+	 * screens it fits under the headline whole, composer and all.
+	 */
+	.window {
 		display: flex;
 		flex-direction: column;
-		min-height: 100svh;
+		height: clamp(20rem, 100svh - 30.5rem, 36rem);
+		border: 1px solid var(--color-hairline);
+		background: var(--color-pure-white);
 	}
 
 	.chat {
@@ -547,7 +553,16 @@
 		flex: 1;
 		align-content: start;
 		gap: var(--spacing-16);
-		padding-bottom: var(--spacing-24);
+		min-height: 0;
+		padding: var(--spacing-16);
+		overflow-y: auto;
+	}
+
+	/* Rings drawn inside the window, not past its edge. */
+	.chat:focus-visible,
+	input:focus-visible,
+	textarea:focus-visible {
+		outline-offset: -2px;
 	}
 
 	.gordon {
@@ -751,22 +766,16 @@
 		color: var(--color-terminal-green);
 	}
 
-	/*
-	 * The composer stays at the foot of the window while the chat scrolls behind it, on white so the
-	 * lines pass under cleanly, and settles at the end of the chat once the page scrolls past it.
-	 */
+	/* The composer: the window's foot, under a hairline, with the send arrow at its end. */
 	.composer {
-		position: sticky;
-		bottom: 0;
-		padding: var(--spacing-12) 0 max(var(--spacing-16), env(safe-area-inset-bottom));
-		background: var(--color-pure-white);
+		border-top: 1px solid var(--color-hairline);
 	}
 
 	.editing {
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		margin-bottom: var(--spacing-8);
+		padding: var(--spacing-8) var(--spacing-16) 0;
 		color: var(--color-stone);
 	}
 
@@ -792,24 +801,17 @@
 		align-items: flex-end;
 	}
 
+	/* The field is the bar itself: no box of its own, 48px tall for a line, like the arrow. */
 	input,
 	textarea {
 		flex: 1;
 		min-width: 0;
 		margin: 0;
-		padding: var(--spacing-12);
-		border: 1px solid var(--color-hairline);
+		padding: var(--spacing-12) var(--spacing-16);
+		border: 0;
 		border-radius: 0;
 		background: var(--color-pure-white);
 		color: var(--color-obsidian);
-		transition: border-color 160ms var(--ease-out);
-	}
-
-	@media (hover: hover) {
-		input:hover:not(:disabled),
-		textarea:hover {
-			border-color: var(--color-ash);
-		}
 	}
 
 	/* One line to start; `grow` fits it to what is written, up to about eight lines. */
@@ -828,8 +830,8 @@
 		display: grid;
 		flex: none;
 		place-items: center;
-		width: 3.125rem;
-		height: 3.125rem;
+		width: 3rem;
+		height: 3rem;
 		border: 0;
 		border-radius: 0;
 		background: var(--color-obsidian);
@@ -857,10 +859,9 @@
 		left: -9999px;
 	}
 
+	/* Right under the window, the way round it: the address, then who Gordon has worked with. */
 	footer {
-		margin-top: var(--spacing-40);
-		padding-top: var(--spacing-24);
-		border-top: 1px solid var(--color-hairline);
+		margin-top: var(--spacing-16);
 	}
 
 	/* The address is plain words, in ink; the Copy button beside it is the thing to press. */
@@ -920,7 +921,7 @@
 	}
 
 	.worked-with {
-		margin-top: var(--spacing-24);
+		margin-top: var(--spacing-40);
 	}
 
 	.worked-with ul {
