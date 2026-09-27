@@ -4,8 +4,9 @@ import { Spring } from '../spring.js';
 import { lineGlsl, smoothstep } from './stage.js';
 
 /**
- * visual stories: a pop-up book. At rest a closed book lies cover-up. Lit, it opens almost flat on its
- * spine, and five cubes of different sizes push up through the gutter one after another, then drift
+ * visual stories: a pop-up book. At rest a closed book lies cover-up. Lit, it opens the way a book is
+ * closed, run backwards: closed, it stands up on its spine, then spreads into a V that opens out almost
+ * flat, and five cubes of different sizes push up through the gutter one after another, then drift
  * well above the spread, spread out in depth as well as along it, and melt into one another and
  * apart like metaballs, on a fixed
  * seven-second script so every in-between state reads. The cubes are raymarched (rounded boxes joined
@@ -23,11 +24,26 @@ import { lineGlsl, smoothstep } from './stage.js';
 const SPINE = 0.82;
 const HALF = 0.08;
 const WIDE = 0.66;
-/** Open this far, the halves have thinned to sheets. */
+/** Spread this far, the halves have thinned to sheets. */
 const SHEET = 0.6;
-/** Open, the top half turns over and the bottom half tilts back: a shallow, symmetric 152° V. */
+/**
+ * Each half's angle about the spine, from +z. Lying closed, both are at 180°: the book lies on the −z
+ * side of its spine, so standing up turns its cover towards the camera instead of edge-on past it.
+ * Stood up, both are upright; open, they have spread from there into a shallow, symmetric 152° V,
+ * the bottom half on over to 14° and the top one back to 166°.
+ */
+const FLAT = Math.PI;
+const UPRIGHT = Math.PI / 2;
 const TURN = (166 * Math.PI) / 180;
 const TILT = (14 * Math.PI) / 180;
+/**
+ * The V starts to spread once the book has stood up this far; closing, the book lies down once the V
+ * has shut this far, so it is seen shut and upright on the way down too.
+ */
+const STOOD = 0.9;
+const SHUT = 0.05;
+/** Standing up and spreading: stiffer than the link's own springs, as the two run one after the other (ζ ≈ 1). */
+const FOLD = { tension: 300, friction: 35 };
 
 /** Reference px per unit, closed and open (the open spread and its cubes stay inside the lit brackets). */
 const SCALE_CLOSED = 48;
@@ -237,10 +253,10 @@ export function createBookIcon(stage) {
 	const book = new Group();
 	stage.pivot.add(book);
 
-	// The spine runs along x through the origin at page level; both halves reach out towards +z, the
-	// bottom one below the page, the top one above it. Closed, their pages lie against each other and
-	// the two read as one; opening, each draws half the seam between them, and so do their spine ends,
-	// the gutter.
+	// The spine runs along x through the origin at page level; both halves are built reaching out
+	// towards +z, the bottom one below the page, the top one above it, and turned over to lie closed on
+	// the −z side, where they swap. Closed, their pages lie against each other and the two read as
+	// one; opening, each draws half the seam between them, and so do their spine ends, the gutter.
 	const looks = [stage.inked(), stage.inked()];
 	const [bottomGlued, topGlued] = looks.map((look) => /** @type {Vector3[]} */ (look.uniforms.uGlued.value));
 	const halves = looks.map((look) => stage.box([SPINE, HALF, WIDE], [0, 0, WIDE / 2], look));
@@ -265,30 +281,39 @@ export function createBookIcon(stage) {
 	const gooMesh = new Mesh(room, goo);
 	book.add(gooMesh);
 
-	const open = new Spring(0);
+	const stand = new Spring(0, FOLD);
+	const spread = new Spring(0, FOLD);
 	// A little overshoot as each cube pops up (ζ ≈ 0.55).
 	const lifts = CUBES.map(() => new Spring(0, { tension: 300, friction: 19 }));
+	const springs = [stand, spread, ...lifts];
 	let time = 0;
 	/** How long the spread has been half open, while lit. */
 	let opened = 0;
 
 	return {
 		frame(dt, { lit, reduced }) {
-			// The spread leads and the cubes rise with it in turn; closing waits for them to sink.
+			// The book stands up, then spreads, and the cubes rise from it in turn; closing, they sink
+			// first, then the V shuts, then the book lies down.
 			const showing = lifts.some((s) => s.value > 0.1);
-			const openGoal = lit || showing ? 1 : 0;
-			if (open.target !== openGoal) open.to(openGoal);
-			opened = lit && open.value > 0.5 ? opened + dt : 0;
+			// Unlit, a spring may only be held where it is going, never sent back: a spring coasting past
+			// a threshold after it has been turned round would otherwise flick the other one back and forth.
+			const spreadGoal = (lit && stand.value > STOOD) || (showing && spread.target === 1) ? 1 : 0;
+			const standGoal = lit || (spread.value > SHUT && stand.target === 1) ? 1 : 0;
+			if (spread.target !== spreadGoal) spread.to(spreadGoal);
+			if (stand.target !== standGoal) stand.to(standGoal);
+			const halfOpen = lit && spread.value > 0.5;
+			opened = halfOpen ? opened + dt : 0;
 			lifts.forEach((s, i) => {
-				const goal = lit && opened >= STAGGER * CUBES[i].order ? 1 : 0;
+				const goal = halfOpen && opened >= STAGGER * CUBES[i].order ? 1 : 0;
 				if (s.target !== goal) s.to(goal);
 			});
 			if (reduced) {
-				open.set(lit ? 1 : 0);
-				for (const s of lifts) s.set(lit ? 1 : 0);
+				for (const s of springs) s.set(lit ? 1 : 0);
+				// So that turning reduced motion off while lit doesn't sink cubes to stagger them in again.
+				opened = lit ? STAGGER * CUBES.length : 0;
 			}
-			let moving = open.advance(dt);
-			for (const s of lifts) moving = s.advance(dt) || moving;
+			let moving = false;
+			for (const s of springs) moving = s.advance(dt) || moving;
 
 			const risen = Math.max(0, ...lifts.map((s) => s.value));
 			// Reduced motion: one still frame, two pairs fused and one cube apart.
@@ -300,7 +325,8 @@ export function createBookIcon(stage) {
 			const amount = smoothstep(0, 0.4, t);
 			script.time(t % LOOP);
 
-			const p = Math.min(1, Math.max(0, open.value));
+			// Closed, the halves only stand up together; the seam opens and they thin to sheets as they spread.
+			const p = gsap.utils.clamp(0, 1, spread.value);
 			const thick = Math.max(1e-4, HALF * (1 - smoothstep(0, SHEET, p)));
 			halves.forEach((half, i) => {
 				half.scale.y = thick;
@@ -308,16 +334,25 @@ export function createBookIcon(stage) {
 			});
 			bottomGlued[0].z = topGlued[0].z = p;
 			bottomGlued[1].y = topGlued[0].y = 2 - smoothstep(0, 0.15, p);
-			top.rotation.x = -TURN * open.value;
-			bottom.rotation.x = -TILT * open.value;
+			// Both halves stand up together, then part into the V.
+			const up = FLAT - (FLAT - UPRIGHT) * stand.value;
+			const low = up - (UPRIGHT - TILT) * spread.value;
+			const high = up + (TURN - UPRIGHT) * spread.value;
+			bottom.rotation.x = -low;
+			top.rotation.x = -high;
 			// The page faces' normals into the air: the bottom half's top face and the top half's
 			// underside, turned with their halves (closed, they face each other and leave no air).
 			goo.uniforms.uPageBottom.value.set(0, Math.cos(bottom.rotation.x), Math.sin(bottom.rotation.x));
 			goo.uniforms.uPageTop.value.set(0, -Math.cos(top.rotation.x), -Math.sin(top.rotation.x));
 			stage.pivot.scale.setScalar(SCALE_CLOSED + (SCALE_OPEN - SCALE_CLOSED) * p);
-			// Keep it centred: closed it lies to one side of the spine, open it straddles it, and risen
-			// cubes add height.
-			book.position.set(0, -0.23 * risen, -(WIDE / 2) * (1 - p));
+			// Keep it centred on the middles of its halves: lying closed it is to one side of the spine,
+			// stood up above it, open it straddles it; and risen cubes add height.
+			const middle = WIDE / 4;
+			book.position.set(
+				0,
+				-middle * (Math.sin(low) + Math.sin(high)) - 0.15 * risen,
+				-middle * (Math.cos(low) + Math.cos(high))
+			);
 
 			CUBES.forEach((c, i) => {
 				const lift = lifts[i].value;
