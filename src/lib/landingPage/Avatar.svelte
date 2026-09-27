@@ -26,11 +26,12 @@
 	// The avatar in two layers, split from static/landing/avatar.png: the drawing without its glasses,
 	// and the glasses, which over it rebuild the drawing (and are small enough for Vite to inline, so
 	// they are never late onto the face). Once WebGL is in, a canvas draws the face instead, bending
-	// it into the poses drawn for it, looking up and looking down (see avatarMorph.js).
+	// it into the poses drawn for it, looking up, looking down and wondering (see avatarMorph.js).
 	import face from './face.png';
 	import glassesImage from './glasses.png';
 	import lookingDown from './looking-down.webp';
 	import lookingUp from './looking-up.webp';
+	import wonderingImage from './wondering.webp';
 
 	/**
 	 * Pressed, the glasses come off to here, in avatar sides from where they sit: up and away from the
@@ -130,21 +131,22 @@
 		length: Math.hypot(x1 - x0, y1 - y0) / (MARK.bottom - MARK.top)
 	}));
 	/**
-	 * Wondering, three question marks by the hair, bigger than the start and rising away from it, drawn
-	 * in the same line: each a hook and a dot, in the drawing's 134 px.
+	 * Wondering, three question marks beside his head, spread out as in the drawing of him wondering:
+	 * traced from wondering.png (and painted out of wondering.webp, with the glasses), each a hook and
+	 * a dot, in the drawing's 134 px, nearest the head first.
 	 */
 	const QUESTIONS = [
 		{
-			hook: 'M102.08 18.79C102.23 16.44 104.04 15.41 106.01 15.61C108.06 15.83 109.32 17.38 109.12 19.25C108.92 21.21 107.45 21.72 106.24 22.35C105.34 22.82 104.99 23.54 104.85 24.85',
-			dot: 'M104.44 28.77h0'
+			hook: 'M106.2 58.2C106.3 58.1 106.3 57.4 106.5 57.1C106.7 56.8 107 56.5 107.2 56.4C107.5 56.2 107.9 56.1 108.2 56.1C108.6 56.1 109 56.3 109.3 56.5C109.6 56.7 109.8 57 109.9 57.3C110 57.7 110 58.1 109.9 58.5C109.8 58.9 109.5 59.3 109.3 59.6C109.2 60 109 60.1 108.9 60.5C108.9 60.8 109 61.5 109 61.7',
+			dot: 'M109.7 64h0'
 		},
 		{
-			hook: 'M112.4 12.7C112.86 10.25 114.91 9.38 116.96 9.86C119.1 10.35 120.22 12.15 119.77 14.1C119.3 16.15 117.68 16.49 116.33 17C115.32 17.38 114.85 18.09 114.54 19.46',
-			dot: 'M113.59 23.55h0'
+			hook: 'M111.1 45.4C111.2 45.2 111.3 44.6 111.6 44.2C111.8 43.9 112.2 43.5 112.7 43.3C113.2 43 113.9 42.8 114.6 42.8C115.2 42.8 115.8 43 116.3 43.3C116.8 43.6 117.1 44.2 117.3 44.7C117.5 45.1 117.5 45.6 117.4 45.9C117.4 46.3 117.2 46.6 117 46.9C116.8 47.2 116.4 47.6 116 47.9C115.6 48.2 115.1 48.4 114.8 48.6C114.4 48.9 114.2 49 113.9 49.2C113.7 49.4 113.4 49.8 113.3 50C113.2 50.2 113.3 50.4 113.3 50.4',
+			dot: 'M112.6 53h0'
 		},
 		{
-			hook: 'M123.06 6.44C123.85 3.96 126.07 3.33 128.13 4.07C130.28 4.86 131.21 6.86 130.5 8.81C129.75 10.86 128.03 11.01 126.58 11.37C125.48 11.64 124.91 12.31 124.41 13.68',
-			dot: 'M122.91 17.78h0'
+			hook: 'M118.6 56.5C118.7 56.4 118.9 55.8 119.2 55.6C119.6 55.3 120.4 54.9 121 54.8C121.5 54.8 122 54.9 122.4 55.2C122.8 55.4 123.2 55.9 123.4 56.3C123.5 56.7 123.5 57.2 123.3 57.6C123.2 58 123 58.4 122.6 58.7C122.3 59 121.7 59.3 121.3 59.6C120.8 59.8 120.1 60.1 119.7 60.4C119.3 60.7 119.1 61.1 119 61.3C118.8 61.6 118.8 61.9 118.8 62',
+			dot: 'M117.7 64.5h0'
 		}
 	];
 	/**
@@ -158,16 +160,26 @@
 	let morph = $state.raw(/** @type {ReturnType<typeof import('./avatarMorph.js').createMorph> | null} */ (null));
 	/** The canvas's side, in CSS px. */
 	let size = $state(0);
-	const pose = $derived({ up: Math.max(0, -pitch.current), down: Math.max(0, pitch.current), turn: look * TURN });
+	/** Wondering at the scrambled afterword: three question marks beside his head while he tips it forward to look. */
+	let wondering = $state(false);
+	/** How far his head has tipped forward to wonder, 0–1; unhurried, like `pitch`. */
+	const tip = Spring.of(() => +wondering, { stiffness: 0.08, damping: 0.6 });
+	const pose = $derived({
+		up: Math.max(0, -pitch.current),
+		down: Math.max(0, pitch.current),
+		wonder: prefersReducedMotion.current ? +wondering : tip.current,
+		turn: look * TURN
+	});
 	// Worn, the glasses go where the face takes them; taken off, they leave the face's pose behind.
 	const worn = $derived(
-		morph?.glasses({ up: pose.up * (1 - off), down: pose.down * (1 - off), turn: 0 }, [BRIDGE[0] / 134, BRIDGE[1] / 134]) ?? ''
+		morph?.glasses(
+			{ up: pose.up * (1 - off), down: pose.down * (1 - off), wonder: pose.wonder * (1 - off), turn: 0 },
+			[BRIDGE[0] / 134, BRIDGE[1] / 134]
+		) ?? ''
 	);
 
 	/** The glasses held right below him (see `ALARM`). */
 	let alarmed = $state(false);
-	/** Wondering at the scrambled afterword: three question marks by the hair while he glances at it. */
-	let wondering = $state(false);
 
 	$effect(() => morph?.draw(pose, Math.round(size * (devicePixelRatio.current ?? 1))));
 
@@ -183,7 +195,7 @@
 			image.src = src;
 			return image.decode().then(() => image);
 		};
-		Promise.all([import('./avatarMorph.js'), load(face), load(lookingUp), load(lookingDown)])
+		Promise.all([import('./avatarMorph.js'), load(face), load(lookingUp), load(lookingDown), load(wonderingImage)])
 			.then(([{ createMorph }, ...images]) => {
 				if (!gone) morph = createMorph(canvas, images, () => ((morph = null), pitch.set(0, { instant: true })));
 			})
@@ -273,18 +285,16 @@
 	let glance;
 
 	/**
-	 * For anyone curious about the scrambled afterword (a pointer over it, or a tap): he glances down at
-	 * it, wondering (three question marks by the hair), then looks up again. Taking hold of the glasses
-	 * cuts it short.
+	 * For anyone curious about the scrambled afterword (a pointer over it, or a tap): he tips his head
+	 * forward a little to look, wondering (three question marks beside it), then looks up again. Taking
+	 * hold of the glasses cuts it short.
 	 */
 	function wonder() {
 		if (grab || glance?.isActive()) return;
-		const still = { instant: prefersReducedMotion.current };
 		glance = gsap
 			.timeline()
-			// Without the poses (no WebGL yet, or none) the head cannot look down, and the marks stay put.
-			.call(() => (morph && pitch.set(1, still), (wondering = true)))
-			.call(() => (pitch.set(0, still), (wondering = false)), [], 1.4);
+			.call(() => (wondering = true))
+			.call(() => (wondering = false), [], 1.4);
 	}
 
 	onMount(() => {
@@ -380,11 +390,7 @@
 			</g>
 		{/each}
 	</svg>
-	<svg
-		class={['wonder', { wondering }]}
-		viewBox="0 0 134 134"
-		style:transform="translate({pose.down * STARTLED_DOWN.x * 100}%, {pose.down * STARTLED_DOWN.y * 100}%)"
-	>
+	<svg class={['wonder', { wondering }]} viewBox="0 0 134 134">
 		{#each QUESTIONS as { hook, dot }, i (dot)}
 			<g style:--i={i}><path d={hook} /><path class="point" d={dot} /></g>
 		{/each}
@@ -524,12 +530,13 @@
 		transition-delay: calc(var(--i) * 60ms + 160ms);
 	}
 
-	/* Wondering, the question marks pop up one after another, rising; they go all at once. */
+	/* Wondering, the question marks pop up one after another, rising, in the drawing's own line; they
+	   go all at once. */
 	.wonder {
 		overflow: visible;
 		fill: none;
-		stroke: #000;
-		stroke-width: 1.7;
+		stroke: #42140a;
+		stroke-width: 1.15;
 		stroke-linecap: round;
 	}
 
@@ -544,13 +551,12 @@
 	}
 
 	.wonder .point {
-		stroke-width: 2.3;
+		stroke-width: 1.7;
 	}
 
-	/* Shown a third bigger than drawn: well above the start's size, next to a 20px headline. */
 	.wondering g {
 		opacity: 1;
-		transform: scale(1.35);
+		transform: none;
 		transition:
 			opacity 120ms var(--ease-out) calc(var(--i) * 110ms),
 			transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--i) * 110ms);

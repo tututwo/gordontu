@@ -1,39 +1,45 @@
 import mesh from './avatarMesh.json';
 
 /**
- * The avatar's head, drawn by WebGL as one mesh over three drawings: as it is, looking up and
- * looking down. The mesh's vertices are landmarks found in all three (the hair's outline and its
- * notches, brows, eyes, mouth, ears, jaw, collar, shoulders; the frame's edge stays put), in
- * avatarMesh.json as fractions of the drawing's side. Each vertex sits between where its landmark
- * is at rest and where it is in the pose the head is turning to, and every drawing is sampled
- * where that landmark is in it, so each is bent into the shape of the moment and they cross over
- * there: the head tilts rather than fades. `turn` slides the face's features sideways, as the head
- * turns to follow the glasses.
+ * The avatar's head, drawn by WebGL as one mesh over four drawings: as it is, looking up, looking
+ * down and wondering (tipped forward a little). The mesh's vertices are landmarks found in all four
+ * (the hair's outline and its notches, brows, eyes, mouth, ears, jaw, collar, shoulders; the frame's
+ * edge stays put), in avatarMesh.json as fractions of the drawing's side. Each vertex sits between
+ * where its landmark is at rest and where it is in the pose the head is turning to, and every
+ * drawing is sampled where that landmark is in it, so each is bent into the shape of the moment and
+ * they cross over there: the head tilts rather than fades. `turn` slides the face's features
+ * sideways, as the head turns to follow the glasses.
  */
 
 const vertexShader = /* glsl */ `
 attribute vec2 aRest;
 attribute vec2 aUp;
 attribute vec2 aDown;
+attribute vec2 aWonder;
 attribute float aTurn;
 uniform float uUp;
 uniform float uDown;
+uniform float uWonder;
 uniform float uTurn;
 varying vec2 vRest;
 varying vec2 vUp;
 varying vec2 vDown;
+varying vec2 vWonder;
 varying float vUpMix;
 varying float vDownMix;
+varying float vWonderMix;
 
 void main() {
-	vec2 p = aRest + (aUp - aRest) * uUp + (aDown - aRest) * uDown;
+	vec2 p = aRest + (aUp - aRest) * uUp + (aDown - aRest) * uDown + (aWonder - aRest) * uWonder;
 	p.x += aTurn * uTurn;
 	vRest = aRest;
 	vUp = aUp;
 	vDown = aDown;
+	vWonder = aWonder;
 	// The drawings cross over in the middle of the move, where the shapes are nearest both.
 	vUpMix = smoothstep(0.2, 0.8, uUp);
 	vDownMix = smoothstep(0.2, 0.8, uDown);
+	vWonderMix = smoothstep(0.2, 0.8, uWonder);
 	gl_Position = vec4(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0, 0.0, 1.0);
 }`;
 
@@ -42,29 +48,36 @@ precision mediump float;
 uniform sampler2D uRestImage;
 uniform sampler2D uUpImage;
 uniform sampler2D uDownImage;
+uniform sampler2D uWonderImage;
 varying vec2 vRest;
 varying vec2 vUp;
 varying vec2 vDown;
+varying vec2 vWonder;
 varying float vUpMix;
 varying float vDownMix;
+varying float vWonderMix;
 
 void main() {
 	vec4 colour = texture2D(uRestImage, vRest);
 	colour = mix(colour, texture2D(uUpImage, vUp), vUpMix);
-	gl_FragColor = mix(colour, texture2D(uDownImage, vDown), vDownMix);
+	colour = mix(colour, texture2D(uDownImage, vDown), vDownMix);
+	gl_FragColor = mix(colour, texture2D(uWonderImage, vWonder), vWonderMix);
 }`;
 
-/** @typedef {{ up: number, down: number, turn: number }} Pose */
+/** @typedef {{ up: number, down: number, wonder: number, turn: number }} Pose */
 
 /**
  * Where the eyes and mouth are in a pose, as fractions of the side.
  * @param {Pose} pose
  */
-function face({ up, down, turn }) {
+function face({ up, down, wonder, turn }) {
 	return ['eye_l', 'eye_r', 'mouth'].map((name) => {
 		const i = mesh.names.indexOf(name);
 		const at = (/** @type {number} */ k) =>
-			mesh.rest[2 * i + k] + (mesh.up[2 * i + k] - mesh.rest[2 * i + k]) * up + (mesh.down[2 * i + k] - mesh.rest[2 * i + k]) * down;
+			mesh.rest[2 * i + k] +
+			(mesh.up[2 * i + k] - mesh.rest[2 * i + k]) * up +
+			(mesh.down[2 * i + k] - mesh.rest[2 * i + k]) * down +
+			(mesh.wonder[2 * i + k] - mesh.rest[2 * i + k]) * wonder;
 		return [at(0) + mesh.turn[i] * turn, at(1)];
 	});
 }
@@ -73,7 +86,7 @@ function face({ up, down, turn }) {
  * @param {number[][]} points
  */
 const frame = ([p0, p1, p2]) => new DOMMatrix([p1[0] - p0[0], p1[1] - p0[1], p2[0] - p0[0], p2[1] - p0[1], p0[0], p0[1]]);
-const fromRest = frame(face({ up: 0, down: 0, turn: 0 })).inverse();
+const fromRest = frame(face({ up: 0, down: 0, wonder: 0, turn: 0 })).inverse();
 
 /**
  * How glasses sitting on the face move with it: the affine map that carries the eyes and mouth from
@@ -91,7 +104,7 @@ function glassesOn(pose, [ox, oy]) {
 
 /**
  * @param {HTMLCanvasElement} canvas
- * @param {HTMLImageElement[]} images at rest, looking up, looking down
+ * @param {HTMLImageElement[]} images at rest, looking up, looking down, wondering
  * @param {() => void} lost called if the context is lost, when the page should show the picture again
  */
 export function createMorph(canvas, images, lost) {
@@ -118,6 +131,7 @@ export function createMorph(canvas, images, lost) {
 		['aRest', mesh.rest, 2],
 		['aUp', mesh.up, 2],
 		['aDown', mesh.down, 2],
+		['aWonder', mesh.wonder, 2],
 		['aTurn', mesh.turn, 1]
 	])) {
 		gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
@@ -137,11 +151,11 @@ export function createMorph(canvas, images, lost) {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.uniform1i(gl.getUniformLocation(program, ['uRestImage', 'uUpImage', 'uDownImage'][unit]), unit);
+		gl.uniform1i(gl.getUniformLocation(program, ['uRestImage', 'uUpImage', 'uDownImage', 'uWonderImage'][unit]), unit);
 	});
 
 	const uniform = (/** @type {string} */ name) => gl.getUniformLocation(program, name);
-	const [uUp, uDown, uTurn] = ['uUp', 'uDown', 'uTurn'].map(uniform);
+	const [uUp, uDown, uWonder, uTurn] = ['uUp', 'uDown', 'uWonder', 'uTurn'].map(uniform);
 
 	/** Take a new context back to where the page is: it shows the picture until the next load. */
 	const onlost = (/** @type {Event} */ event) => {
@@ -152,11 +166,12 @@ export function createMorph(canvas, images, lost) {
 
 	return {
 		/** @param {Pose} pose @param {number} pixels the canvas's side in device px */
-		draw({ up, down, turn }, pixels) {
+		draw({ up, down, wonder, turn }, pixels) {
 			if (canvas.width !== pixels) canvas.width = canvas.height = pixels;
 			gl.viewport(0, 0, pixels, pixels);
 			gl.uniform1f(uUp, up);
 			gl.uniform1f(uDown, down);
+			gl.uniform1f(uWonder, wonder);
 			gl.uniform1f(uTurn, turn);
 			gl.drawElements(gl.TRIANGLES, mesh.triangles.length, gl.UNSIGNED_SHORT, 0);
 		},
