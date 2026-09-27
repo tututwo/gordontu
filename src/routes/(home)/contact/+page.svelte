@@ -1,13 +1,12 @@
 <script module>
-	/** @typedef {'name' | 'topic' | 'body' | 'email' | 'review' | 'sent'} Step */
+	/** @typedef {'name' | 'body' | 'email' | 'review' | 'sent'} Step */
 
 	/** The chat's turns in order: each answer moves it on one. */
-	const steps = /** @type {const} */ (['name', 'topic', 'body', 'email', 'review', 'sent']);
+	const steps = /** @type {const} */ (['name', 'body', 'email', 'review', 'sent']);
 
 	const blank = () => ({
 		step: /** @type {Step} */ ('name'),
 		name: '',
-		topic: '',
 		body: '',
 		email: '',
 		/** Anything added once the letter is shown, sent as its P.S. Never removed, so `id` is its place. @type {{ id: number, text: string }[]} */
@@ -33,27 +32,18 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { EMAIL } from '$lib/contact.js';
 
-	/** Gordon's calendar, for anyone who would rather talk than type. */
+	/** Gordon's calendar, offered once the message is sent to anyone who would rather talk sooner. */
 	const CALL = 'https://cal.com/gordon-tu-jjhuo5/30min';
 
 	/** From the bio (VISA) and the Projects' Clients (project.js). */
 	const workedWith = ['VISA', 'Yale University', 'UC Berkeley', 'World Bank'];
 
-	/** What a visitor might be working on (it becomes the email's subject), and what Gordon asks next. */
-	const topics = [
-		{ label: 'An interactive map', ask: 'Ooh, a map! Tell me about it. What’s the data, and who’s it for?' },
-		{ label: 'A visual story', ask: 'Love a good story. What’s it about, and what data is behind it?' },
-		{ label: 'A web tool', ask: 'Nice! What should it help people do, and who’ll be using it?' },
-		{ label: 'Something else', ask: 'Sure thing. What’s on your mind?' }
-	];
-
 	/**
 	 * What the composer can be filling in, what a changed answer is called, and its hint.
-	 * @typedef {'name' | 'topic' | 'body' | 'email' | 'note'} Field
+	 * @typedef {'name' | 'body' | 'email' | 'note'} Field
 	 */
 	const fields = {
 		name: { called: 'your name', hint: 'Your name', max: 80 },
-		topic: { called: 'what you’re working on', hint: 'Or type it here', max: 80 },
 		body: { called: 'your message', hint: 'Type away…', max: 8000 },
 		email: { called: 'your email', hint: 'you@example.com', max: 254 },
 		note: { called: 'your P.S.', hint: 'Anything else? Add a P.S.', max: 1000 }
@@ -91,10 +81,6 @@
 	);
 	/** A new field for each thing typed, so each opens empty and focused; a P.S. keeps its field. */
 	const slot = $derived(editing ? `${editing} ${editingNote}` : mode);
-	const ask = $derived(
-		topics.find((topic) => topic.label === chat.topic)?.ask ??
-			'Ooh, tell me more! What’s it about, and who’s it for?'
-	);
 	/** The message as Gordon will read it. */
 	const ps = $derived(chat.notes.map((note) => note.text).join('\n\n'));
 	const letter = $derived(ps ? `${chat.body}\n\nP.S. ${ps}` : chat.body);
@@ -167,17 +153,6 @@
 		want = 'composer';
 	}
 
-	/** @param {string} label */
-	function choose(label) {
-		engaged = true;
-		chat.topic = label;
-		if (chat.step !== 'topic') return;
-		chat.step = 'body';
-		if (!editing) chat.draft = '';
-		want = 'composer';
-		reveal();
-	}
-
 	/** @param {KeyboardEvent & { currentTarget: HTMLInputElement | HTMLTextAreaElement }} event */
 	function keydown(event) {
 		if (event.key === 'Escape' && editing) {
@@ -193,13 +168,13 @@
 
 	/**
 	 * Sends the letter to /api/contact, which emails it to Gordon with Reply-To set to the visitor.
-	 * The topic and name make its subject, so his inbox says who wrote and about what.
+	 * The name makes its subject, so his inbox says who wrote.
 	 */
 	async function send() {
 		status = 'sending';
 		const data = new FormData();
 		data.set('email', chat.email);
-		data.set('subject', `${chat.topic}, from ${chat.name}`);
+		data.set('subject', `Hello from ${chat.name}`);
 		data.set('body', letter);
 		data.set('website', chat.website);
 		try {
@@ -236,8 +211,8 @@
 		copiedTimer = setTimeout(() => (copied = ''), 1600);
 	}
 
-	/** @param {'start' | 'end'} at */
-	const called = (at) => window.posthog.capture?.('contact_call_clicked', { at });
+	/** The call is offered only once the message is sent (`at` stays for the events sent before). */
+	const called = () => window.posthog.capture?.('contact_call_clicked', { at: 'end' });
 
 	/** Takes the cursor without jumping the page: `reveal` does the scrolling. */
 	const focus = (/** @type {HTMLElement} */ node) => node.focus({ preventScroll: true });
@@ -256,10 +231,10 @@
 		});
 	}
 
-	/** Gordon's lines rise in one after another when a reply brings them, not when the tab opens. */
+	/** Gordon's face and lines rise in one after another when a reply brings them, not when the tab opens. */
 	function arrive(/** @type {HTMLElement} */ node) {
 		if (!engaged || prefersReducedMotion.current) return;
-		const tween = gsap.from(node.children, {
+		const tween = gsap.from(node.querySelectorAll('.avatar, .lines > *'), {
 			opacity: 0,
 			y: 6,
 			duration: 0.3,
@@ -279,6 +254,11 @@
 	/>
 </svelte:head>
 
+<!-- Gordon's face beside each run of his lines, as a messaging app shows who is talking. -->
+{#snippet face()}
+	<img class="avatar" src="/landing/avatar.png" alt="" width="32" height="32" />
+{/snippet}
+
 <!-- An answer the visitor can tap to change in the composer, until it is sent. -->
 {#snippet said(/** @type {Field} */ key, /** @type {string} */ text, index = -1)}
 	<button
@@ -292,91 +272,73 @@
 {/snippet}
 
 <div class="contact">
+	<p class="intro">
+		Got a project in mind, a question, or just want to say hi? Tell me here. It goes straight to my
+		inbox, and I read every one myself.
+	</p>
+
 	<!-- The chat: its lines scroll on their own, and the page scrolls on around it as ever. -->
 	<section class="thread" aria-label="Chat with Gordon">
 		<!-- Focusable, so a keyboard can scroll it too. -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div class="chat" role="log" tabindex="0" bind:this={log}>
 			<div class="gordon">
-				<p class="line"><span class="sr-only">Gordon:{' '}</span>Hey! I’m Gordon.</p>
-				<p class="line">
-					Got a project in mind, a question, or just want to say hi? Tell me here. It goes straight to
-					my inbox, and I read every one myself.
-				</p>
-				<p class="line">
-					Too much to type? Let’s just talk.
-					<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('start')}
-						>Book a 30-min call ↗</a
-					>
-				</p>
-				<p class="line" id="ask-name">First, what should I call you?</p>
-				<p class="line no-script">JavaScript’s off, so this chat can’t run. Email me instead!</p>
+				{@render face()}
+				<div class="lines">
+					<p class="line" id="ask-name">
+						<span class="sr-only">Gordon:{' '}</span>Hey! I’m Gordon. What should I call you?
+					</p>
+					<p class="line no-script">JavaScript’s off, so this chat can’t run. Email me instead!</p>
+				</div>
 			</div>
 
-			{#if reached('topic')}
+			{#if reached('body')}
 				{@render said('name', chat.name)}
 				<div class="gordon" {@attach arrive}>
-					<p class="line"><span class="sr-only">Gordon:{' '}</span>Nice to meet you, {chat.name}!</p>
-					<p class="line" id="ask-topic">So, what are you working on?</p>
-					<div class="choices" role="group" aria-labelledby="ask-topic">
-						{#each topics as { label } (label)}
-							<button
-								class="choice text-copy-14"
-								type="button"
-								aria-pressed={chat.topic === label}
-								disabled={sent}
-								onclick={() => choose(label)}
-							>
-								{label}{#if chat.topic === label}<span aria-hidden="true">✓</span>{/if}
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-
-			{#if reached('body')}
-				{@render said('topic', chat.topic)}
-				<div class="gordon" {@attach arrive}>
-					<p class="line" id="ask-body"><span class="sr-only">Gordon:{' '}</span>{ask}</p>
-					{#if chat.topic !== 'Something else'}
+					{@render face()}
+					<div class="lines">
+						<p class="line"><span class="sr-only">Gordon:{' '}</span>Nice to meet you, {chat.name}!</p>
+						<p class="line" id="ask-body">Tell me about it. What’s the data, and who’s it for?</p>
 						<p class="line">Got a deadline or a budget? Toss those in too.</p>
-					{/if}
+					</div>
 				</div>
 			{/if}
 
 			{#if reached('email')}
 				{@render said('body', chat.body)}
 				<div class="gordon" {@attach arrive}>
-					<p class="line" id="ask-email">
-						<span class="sr-only">Gordon:{' '}</span>Got it. Where should I write back?
-					</p>
+					{@render face()}
+					<div class="lines">
+						<p class="line" id="ask-email">
+							<span class="sr-only">Gordon:{' '}</span>Got it. Where should I write back?
+						</p>
+					</div>
 				</div>
 			{/if}
 
 			{#if reached('review')}
 				{@render said('email', chat.email)}
 				<div class="gordon" {@attach arrive}>
-					<p class="line" id="ask-note" tabindex="-1" {@attach want === 'review' ? focus : null}>
-						<span class="sr-only">Gordon:{' '}</span>Here’s what I’ll get. Want to change something? Just tap it.
-					</p>
-					<div class="letter">
-						<dl>
-							<div>
-								<dt class="text-eyebrow">From</dt>
-								<dd>{chat.name} · {chat.email}</dd>
-							</div>
-							<div>
-								<dt class="text-eyebrow">About</dt>
-								<dd>{chat.topic}</dd>
-							</div>
-						</dl>
-						<p class="body">{chat.body}</p>
-						{#if chat.notes.length}
-							<div class="ps">
-								<span class="text-eyebrow">P.S.</span>
-								<p class="body">{ps}</p>
-							</div>
-						{/if}
+					{@render face()}
+					<div class="lines">
+						<p class="line" id="ask-note" tabindex="-1" {@attach want === 'review' ? focus : null}>
+							<span class="sr-only">Gordon:{' '}</span>Here’s what I’ll get. Want to change something? Just tap it.
+						</p>
+						<div class="letter">
+							<dl>
+								<div>
+									<dt class="text-eyebrow">From</dt>
+									<dd>{chat.name} · {chat.email}</dd>
+								</div>
+							</dl>
+							<p class="body">{chat.body}</p>
+							{#if chat.notes.length}
+								<div class="ps">
+									<span class="text-eyebrow">P.S.</span>
+									<p class="body">{ps}</p>
+								</div>
+							{/if}
+						</div>
 					</div>
 				</div>
 
@@ -385,23 +347,32 @@
 				{/each}
 				{#if chat.notes.length}
 					<div class="gordon" {@attach arrive}>
-						<p class="line"><span class="sr-only">Gordon:{' '}</span>Got it, I’ll add that as a P.S.</p>
+						{@render face()}
+						<div class="lines">
+							<p class="line"><span class="sr-only">Gordon:{' '}</span>Got it, I’ll add that as a P.S.</p>
+						</div>
 					</div>
 				{/if}
 
 				{#if status === 'invalid'}
 					<div class="gordon" {@attach arrive}>
-						<p class="line"><span class="sr-only">Gordon:{' '}</span>{reason}</p>
+						{@render face()}
+						<div class="lines">
+							<p class="line"><span class="sr-only">Gordon:{' '}</span>{reason}</p>
+						</div>
 					</div>
 				{:else if status === 'failed'}
 					<div class="gordon" {@attach arrive}>
-						<p class="line"><span class="sr-only">Gordon:{' '}</span>Hmm, that didn’t go through. Sorry about that!</p>
-						<p class="line">
-							Try again? Or copy your message and email it to me at {EMAIL}.
-							<button class="copy text-copy-14" type="button" onclick={() => copy(letter, 'letter')}>
-								{copied === 'letter' ? 'Copied' : 'Copy message'}
-							</button>
-						</p>
+						{@render face()}
+						<div class="lines">
+							<p class="line"><span class="sr-only">Gordon:{' '}</span>Hmm, that didn’t go through. Sorry about that!</p>
+							<p class="line">
+								Try again? Or copy your message and email it to me at {EMAIL}.
+								<button class="copy text-copy-14" type="button" onclick={() => copy(letter, 'letter')}>
+									{copied === 'letter' ? 'Copied' : 'Copy message'}
+								</button>
+							</p>
+						</div>
 					</div>
 				{/if}
 
@@ -422,18 +393,19 @@
 
 			{#if sent}
 				<div class="gordon" {@attach arrive}>
-					<p class="line" id="ask-sent" tabindex="-1" {@attach want === 'sent' ? focus : null}>
-						<span class="sr-only">Gordon:{' '}</span><span class="check" aria-hidden="true">✓</span> Sent!
-					</p>
-					<p class="line">
-						I’ll get back to you at {chat.email} soon. Usually within <span class="whitespace-nowrap">1–2 days</span>.
-					</p>
-					<p class="line">
-						Can’t wait?
-						<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('end')}
-							>Book a 30-min call ↗</a
-						>
-					</p>
+					{@render face()}
+					<div class="lines">
+						<p class="line" id="ask-sent" tabindex="-1" {@attach want === 'sent' ? focus : null}>
+							<span class="sr-only">Gordon:{' '}</span><span class="check" aria-hidden="true">✓</span> Sent!
+						</p>
+						<p class="line">
+							I’ll get back to you at {chat.email} soon. Usually within <span class="whitespace-nowrap">1–2 days</span>.
+						</p>
+						<p class="line">
+							Can’t wait?
+							<a href={CALL} target="_blank" rel="noreferrer" onclick={called}>Book a 30-min call ↗</a>
+						</p>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -531,41 +503,42 @@
 <style>
 	/*
 	 * A chat, in the site's own material and on the page's own column. Gordon's lines are white boxes
-	 * edged by a hairline, flush left like the headline and the tabs, in the panel's grey; the
-	 * visitor's are the grey wash, flush right, in ink, and so is the composer where they write. Each
-	 * side is at most 85% of the column, so its lines start (or end) on one edge. Nothing types,
-	 * pulses or waits: it is a letter, asked one question at a time.
+	 * edged by a hairline, in the panel's grey, beside his face; the visitor's are the grey wash,
+	 * flush right, in ink. Two left edges hold it: the column's (the intro, Gordon's face, the address
+	 * below) and his lines', which the Send button and the composer share. Nothing types, pulses or
+	 * waits: it is a letter, asked one question at a time.
 	 */
+
+	/* The page's own words, under the tabs, as each tab's panel begins. */
+	.intro {
+		margin-bottom: var(--spacing-8);
+	}
 
 	/*
 	 * No box round it: the chat is the column itself. Its lines scroll on their own while the page
-	 * scrolls on around it, in a height taken from the headline above (about 30.5rem to here), so on
-	 * most computer screens the chat fits under the headline whole, the composer at its foot. It is
-	 * no taller than 22rem, so a new chat, whose few lines sit at its foot, leaves little room above.
+	 * scrolls on around it, in a height taken from the headline and intro above (about 34.5rem to
+	 * here), so on most computer screens the chat fits under them whole, the composer at its foot.
+	 * It is no taller than 20rem, so a new chat leaves little room between its first line and the
+	 * composer.
 	 */
 	.thread {
 		display: flex;
 		flex-direction: column;
-		height: clamp(18rem, 100svh - 30.5rem, 22rem);
+		height: clamp(16rem, 100svh - 34.5rem, 20rem);
 	}
 
-	/*
-	 * On a phone the headline fills the first screen, so the chat is scrolled to anyway: it is sized to
-	 * fit a screen then, with room for the greeting's longer lines.
-	 */
+	/* On a phone the headline fills the first screen and the chat is scrolled to: it fits a screen then. */
 	@media (max-width: 30em) {
 		.thread {
-			height: min(26rem, 100svh - 8rem);
+			height: min(20rem, 100svh - 8rem);
 		}
 	}
 
 	/*
-	 * The newest lines sit just above the composer, as in a messaging app, so a question and the field
-	 * that answers it are one group; a short chat leaves its room above, under the tabs (the first
-	 * line's auto margin, which unlike flex-end still lets a long chat scroll to its start). Lines
-	 * fade out at the top and bottom edges as they scroll away rather than being cut, the padding
-	 * keeping them clear of the fades at rest. The scrollbar is hidden: a wheel, a finger and the
-	 * keyboard (the chat takes focus) all still scroll it.
+	 * Lines run down from the top, as in a messaging app, and the chat follows the newest. They fade
+	 * out at the top and bottom edges as they scroll away rather than being cut, the padding keeping
+	 * them clear of the fades at rest. The scrollbar is hidden: a wheel, a finger and the keyboard
+	 * (the chat takes focus) all still scroll it.
 	 */
 	.chat {
 		display: flex;
@@ -584,19 +557,30 @@
 		display: none;
 	}
 
-	.chat > :first-child {
-		margin-top: auto;
-	}
-
 	.chat:focus-visible {
 		outline-offset: -2px;
 	}
 
+	/* A run of Gordon's lines, his face beside it in the column's gutter, the lines on their own edge. */
 	.gordon {
+		display: grid;
+		grid-template-columns: 2rem minmax(0, 1fr);
+		gap: var(--spacing-12);
+		align-items: start;
+	}
+
+	.lines {
 		display: grid;
 		justify-items: start;
 		gap: var(--spacing-6);
 		min-width: 0;
+	}
+
+	/* Centred on a one-line bubble: 2.625rem is its 1.5rem line, 0.5rem padding each side and hairlines. */
+	.avatar {
+		width: 2rem;
+		height: 2rem;
+		margin-top: calc((2.625rem - 2rem) / 2);
 	}
 
 	.line,
@@ -645,7 +629,7 @@
 		cursor: default;
 	}
 
-	/* The answer open in the composer, ringed in ink like a chosen topic. */
+	/* The answer open in the composer, ringed in ink like the composer itself while it is typed in. */
 	.changing {
 		box-shadow: inset 0 0 0 1px var(--color-obsidian);
 	}
@@ -666,51 +650,6 @@
 
 	a:hover {
 		text-decoration-color: var(--color-obsidian);
-	}
-
-	/* Answers to tap, as Muse offers them: ghost buttons, the chosen one ringed in ink and ticked. */
-	.choices {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--spacing-8);
-		margin: var(--spacing-4) 0;
-	}
-
-	.choice {
-		display: inline-flex;
-		gap: var(--spacing-8);
-		align-items: center;
-		padding: var(--spacing-12) var(--spacing-16);
-		border: 0;
-		border-radius: 0;
-		background: var(--color-pure-white);
-		box-shadow: inset 0 0 0 1px var(--color-hairline);
-		color: var(--color-charcoal);
-		cursor: pointer;
-		transition:
-			background 160ms var(--ease-out),
-			color 160ms var(--ease-out),
-			box-shadow 160ms var(--ease-out);
-	}
-
-	@media (hover: hover) {
-		.choice:hover:not(:disabled) {
-			background: var(--color-gray-alpha-100);
-			color: var(--color-obsidian);
-		}
-	}
-
-	.choices:has([aria-pressed='true']) .choice {
-		color: var(--color-stone);
-	}
-
-	.choices .choice[aria-pressed='true'] {
-		box-shadow: inset 0 0 0 1px var(--color-obsidian);
-		color: var(--color-obsidian);
-	}
-
-	.choice:disabled {
-		cursor: default;
 	}
 
 	/* The letter as it will arrive: a bordered card with its labels stamped in mono. */
@@ -761,9 +700,11 @@
 		color: var(--color-stone);
 	}
 
+	/* The send, under Gordon's lines and on their edge. */
 	.actions {
 		display: flex;
 		margin-top: calc(-1 * var(--spacing-8));
+		padding-left: calc(2rem + var(--spacing-12));
 	}
 
 	/* The filled button: the one primary action, square, 44px tall. */
@@ -794,12 +735,11 @@
 	}
 
 	/*
-	 * The composer is where the visitor's next line is written, so it is theirs in look and place:
-	 * the grey wash, flush right, as wide as their longest line, at the chat's foot.
+	 * The composer is where the visitor's next line is written: the grey wash of their lines, at the
+	 * chat's foot, from the left edge of Gordon's lines to the column's right edge, where theirs end.
 	 */
 	.composer {
-		align-self: flex-end;
-		width: 85%;
+		margin-left: calc(2rem + var(--spacing-12));
 	}
 
 	.editing {
@@ -829,8 +769,8 @@
 
 	/*
 	 * The wash is the field's only edge. Being typed in, it is ringed in ink round the field and its
-	 * arrow as one, a hairline like a chosen topic's: it has the cursor most of the chat, so the site's
-	 * heavier 2px ring would sit on it throughout.
+	 * arrow as one, with a hairline: it has the cursor most of the chat, so the site's heavier 2px
+	 * ring would sit on it throughout.
 	 */
 	.field {
 		display: flex;
@@ -959,7 +899,6 @@
 		margin-left: 0;
 	}
 
-	.choice:active:not(:disabled),
 	.bubble:active:not(:disabled),
 	.go:active:not(:disabled),
 	.button:active:not(:disabled),
