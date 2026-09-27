@@ -169,6 +169,22 @@
 		}
 	}
 
+	/*
+	 * The Intro (Intro.svelte): on a first visit everything but the avatar waits in its place, unseen
+	 * (screen readers still read it) and not to be clicked, while the avatar is drawn; then it all fades
+	 * in together, over the Intro's REVEAL.
+	 */
+	:global(html:is([data-intro='hold'], [data-intro='drawing'])) h1 > :global(:not(.avatar)),
+	:global(html:is([data-intro='hold'], [data-intro='drawing'])) :is(.socials, hr, nav, .panel) {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	:global(html[data-intro='reveal']) h1 > :global(:not(.avatar)),
+	:global(html[data-intro='reveal']) :is(.socials, hr, nav, .panel) {
+		transition: opacity 400ms var(--ease-out);
+	}
+
 	/* Inline-block so each word can be moved on its own; it wraps exactly as plain text would. */
 	.word {
 		display: inline-block;

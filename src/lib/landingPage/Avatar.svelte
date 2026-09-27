@@ -23,6 +23,7 @@
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
 	import { frameLoop } from '../frameLoop.js';
+	import Intro, { pending, shown } from './Intro.svelte';
 	// The avatar in two layers, split from static/landing/avatar.png: the drawing without its glasses,
 	// and the glasses, which over it rebuild the drawing (and are small enough for Vite to inline, so
 	// they are never late onto the face). Once WebGL is in, a canvas draws the face instead, bending
@@ -185,7 +186,8 @@
 
 	/**
 	 * The poses load after the page, as the Category link icons' three.js does, so the first paint ships
-	 * no WebGL; until they are in, or without WebGL, the head stays as drawn.
+	 * no WebGL; until they are in, or without WebGL, the head stays as drawn. WebGL waits out the Intro,
+	 * as the icons do.
 	 * @param {HTMLCanvasElement} canvas
 	 */
 	function morphing(canvas) {
@@ -195,8 +197,8 @@
 			image.src = src;
 			return image.decode().then(() => image);
 		};
-		Promise.all([import('./avatarMorph.js'), load(face), load(lookingUp), load(lookingDown), load(wonderingImage)])
-			.then(([{ createMorph }, ...images]) => {
+		Promise.all([import('./avatarMorph.js'), shown, load(face), load(lookingUp), load(lookingDown), load(wonderingImage)])
+			.then(([{ createMorph }, , ...images]) => {
 				if (!gone) morph = createMorph(canvas, images, () => ((morph = null), pitch.set(0, { instant: true })));
 			})
 			.catch((error) => console.warn('Avatar poses unavailable:', error));
@@ -297,7 +299,11 @@
 			.call(() => (wondering = false), [], 1.4);
 	}
 
+	/** On a first visit, the avatar is drawn in before the page shows (Intro.svelte). */
+	let intro = $state(false);
+
 	onMount(() => {
+		intro = pending();
 		hint.wonder = wonder;
 		return () => {
 			hint.wonder = () => {};
@@ -406,6 +412,7 @@
 			<path d="M62.6 58 69.4 57.6" />
 		</svg>
 	</span>
+	{#if intro}<Intro onend={() => (intro = false)} />{/if}
 </span>
 
 <style>
@@ -429,6 +436,16 @@
 
 	.avatar:active {
 		cursor: grabbing;
+	}
+
+	/* While the Intro holds the page and draws the avatar, the avatar is only that drawing, and cannot
+	   be taken hold of yet. */
+	:global(html:is([data-intro='hold'], [data-intro='drawing'])) .avatar {
+		pointer-events: none;
+	}
+
+	:global(html:is([data-intro='hold'], [data-intro='drawing'])) .avatar > :is(img, .poses, .sweat, .startle, .wonder, .glasses) {
+		visibility: hidden;
 	}
 
 	img,

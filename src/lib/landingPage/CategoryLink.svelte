@@ -4,9 +4,21 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
 	import { frameLoop } from '../frameLoop.js';
+	import { shown } from './Intro.svelte';
+	import book from './posters/book.webp';
+	import map from './posters/map.webp';
+	import tools from './posters/tools.webp';
 	import { Spring } from './spring.js';
 
 	/** @typedef {import('./icons/index.js').Shape} Shape */
+
+	/**
+	 * Each icon at rest as a still, on the page from its first paint (small enough for Vite to inline)
+	 * until three.js is in and draws it: snapshots of the canvases at rest at devicePixelRatio 2 (three's
+	 * own cap), cropped to the middle 120 px, 80 units, lossless WebP. Redo them if an icon's rest
+	 * drawing changes.
+	 */
+	const posters = { map, book, tools };
 
 	/** @type {{ href: string, label: string, shape: Shape }} */
 	let { href, label, shape } = $props();
@@ -151,7 +163,8 @@
 
 	/**
 	 * The icon, drawn into the canvas by three, which is loaded here rather than at the top so the
-	 * landing's first paint ships no WebGL.
+	 * landing's first paint ships no WebGL. While the Intro draws the avatar, the still stands in and
+	 * three waits: setting up WebGL would stutter the drawing.
 	 * @param {Shape} kind
 	 */
 	function mountIcon(kind) {
@@ -160,8 +173,8 @@
 			const observer = new ResizeObserver(redraw);
 			// three restores a lost context but draws nothing until asked.
 			canvas.addEventListener('webglcontextrestored', redraw);
-			import('./icons/index.js')
-				.then(({ createIcon }) => {
+			Promise.all([import('./icons/index.js'), shown])
+				.then(([{ createIcon }]) => {
 					if (disposed) return;
 					icon = createIcon(canvas, kind);
 					observer.observe(canvas);
@@ -199,6 +212,7 @@
 >
 	<span class="frame" aria-hidden="true">
 		<span class="box"><span class="corners"><span></span><span></span><span></span><span></span></span></span>
+		<img class={['poster', { ready }]} src={posters[shape]} alt="" />
 		<canvas class={{ ready }} {@attach mountIcon(shape)}></canvas>
 	</span><span class="label">{label}<span class="bar" data-label={label} aria-hidden="true"></span></span>
 </a>
@@ -343,6 +357,23 @@
 		opacity: 1;
 	}
 
+	/* The still (see `posters`), where the canvas draws its middle 80 units. It goes once the canvas has
+	   faded in over it, and follows a zoom that comes before then. */
+	.poster {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: calc(var(--u) * 80);
+		height: calc(var(--u) * 80);
+		pointer-events: none;
+		transform: translate(-50%, -50%) scale(var(--zoom));
+	}
+
+	.poster.ready {
+		visibility: hidden;
+		transition: visibility 0s 200ms;
+	}
+
 	/*
 	 * In a headline that makes room (it carries data-flow), the icon grows from its top-left corner,
 	 * right and down, brackets included, so the words before it can stay where they are; the drawing
@@ -358,6 +389,11 @@
 	:global([data-flow]) canvas {
 		--shift: calc(((70 + 2 * var(--pop)) * var(--zoom) / 2 - 35) * var(--u));
 		transform: translate(-50%, -50%) translate(var(--shift), var(--shift));
+	}
+
+	:global([data-flow]) .poster {
+		--shift: calc(((70 + 2 * var(--pop)) * var(--zoom) / 2 - 35) * var(--u));
+		transform: translate(-50%, -50%) translate(var(--shift), var(--shift)) scale(var(--zoom));
 	}
 
 	:global([data-flow]) .label {

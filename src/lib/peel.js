@@ -318,5 +318,9 @@ export function peel(navigation) {
 
 // snapdom's first picture of a page takes three or four times as long as the next (it embeds the fonts
 // and learns the default styles), so it takes one once the page is up, a frame's work at a time, and
-// the first peel starts as soon as later ones.
-if (browser) setTimeout(() => picture({ fast: false }).catch(() => {}), 2000);
+// the first peel starts as soon as later ones. Not while the landing's Intro plays: it would stutter it.
+if (browser)
+	setTimeout(function warm() {
+		if (document.documentElement.dataset.intro) setTimeout(warm, 1000);
+		else picture({ fast: false }).catch(() => {});
+	}, 2000);

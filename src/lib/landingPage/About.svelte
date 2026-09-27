@@ -68,6 +68,7 @@
 
 <script>
 	import { hint, lenses, under } from './Avatar.svelte';
+	import { shown } from './Intro.svelte';
 
 	/** The new tools, which come in scrambled after the old ones are struck out. */
 	const sentence = 'Claude Code, Codex & Jev across my toolkit to design and build interactive 2D&3D experiences.';
@@ -352,8 +353,9 @@
 		let scrambling = [];
 
 		// Line boxes are only final once the web font has swapped in. A tab opened in the background has
-		// no frames, and GSAP runs on frames: the revision plays when the tab is first seen.
-		document.fonts.ready.then(() => {
+		// no frames, and GSAP runs on frames: the revision plays when the tab is first seen. On a first
+		// visit it waits for the Intro to show the page.
+		Promise.all([document.fonts.ready, shown]).then(() => {
 			if (disposed) return;
 			measure();
 			ready = true;
