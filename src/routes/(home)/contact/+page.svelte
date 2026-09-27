@@ -486,26 +486,27 @@
 	</div>
 
 	<footer>
-		<div class="direct">
+		<!-- Set like "Worked with": an eyebrow, then the address as one of Gordon's lines, its copy button beside it. -->
+		<section class="direct" aria-labelledby="prefer-email">
+			<h2 id="prefer-email" class="text-eyebrow">Prefer email?</h2>
 			<div class="address">
-				<p class="text-copy-14">Prefer email?</p>
-				<p class="email text-copy-18">{EMAIL}</p>
-				<p class="text-copy-13">I usually reply within 1–&#8288;2&nbsp;days.</p>
+				<p class="line">{EMAIL}</p>
+				<button
+					class={['copy-email', { done: copied === 'email' }]}
+					type="button"
+					aria-label="Copy the email address"
+					onclick={() => copy(EMAIL, 'email')}
+				>
+					{#if copied === 'email'}
+						<CheckIcon size="1.25em" aria-hidden="true" />
+					{:else}
+						<CopyIcon size="1.25em" aria-hidden="true" />
+					{/if}
+				</button>
+				<span class="sr-only" aria-live="polite">{copied === 'email' ? 'Email address copied' : ''}</span>
 			</div>
-			<button
-				class={['copy-email', { done: copied === 'email' }]}
-				type="button"
-				aria-label="Copy the email address"
-				onclick={() => copy(EMAIL, 'email')}
-			>
-				{#if copied === 'email'}
-					<CheckIcon size="1.25em" aria-hidden="true" />
-				{:else}
-					<CopyIcon size="1.25em" aria-hidden="true" />
-				{/if}
-			</button>
-			<span class="sr-only" aria-live="polite">{copied === 'email' ? 'Email address copied' : ''}</span>
-		</div>
+			<p class="note text-copy-13">I usually reply within 1–&#8288;2&nbsp;days.</p>
+		</section>
 
 		<section class="worked-with" aria-labelledby="worked-with">
 			<h2 id="worked-with" class="text-eyebrow">Worked with</h2>
@@ -897,48 +898,40 @@
 	}
 
 	/*
-	 * The way round the chat, as in Gordon's reference: a small label, the address in ink, a note, and
-	 * a square copy button on the column's right edge, under the composer's arrow and the same size.
+	 * The way round the chat, set like "Worked with" below it: its eyebrow, then (as far below it as
+	 * the names are) the address as one of Gordon's lines, and beside it, as tall and edged the same,
+	 * a square button that copies it. A helper line under them says when he replies.
 	 */
-	.direct {
-		display: flex;
-		gap: var(--spacing-16);
-		align-items: center;
-		justify-content: space-between;
-	}
-
 	.address {
-		display: grid;
-		gap: var(--spacing-4);
-		min-width: 0;
-	}
-
-	.email {
-		color: var(--color-obsidian);
-		overflow-wrap: anywhere;
+		display: flex;
+		gap: var(--spacing-6);
+		margin-top: var(--spacing-12);
 	}
 
 	.copy-email {
 		display: grid;
 		flex: none;
 		place-items: center;
-		width: 3rem;
-		height: 3rem;
-		border: 0;
+		width: 2.625rem;
+		border: 1px solid var(--color-hairline);
 		border-radius: 0;
-		background: var(--color-gray-alpha-100);
+		background: var(--color-pure-white);
 		color: var(--color-stone);
 		cursor: pointer;
 		transition:
-			background 160ms var(--ease-out),
+			border-color 160ms var(--ease-out),
 			color 160ms var(--ease-out);
 	}
 
 	@media (hover: hover) {
 		.copy-email:hover {
-			background: var(--color-gray-alpha-200);
+			border-color: var(--color-ash);
 			color: var(--color-obsidian);
 		}
+	}
+
+	.note {
+		margin-top: var(--spacing-8);
 	}
 
 	/* Copied: Vercel's one colour, on its tick. */
