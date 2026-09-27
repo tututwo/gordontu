@@ -10,3 +10,9 @@ vite.config.js.timestamp-*
 # Installed agent skills stay local (skills-lock.json records them)
 /.agents/skills/
 /.claude/skills/
+
+# Erhai Moon source originals (the site serves only the webp cover and the card cut)
+/static/projects-optimized/Maps/erhai/erhai-zhongqiu-1080p.mp4
+/static/projects-optimized/Maps/erhai/erhai-zhongqiu-3x4.mp4
+/static/projects-optimized/Maps/erhai/erhai-zhongqiu-cover.png
+/static/projects-optimized/Maps/erhai/erhai-zhongqiu-xhs-cover.png
