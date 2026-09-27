@@ -292,8 +292,8 @@
 {/snippet}
 
 <div class="contact">
-	<!-- A chat window: its lines scroll inside it, and the page scrolls on around it as ever. -->
-	<section class="window" aria-label="Chat with Gordon">
+	<!-- The chat: its lines scroll on their own, and the page scrolls on around it as ever. -->
+	<section class="thread" aria-label="Chat with Gordon">
 		<!-- Focusable, so a keyboard can scroll it too. -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div class="chat" role="log" tabindex="0" bind:this={log}>
@@ -302,6 +302,12 @@
 				<p class="line">
 					Got a project in mind, a question, or just want to say hi? Tell me here. It goes straight to
 					my inbox, and I read every one myself.
+				</p>
+				<p class="line">
+					Too much to type? Let’s just talk.
+					<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('start')}
+						>Book a 30-min call ↗</a
+					>
 				</p>
 				<p class="line" id="ask-name">First, what should I call you?</p>
 				<p class="line no-script">JavaScript’s off, so this chat can’t run. Email me instead!</p>
@@ -325,12 +331,6 @@
 							</button>
 						{/each}
 					</div>
-					<p class="line">
-						Too much to type? Let’s just talk.
-						<a href={CALL} target="_blank" rel="noreferrer" onclick={() => called('start')}
-							>Book a 30-min call ↗</a
-						>
-					</p>
 				</div>
 			{/if}
 
@@ -530,38 +530,65 @@
 
 <style>
 	/*
-	 * A chat, in the site's own material: Gordon's lines are white boxes edged by a hairline, on the
-	 * left, in the panel's grey; the visitor's are the grey wash, on the right, in ink. Both sides are
-	 * boxed and square, and nothing types, pulses or waits: it is a letter, asked one question at a time.
+	 * A chat, in the site's own material and on the page's own column. Gordon's lines are white boxes
+	 * edged by a hairline, flush left like the headline and the tabs, in the panel's grey; the
+	 * visitor's are the grey wash, flush right, in ink, and so is the composer where they write. Each
+	 * side is at most 85% of the column, so its lines start (or end) on one edge. Nothing types,
+	 * pulses or waits: it is a letter, asked one question at a time.
 	 */
 
 	/*
-	 * The chat window: a hairline box of its own height, whose lines scroll inside it while the page
-	 * scrolls on around it. Sized from the headline above it (about 30.5rem to here), so on most
-	 * screens it fits under the headline whole, composer and all.
+	 * No box round it: the chat is the column itself. Its lines scroll on their own while the page
+	 * scrolls on around it, in a height taken from the headline above (about 30.5rem to here), so on
+	 * most computer screens the chat fits under the headline whole, the composer at its foot. It is
+	 * no taller than 22rem, so a new chat, whose few lines sit at its foot, leaves little room above.
 	 */
-	.window {
+	.thread {
 		display: flex;
 		flex-direction: column;
-		height: clamp(20rem, 100svh - 30.5rem, 36rem);
-		border: 1px solid var(--color-hairline);
-		background: var(--color-pure-white);
+		height: clamp(18rem, 100svh - 30.5rem, 22rem);
 	}
 
+	/*
+	 * On a phone the headline fills the first screen, so the chat is scrolled to anyway: it is sized to
+	 * fit a screen then, with room for the greeting's longer lines.
+	 */
+	@media (max-width: 30em) {
+		.thread {
+			height: min(26rem, 100svh - 8rem);
+		}
+	}
+
+	/*
+	 * The newest lines sit just above the composer, as in a messaging app, so a question and the field
+	 * that answers it are one group; a short chat leaves its room above, under the tabs (the first
+	 * line's auto margin, which unlike flex-end still lets a long chat scroll to its start). Lines
+	 * fade out at the top and bottom edges as they scroll away rather than being cut, the padding
+	 * keeping them clear of the fades at rest. The scrollbar is hidden: a wheel, a finger and the
+	 * keyboard (the chat takes focus) all still scroll it.
+	 */
 	.chat {
-		display: grid;
+		display: flex;
 		flex: 1;
-		align-content: start;
+		flex-direction: column;
 		gap: var(--spacing-16);
 		min-height: 0;
-		padding: var(--spacing-16);
+		padding: var(--spacing-24) 0 var(--spacing-16);
 		overflow-y: auto;
+		scrollbar-width: none;
+		-webkit-mask-image: linear-gradient(transparent, var(--color-carbon) var(--spacing-24), var(--color-carbon) calc(100% - var(--spacing-16)), transparent);
+		mask-image: linear-gradient(transparent, var(--color-carbon) var(--spacing-24), var(--color-carbon) calc(100% - var(--spacing-16)), transparent);
 	}
 
-	/* Rings drawn inside the window, not past its edge. */
-	.chat:focus-visible,
-	input:focus-visible,
-	textarea:focus-visible {
+	.chat::-webkit-scrollbar {
+		display: none;
+	}
+
+	.chat > :first-child {
+		margin-top: auto;
+	}
+
+	.chat:focus-visible {
 		outline-offset: -2px;
 	}
 
@@ -591,7 +618,7 @@
 	}
 
 	.you {
-		justify-self: end;
+		align-self: flex-end;
 	}
 
 	/* The visitor's words keep their line breaks. Each is a button, to tap and change. */
@@ -766,16 +793,20 @@
 		color: var(--color-terminal-green);
 	}
 
-	/* The composer: the window's foot, under a hairline, with the send arrow at its end. */
+	/*
+	 * The composer is where the visitor's next line is written, so it is theirs in look and place:
+	 * the grey wash, flush right, as wide as their longest line, at the chat's foot.
+	 */
 	.composer {
-		border-top: 1px solid var(--color-hairline);
+		align-self: flex-end;
+		width: 85%;
 	}
 
 	.editing {
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		padding: var(--spacing-8) var(--spacing-16) 0;
+		margin-bottom: var(--spacing-8);
 		color: var(--color-stone);
 	}
 
@@ -796,22 +827,38 @@
 		}
 	}
 
+	/*
+	 * The wash is the field's only edge. Being typed in, it is ringed in ink round the field and its
+	 * arrow as one, a hairline like a chosen topic's: it has the cursor most of the chat, so the site's
+	 * heavier 2px ring would sit on it throughout.
+	 */
 	.field {
 		display: flex;
 		align-items: flex-end;
+		background: var(--color-gray-alpha-100);
+		transition: box-shadow 160ms var(--ease-out);
 	}
 
-	/* The field is the bar itself: no box of its own, 48px tall for a line, like the arrow. */
+	.field:focus-within {
+		box-shadow: inset 0 0 0 1px var(--color-obsidian);
+	}
+
+	/* The text takes the wash it sits on, 48px tall for a line, like the arrow. */
 	input,
 	textarea {
 		flex: 1;
 		min-width: 0;
 		margin: 0;
-		padding: var(--spacing-12) var(--spacing-16);
+		padding: var(--spacing-12);
 		border: 0;
 		border-radius: 0;
-		background: var(--color-pure-white);
+		background: transparent;
 		color: var(--color-obsidian);
+	}
+
+	input:focus-visible,
+	textarea:focus-visible {
+		outline: none;
 	}
 
 	/* One line to start; `grow` fits it to what is written, up to about eight lines. */
@@ -839,7 +886,7 @@
 		cursor: pointer;
 		transition:
 			background 160ms var(--ease-out),
-			opacity 160ms var(--ease-out);
+			color 160ms var(--ease-out);
 	}
 
 	@media (hover: hover) {
@@ -848,9 +895,11 @@
 		}
 	}
 
+	/* With nothing to send, the arrow is only a grey glyph; it fills with ink once there is. */
 	.go:disabled {
+		background: transparent;
+		color: var(--color-slate);
 		cursor: default;
-		opacity: 0.2;
 	}
 
 	/* Off the page rather than display: none, which some bots know to skip. */
@@ -859,9 +908,9 @@
 		left: -9999px;
 	}
 
-	/* Right under the window, the way round it: the address, then who Gordon has worked with. */
+	/* After the chat, well clear of its composer: the way round it, then who Gordon has worked with. */
 	footer {
-		margin-top: var(--spacing-16);
+		margin-top: var(--spacing-40);
 	}
 
 	/* The address is plain words, in ink; the Copy button beside it is the thing to press. */
