@@ -530,12 +530,11 @@
 		transition-delay: calc(var(--i) * 60ms + 160ms);
 	}
 
-	/* Wondering, the question marks pop up one after another, rising, in the drawing's own line; they
-	   go all at once. */
+	/* Wondering, the question marks pop up one after another, rising; they go all at once. */
 	.wonder {
 		overflow: visible;
 		fill: none;
-		stroke: #42140a;
+		stroke: #000;
 		stroke-width: 1.15;
 		stroke-linecap: round;
 	}
@@ -554,9 +553,10 @@
 		stroke-width: 1.7;
 	}
 
+	/* Shown bigger than drawn, each about its foot, so they still stand apart. */
 	.wondering g {
 		opacity: 1;
-		transform: none;
+		transform: scale(1.3);
 		transition:
 			opacity 120ms var(--ease-out) calc(var(--i) * 110ms),
 			transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--i) * 110ms);
