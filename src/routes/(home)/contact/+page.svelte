@@ -1,4 +1,6 @@
 <script module>
+	import { draw, lines } from './lines.js';
+
 	/** @typedef {'name' | 'body' | 'email' | 'review' | 'sent'} Step */
 
 	/** The chat's turns in order: each answer moves it on one. */
@@ -14,7 +16,9 @@
 		/** What is typed in the composer and not yet sent. */
 		draft: '',
 		/** The honeypot: only a bot fills it in. */
-		website: ''
+		website: '',
+		/** This chat's wording of each of Gordon's lines, drawn at random (lines.js). */
+		words: draw()
 	});
 
 	/**
@@ -26,6 +30,8 @@
 
 <script>
 	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 	import gsap from 'gsap';
 	import { onMount, tick } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -281,12 +287,12 @@
 	<section class="thread" aria-label="Chat with Gordon">
 		<!-- Focusable, so a keyboard can scroll it too. -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<div class="chat" role="log" tabindex="0" bind:this={log}>
+		<div class={['chat', { live }]} role="log" tabindex="0" bind:this={log}>
 			<div class="gordon">
 				{@render face()}
 				<div class="lines">
 					<p class="line" id="ask-name">
-						<span class="sr-only">Gordon:{' '}</span>Hey! I’m Gordon. What should I call you?
+						<span class="sr-only">Gordon:{' '}</span>{live ? chat.words.hello : lines.hello[0]}
 					</p>
 					<p class="line no-script">JavaScript’s off, so this chat can’t run. Email me instead!</p>
 				</div>
@@ -297,9 +303,9 @@
 				<div class="gordon" {@attach arrive}>
 					{@render face()}
 					<div class="lines">
-						<p class="line"><span class="sr-only">Gordon:{' '}</span>Nice to meet you, {chat.name}!</p>
-						<p class="line" id="ask-body">Tell me about it. What’s the data, and who’s it for?</p>
-						<p class="line">Got a deadline or a budget? Toss those in too.</p>
+						<p class="line"><span class="sr-only">Gordon:{' '}</span>{chat.words.meet(chat.name)}</p>
+						<p class="line" id="ask-body">{chat.words.about}</p>
+						<p class="line">{chat.words.extras}</p>
 					</div>
 				</div>
 			{/if}
@@ -310,7 +316,7 @@
 					{@render face()}
 					<div class="lines">
 						<p class="line" id="ask-email">
-							<span class="sr-only">Gordon:{' '}</span>Got it. Where should I write back?
+							<span class="sr-only">Gordon:{' '}</span>{chat.words.where}
 						</p>
 					</div>
 				</div>
@@ -322,7 +328,7 @@
 					{@render face()}
 					<div class="lines">
 						<p class="line" id="ask-note" tabindex="-1" {@attach want === 'review' ? focus : null}>
-							<span class="sr-only">Gordon:{' '}</span>Here’s what I’ll get. Want to change something? Just tap it.
+							<span class="sr-only">Gordon:{' '}</span>{chat.words.review}
 						</p>
 						<div class="letter">
 							<dl>
@@ -349,7 +355,7 @@
 					<div class="gordon" {@attach arrive}>
 						{@render face()}
 						<div class="lines">
-							<p class="line"><span class="sr-only">Gordon:{' '}</span>Got it, I’ll add that as a P.S.</p>
+							<p class="line"><span class="sr-only">Gordon:{' '}</span>{chat.words.added}</p>
 						</div>
 					</div>
 				{/if}
@@ -365,9 +371,9 @@
 					<div class="gordon" {@attach arrive}>
 						{@render face()}
 						<div class="lines">
-							<p class="line"><span class="sr-only">Gordon:{' '}</span>Hmm, that didn’t go through. Sorry about that!</p>
+							<p class="line"><span class="sr-only">Gordon:{' '}</span>{chat.words.oops}</p>
 							<p class="line">
-								Try again? Or copy your message and email it to me at {EMAIL}.
+								{chat.words.retry(EMAIL)}
 								<button class="copy text-copy-14" type="button" onclick={() => copy(letter, 'letter')}>
 									{copied === 'letter' ? 'Copied' : 'Copy message'}
 								</button>
@@ -396,13 +402,12 @@
 					{@render face()}
 					<div class="lines">
 						<p class="line" id="ask-sent" tabindex="-1" {@attach want === 'sent' ? focus : null}>
-							<span class="sr-only">Gordon:{' '}</span><span class="check" aria-hidden="true">✓</span> Sent!
+							<span class="sr-only">Gordon:{' '}</span><span class="check" aria-hidden="true">✓</span>
+							{chat.words.sent}
 						</p>
+						<p class="line">{chat.words.reply(chat.email)}</p>
 						<p class="line">
-							I’ll get back to you at {chat.email} soon. Usually within <span class="whitespace-nowrap">1–2 days</span>.
-						</p>
-						<p class="line">
-							Can’t wait?
+							{chat.words.hurry}
 							<a href={CALL} target="_blank" rel="noreferrer" onclick={called}>Book a 30-min call ↗</a>
 						</p>
 					</div>
@@ -481,13 +486,26 @@
 	</div>
 
 	<footer>
-		<p>
-			Prefer email? <span class="email">{EMAIL}</span>
-			<button class="copy text-copy-14" type="button" onclick={() => copy(EMAIL, 'email')}>
-				{copied === 'email' ? 'Copied' : 'Copy'}
+		<div class="direct">
+			<div class="address">
+				<p class="text-copy-14">Prefer email?</p>
+				<p class="email text-copy-18">{EMAIL}</p>
+				<p class="text-copy-13">I usually reply within 1–&#8288;2&nbsp;days.</p>
+			</div>
+			<button
+				class={['copy-email', { done: copied === 'email' }]}
+				type="button"
+				aria-label="Copy the email address"
+				onclick={() => copy(EMAIL, 'email')}
+			>
+				{#if copied === 'email'}
+					<CheckIcon size="1.25em" aria-hidden="true" />
+				{:else}
+					<CopyIcon size="1.25em" aria-hidden="true" />
+				{/if}
 			</button>
 			<span class="sr-only" aria-live="polite">{copied === 'email' ? 'Email address copied' : ''}</span>
-		</p>
+		</div>
 
 		<section class="worked-with" aria-labelledby="worked-with">
 			<h2 id="worked-with" class="text-eyebrow">Worked with</h2>
@@ -579,6 +597,11 @@
 
 	.chat:focus-visible {
 		outline-offset: -2px;
+	}
+
+	/* The greeting is drawn in the browser, not at build: until the page runs it waits, unseen. */
+	.chat:not(.live) > .gordon:first-child {
+		visibility: hidden;
 	}
 
 	/* A run of Gordon's lines, his face beside it in the column's gutter, the lines on their own edge. */
@@ -873,9 +896,54 @@
 		margin-top: var(--spacing-40);
 	}
 
-	/* The address is plain words, in ink; the Copy button beside it is the thing to press. */
+	/*
+	 * The way round the chat, as in Gordon's reference: a small label, the address in ink, a note, and
+	 * a square copy button on the column's right edge, under the composer's arrow and the same size.
+	 */
+	.direct {
+		display: flex;
+		gap: var(--spacing-16);
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.address {
+		display: grid;
+		gap: var(--spacing-4);
+		min-width: 0;
+	}
+
 	.email {
 		color: var(--color-obsidian);
+		overflow-wrap: anywhere;
+	}
+
+	.copy-email {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 3rem;
+		height: 3rem;
+		border: 0;
+		border-radius: 0;
+		background: var(--color-gray-alpha-100);
+		color: var(--color-stone);
+		cursor: pointer;
+		transition:
+			background 160ms var(--ease-out),
+			color 160ms var(--ease-out);
+	}
+
+	@media (hover: hover) {
+		.copy-email:hover {
+			background: var(--color-gray-alpha-200);
+			color: var(--color-obsidian);
+		}
+	}
+
+	/* Copied: Vercel's one colour, on its tick. */
+	.copy-email.done {
+		color: var(--color-terminal-green);
 	}
 
 	/*
@@ -924,6 +992,7 @@
 	.button:active:not(:disabled),
 	.cancel:active,
 	.copy:active,
+	.copy-email:active,
 	a:active {
 		opacity: 0.55;
 	}
@@ -946,6 +1015,10 @@
 	@media (scripting: none) {
 		.no-script {
 			display: block;
+		}
+
+		.chat:not(.live) > .gordon:first-child {
+			visibility: visible;
 		}
 
 		.composer {
