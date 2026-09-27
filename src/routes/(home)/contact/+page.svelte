@@ -486,11 +486,11 @@
 	</div>
 
 	<footer>
-		<!-- Set like "Worked with": an eyebrow, then the address as one of Gordon's lines, its copy button beside it. -->
+		<!-- Set like "Worked with": an eyebrow, then the address in Gordon's lines' type, its copy button beside it. -->
 		<section class="direct" aria-labelledby="prefer-email">
 			<h2 id="prefer-email" class="text-eyebrow">Prefer email?</h2>
 			<div class="address">
-				<p class="line">{EMAIL}</p>
+				<p class="email">{EMAIL}</p>
 				<button
 					class={['copy-email', { done: copied === 'email' }]}
 					type="button"
@@ -899,39 +899,49 @@
 
 	/*
 	 * The way round the chat, set like "Worked with" below it: its eyebrow, then (as far below it as
-	 * the names are) the address as one of Gordon's lines, and beside it, as tall and edged the same,
-	 * a square button that copies it. A helper line under them says when he replies.
+	 * the names are) the address in the type and grey of Gordon's lines, unboxed, with a copy button
+	 * that is only its icon right beside it. A helper line under them says when he replies.
 	 */
 	.address {
 		display: flex;
-		gap: var(--spacing-6);
+		gap: var(--spacing-8);
+		align-items: center;
 		margin-top: var(--spacing-12);
 	}
 
+	.email {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	/* Grey until pointed at, like the page's text buttons, its target grown to 44px round the icon. */
 	.copy-email {
+		position: relative;
 		display: grid;
 		flex: none;
 		place-items: center;
-		width: 2.625rem;
-		border: 1px solid var(--color-hairline);
-		border-radius: 0;
-		background: var(--color-pure-white);
+		padding: 0;
+		border: 0;
+		background: none;
 		color: var(--color-stone);
 		cursor: pointer;
-		transition:
-			border-color 160ms var(--ease-out),
-			color 160ms var(--ease-out);
+		transition: color 160ms var(--ease-out);
+	}
+
+	.copy-email::after {
+		position: absolute;
+		inset: -0.75rem;
+		content: '';
 	}
 
 	@media (hover: hover) {
 		.copy-email:hover {
-			border-color: var(--color-ash);
 			color: var(--color-obsidian);
 		}
 	}
 
 	.note {
-		margin-top: var(--spacing-8);
+		margin-top: var(--spacing-4);
 	}
 
 	/* Copied: Vercel's one colour, on its tick. */
