@@ -9,7 +9,11 @@ export const prerender = false;
 // ponytail: no rate limit; add one (e.g. Vercel's firewall) if spam gets past the honeypot.
 export async function POST({ request }) {
 	const message = readMessage(await request.formData());
-	if ('spam' in message) return json({ ok: true });
+	if ('spam' in message) {
+		// Counted in Vercel's logs, to see how many bots come before reaching for a CAPTCHA.
+		console.log('contact: honeypot caught a bot');
+		return json({ ok: true });
+	}
 	if ('error' in message) return json({ error: message.error }, { status: 400 });
 
 	if (!env.RESEND_API_KEY) return json({ error: 'The form is not set up yet.' }, { status: 503 });
