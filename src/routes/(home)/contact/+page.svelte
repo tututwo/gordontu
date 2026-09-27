@@ -515,22 +515,42 @@
 	}
 
 	/*
-	 * No box round it: the chat is the column itself. Its lines scroll on their own while the page
-	 * scrolls on around it, in a height taken from the headline and intro above (about 34.5rem to
-	 * here), so on most computer screens the chat fits under them whole, the composer at its foot.
-	 * It is no taller than 20rem, so a new chat leaves little room between its first line and the
-	 * composer.
+	 * No box round it: the chat is the column itself, and its lines scroll on their own while the page
+	 * scrolls on around it. It takes the rest of the screen under the headline and intro (about
+	 * 34.5rem down) but is never shorter than 28rem, so a good run of the conversation shows: on a
+	 * tall screen (a tablet upright, a large window) it fits under them whole, and on a laptop its
+	 * foot is a short scroll away. At most 36rem. Gordon's face sets the gutter his lines, the Send
+	 * button and the composer start after.
 	 */
 	.thread {
+		--face: 2rem;
+		--gutter: calc(var(--face) + var(--spacing-12));
 		display: flex;
 		flex-direction: column;
-		height: clamp(16rem, 100svh - 34.5rem, 20rem);
+		height: clamp(28rem, 100svh - 34.5rem, 36rem);
 	}
 
-	/* On a phone the headline fills the first screen and the chat is scrolled to: it fits a screen then. */
+	/*
+	 * On a phone the headline fills the first screen and the chat is scrolled to: it is then nearly a
+	 * screen tall, as a messaging app is, and a smaller face and gutter leave Gordon's lines the room
+	 * to run the whole width.
+	 */
 	@media (max-width: 30em) {
 		.thread {
-			height: min(20rem, 100svh - 8rem);
+			--face: 1.75rem;
+			--gutter: calc(var(--face) + var(--spacing-8));
+			height: min(36rem, 100svh - 5rem);
+		}
+
+		.lines .line {
+			max-width: 100%;
+		}
+	}
+
+	/* A screen held sideways is too short for that: the chat fits it, once scrolled to. */
+	@media (max-height: 34rem) {
+		.thread {
+			height: calc(100svh - 3rem);
 		}
 	}
 
@@ -564,8 +584,8 @@
 	/* A run of Gordon's lines, his face beside it in the column's gutter, the lines on their own edge. */
 	.gordon {
 		display: grid;
-		grid-template-columns: 2rem minmax(0, 1fr);
-		gap: var(--spacing-12);
+		grid-template-columns: var(--face) minmax(0, 1fr);
+		gap: calc(var(--gutter) - var(--face));
 		align-items: start;
 	}
 
@@ -578,9 +598,9 @@
 
 	/* Centred on a one-line bubble: 2.625rem is its 1.5rem line, 0.5rem padding each side and hairlines. */
 	.avatar {
-		width: 2rem;
-		height: 2rem;
-		margin-top: calc((2.625rem - 2rem) / 2);
+		width: var(--face);
+		height: var(--face);
+		margin-top: calc((2.625rem - var(--face)) / 2);
 	}
 
 	.line,
@@ -704,7 +724,7 @@
 	.actions {
 		display: flex;
 		margin-top: calc(-1 * var(--spacing-8));
-		padding-left: calc(2rem + var(--spacing-12));
+		padding-left: var(--gutter);
 	}
 
 	/* The filled button: the one primary action, square, 44px tall. */
@@ -739,7 +759,7 @@
 	 * chat's foot, from the left edge of Gordon's lines to the column's right edge, where theirs end.
 	 */
 	.composer {
-		margin-left: calc(2rem + var(--spacing-12));
+		margin-left: var(--gutter);
 	}
 
 	.editing {
