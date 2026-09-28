@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { gsap } from 'gsap/gsap-core';
 import { frameLoop } from '../frameLoop.js';
-import { toOptimizedImage } from '../project/project.js';
 import { DEFAULT_CARD_RATIO, cardSize, cellSize, layoutPlane, panLimits } from './layout.js';
 import { backTexture, loadBackFont, readTokens } from './postcardBack.js';
 
@@ -132,7 +131,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		const card = { project, mesh, material, backingMaterial, ratio: DEFAULT_CARD_RATIO, reveal: 0 };
 		mesh.userData.card = card;
 		cards.push(card);
-		const load = loader.loadAsync(toOptimizedImage(project.projectImgSource))
+		const load = loader.loadAsync(project.projectImgSource)
 			.then((texture) => {
 				if (disposed) return texture.dispose();
 				texture.colorSpace = THREE.SRGBColorSpace;

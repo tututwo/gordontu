@@ -226,7 +226,7 @@
 
 	<!-- Tooltips follow a mouse or the keyboard; a finger taps straight through. -->
 	<nav
-		class="tool-rail chrome"
+		class="tool-rail chrome bottom-chrome"
 		aria-label="Gallery navigation"
 		onpointerover={(event) => event.pointerType === 'mouse' && showTip(event.target)}
 		onpointerleave={(event) => event.pointerType === 'mouse' && hideTip()}
@@ -237,7 +237,7 @@
 			<HouseSimpleIcon size={20} weight="regular" aria-hidden="true" />
 		</a>
 		<span class="tool-divider" aria-hidden="true"></span>
-		{#each categoryLinks as section, index (section.value)}
+		{#each categoryLinks as section, index (section.slug)}
 			<a
 				class="tool-button"
 				href={resolve('/[category]/[[slug]]', { category: section.slug })}
@@ -431,7 +431,6 @@
 
 	.tool-rail {
 		position: absolute;
-		z-index: 5;
 		bottom: var(--edge);
 		left: 50%;
 		display: flex;
@@ -440,15 +439,6 @@
 		height: var(--bar);
 		padding: 0 3px;
 		transform: translateX(-50%);
-		transition:
-			opacity 180ms var(--ease-out),
-			visibility 180ms;
-	}
-
-	.gallery.open .tool-rail {
-		visibility: hidden;
-		opacity: 0;
-		pointer-events: none;
 	}
 
 	/* Grey until pointed at, like the landing's tabs; the current section white on ink, like the bar

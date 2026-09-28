@@ -1,7 +1,7 @@
 <script>
 	import { resolve } from '$app/paths';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { allProjects, categorySlug, projects, toOptimizedImage } from '$lib/project/project.js';
+	import { allProjects, projects } from '$lib/project/project.js';
 
 	const featured = projects.filter((p) => p.featured);
 
@@ -39,11 +39,11 @@
 		<li>
 			<a
 				class="card"
-				href={resolve('/[category]/[[slug]]', { category: categorySlug(category), slug })}
+				href={resolve('/[category]/[[slug]]', { category, slug })}
 				onpointerenter={play}
 				onpointerleave={stop}
 			>
-				<img src={toOptimizedImage(projectImgSource)} alt="" loading="lazy" decoding="async" />
+				<img src={projectImgSource} alt="" loading="lazy" decoding="async" />
 				{#if projectVideoSource}
 					<video
 						src={projectVideoSource}

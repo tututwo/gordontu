@@ -1,4 +1,4 @@
-// ponytail: same pointer / velocity-fit / click-suppression as wallMotion.js on two axes; kept separate on purpose.
+// ponytail: wallMotion.js shares the release fit below; its one-axis drag and click suppression stay its own.
 import { gsap } from 'gsap/gsap-core';
 import { frameLoop } from '../frameLoop.js';
 
@@ -31,6 +31,38 @@ export function anchoredPan(pan, from, to, ratio) {
 		x: to.x - ratio * (from.x - pan.x),
 		y: to.y - ratio * (from.y - pan.y)
 	};
+}
+
+/**
+ * Keep a drag's recent pointer samples for `releaseVelocity`: the last 110 ms (and the one before
+ * them), at most eight.
+ * @template {{ time: number }} T @param {T[]} history @param {T} sample
+ */
+export function recordSample(history, sample) {
+	history.push(sample);
+	const cutoff = sample.time - POINTER_HISTORY_WINDOW;
+	while (history.length > 2 && history[1].time < cutoff) history.shift();
+	while (history.length > 8) history.shift();
+}
+
+/**
+ * Least-squares slope of the recent samples along `axis`, per ms.
+ * @template {string} K @param {({ time: number } & Record<K, number>)[]} history @param {K} axis
+ */
+export function releaseVelocity(history, axis) {
+	if (history.length < 2) return 0;
+	// A pause before lifting means "place it", not "throw it".
+	if (performance.now() - history[history.length - 1].time > POINTER_HISTORY_WINDOW) return 0;
+	const averageTime = history.reduce((sum, sample) => sum + sample.time, 0) / history.length;
+	const averageValue = history.reduce((sum, sample) => sum + sample[axis], 0) / history.length;
+	let covariance = 0;
+	let timeVariance = 0;
+	for (const sample of history) {
+		const centeredTime = sample.time - averageTime;
+		covariance += centeredTime * (sample[axis] - averageValue);
+		timeVariance += centeredTime * centeredTime;
+	}
+	return timeVariance > 0 ? covariance / timeVariance : 0;
 }
 
 /**
@@ -231,34 +263,6 @@ export class Pan {
 		return true;
 	}
 
-	/** @param {number} x @param {number} y @param {number} time */
-	#recordPointerSample(x, y, time) {
-		this.#pointerHistory.push({ x, y, time });
-		const cutoff = time - POINTER_HISTORY_WINDOW;
-		while (this.#pointerHistory.length > 2 && this.#pointerHistory[1].time < cutoff) {
-			this.#pointerHistory.shift();
-		}
-		while (this.#pointerHistory.length > 8) this.#pointerHistory.shift();
-	}
-
-	/** Least-squares slope of the recent samples, px per ms. @param {'x' | 'y'} axis */
-	#releaseVelocity(axis) {
-		const history = this.#pointerHistory;
-		if (history.length < 2) return 0;
-		// A pause before lifting means "place it", not "throw it".
-		if (performance.now() - history[history.length - 1].time > POINTER_HISTORY_WINDOW) return 0;
-		const averageTime = history.reduce((sum, sample) => sum + sample.time, 0) / history.length;
-		const averageValue = history.reduce((sum, sample) => sum + sample[axis], 0) / history.length;
-		let covariance = 0;
-		let timeVariance = 0;
-		for (const sample of history) {
-			const centeredTime = sample.time - averageTime;
-			covariance += centeredTime * (sample[axis] - averageValue);
-			timeVariance += centeredTime * centeredTime;
-		}
-		return timeVariance > 0 ? covariance / timeVariance : 0;
-	}
-
 	/** @param {HTMLElement} node @param {{ x: number, y: number }} point */
 	#relativePoint(node, point) {
 		const rect = node.getBoundingClientRect();
@@ -407,7 +411,7 @@ export class Pan {
 		if (event.pointerId !== this.#pointerId) return;
 		const dx = event.clientX - this.#dragStartX;
 		const dy = event.clientY - this.#dragStartY;
-		this.#recordPointerSample(event.clientX, event.clientY, performance.now());
+		recordSample(this.#pointerHistory, { x: event.clientX, y: event.clientY, time: performance.now() });
 
 		if (!this.isDragging) {
 			if (Math.hypot(dx, dy) <= DRAG_THRESHOLD) return;
@@ -457,8 +461,8 @@ export class Pan {
 			this.#dragTo(event.clientX - this.#dragStartX, event.clientY - this.#dragStartY);
 		}
 
-		const speedX = this.#releaseVelocity('x');
-		const speedY = this.#releaseVelocity('y');
+		const speedX = releaseVelocity(this.#pointerHistory, 'x');
+		const speedY = releaseVelocity(this.#pointerHistory, 'y');
 		const speed = Math.hypot(speedX, speedY);
 		const scale = speed > MAX_RELEASE_SPEED ? MAX_RELEASE_SPEED / speed : 1;
 

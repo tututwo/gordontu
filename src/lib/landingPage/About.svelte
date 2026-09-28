@@ -515,22 +515,8 @@
 		letter-spacing: var(--fit, 0);
 	}
 
-	/*
-	 * A hint over the scramble: the pointer turns into a pair of glasses. Drawn by the page for a mouse
-	 * (`.glasses-pointer`), so it can draw itself in; this still one (2x for sharp screens) is for when
-	 * the page's script is not running.
-	 */
-	@media (scripting: none) {
-		.afterword.secret {
-			cursor:
-				url('/landing/glasses-cursor.svg') 16 16,
-				help;
-			cursor:
-				image-set(url('/landing/glasses-cursor@2x.svg') 2x) 16 16,
-				help;
-		}
-	}
-
+	/* A hint over the scramble: the pointer turns into a pair of glasses, drawn by the page for a mouse
+	   (`.glasses-pointer`) so it can draw itself in. */
 	.afterword.pointing {
 		cursor: none;
 	}

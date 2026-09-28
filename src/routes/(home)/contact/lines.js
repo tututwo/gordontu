@@ -423,27 +423,8 @@ export const lines = {
 	]
 };
 
-/**
- * @template T
- * @param {T[]} list
- * @returns {T}
- */
-const one = (list) => list[Math.floor(Math.random() * list.length)];
-
 /** One wording of each line, for one visit's chat. */
-export function draw() {
-	return {
-		hello: one(lines.hello),
-		meet: one(lines.meet),
-		about: one(lines.about),
-		extras: one(lines.extras),
-		where: one(lines.where),
-		review: one(lines.review),
-		added: one(lines.added),
-		sent: one(lines.sent),
-		reply: one(lines.reply),
-		hurry: one(lines.hurry),
-		oops: one(lines.oops),
-		retry: one(lines.retry)
-	};
-}
+export const draw = () =>
+	/** @type {{ [K in keyof typeof lines]: (typeof lines)[K][number] }} */ (
+		Object.fromEntries(Object.entries(lines).map(([key, list]) => [key, list[Math.floor(Math.random() * list.length)]]))
+	);

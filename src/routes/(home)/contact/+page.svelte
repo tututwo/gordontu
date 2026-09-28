@@ -441,29 +441,16 @@
 							{@attach grow}
 							{@attach want === 'composer' ? focus : null}
 						></textarea>
-					{:else if mode === 'email'}
-						<!-- The same rule as the server's: one address, with a dot after the @. -->
-						<input
-							bind:value={chat.draft}
-							name="email"
-							type="email"
-							autocomplete="email"
-							enterkeyhint="send"
-							maxlength={fields.email.max}
-							pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
-							placeholder={fields.email.hint}
-							aria-labelledby={editing ? undefined : 'ask-email'}
-							aria-label={editing ? `Change ${fields.email.called}` : undefined}
-							onkeydown={keydown}
-							{@attach want === 'composer' ? focus : null}
-						/>
 					{:else}
+						<!-- An email takes the server's rule: one address, with a dot after the @. -->
 						<input
 							bind:value={chat.draft}
 							name={mode}
-							autocomplete={mode === 'name' ? 'name' : 'off'}
+							type={mode === 'email' ? 'email' : undefined}
+							autocomplete={mode === 'name' || mode === 'email' ? mode : 'off'}
 							enterkeyhint="send"
 							maxlength={mode === 'sent' ? undefined : fields[mode].max}
+							pattern={mode === 'email' ? '[^\\s@]+@[^\\s@]+\\.[^\\s@]+' : undefined}
 							placeholder={mode === 'sent' ? 'Sent. Talk soon!' : fields[mode].hint}
 							aria-labelledby={editing ? undefined : `ask-${mode}`}
 							aria-label={editing && mode !== 'sent' ? `Change ${fields[mode].called}` : undefined}
@@ -960,7 +947,6 @@
 		justify-content: center;
 		min-width: 5em;
 		height: 1.375rem;
-		margin-left: var(--spacing-4);
 		padding: 0 var(--spacing-8);
 		border: 1px solid var(--color-hairline);
 		border-radius: 0;
@@ -984,10 +970,6 @@
 			border-color: var(--color-ash);
 			color: var(--color-obsidian);
 		}
-	}
-
-	.line .copy {
-		margin-left: 0;
 	}
 
 	.bubble:active:not(:disabled),

@@ -2,12 +2,11 @@
  * @typedef {Object} Project
  * @property {string} projectName
  * @property {string} [projectLink] - the Project's own web page; absent when the Project is its image
- * @property {string} projectImgSource - the image: an external URL, or its original's path (`/projects/…`),
- *   of which only the webp copy is kept and served (toOptimizedImage)
+ * @property {string} projectImgSource - the image: an external URL, or its webp under `/projects-optimized/`
  * @property {string} [projectVideoSource] - a short muted 16:9 clip, served as is; the Project card plays it
  *   over the image while a mouse is on the card
  * @property {string[]} tools
- * @property {string} category
+ * @property {string} category - its category's `slug`
  * @property {string} date
  * @property {string} [client] - who it was made for, by name; absent means Self-initiated
  * @property {boolean} [featured] - shown as a Project card on the landing's projects tab
@@ -17,25 +16,22 @@
  */
 
 /**
- * Canonical Project categories — `value` is stored on each Project (never rename it),
- * `slug` is the URL form (`/charts`); `label` and `description` feed the landing's Category links, the
- * gallery chrome and each category page's meta.
+ * Canonical Project categories — `slug` is stored on each Project and is the URL form (`/charts`);
+ * `label` and `description` feed the landing's Category links, the gallery chrome and each category
+ * page's meta.
  */
 export const categories = [
 	{
-		value: 'charts',
 		label: 'Visual stories',
 		slug: 'charts',
 		description: 'Charts that turn complex systems into clear, memorable stories.'
 	},
 	{
-		value: 'maps',
 		label: 'Interactive maps',
 		slug: 'maps',
 		description: 'Spatial stories shaped through data, terrain, and careful craft.'
 	},
 	{
-		value: 'code creatively',
 		label: 'Web tools',
 		slug: 'creative-code',
 		description: 'Interactive experiments built with Svelte, Three.js, D3, and GLSL.'
@@ -44,23 +40,17 @@ export const categories = [
 
 /**
  * The Postcard gallery of every Project (`/all`), shaped like a category so the gallery takes either.
- * No Project is stored with its `value`.
+ * No Project is stored with its slug.
  */
 export const allProjects = {
-	value: 'all',
 	label: 'All projects',
 	slug: 'all',
 	description: 'Every map, story, and tool, on one table.'
 };
 
-/** @param {string} value */
-export function categoryLabel(value) {
-	return categories.find((category) => category.value === value)?.label ?? value;
-}
-
-/** A Project's category `value` → its URL `slug`. @param {string} value */
-export function categorySlug(value) {
-	return categories.find((category) => category.value === value)?.slug ?? value;
+/** @param {string} slug */
+export function categoryLabel(slug) {
+	return categories.find((category) => category.slug === slug)?.label ?? slug;
 }
 
 /** A Project's date as its postcard's back sets it (Mar 2024). @param {string} value ISO date */
@@ -73,7 +63,7 @@ const data = [
 	{
 		projectName: "Erhai Moon",
 		projectLink: "https://erhai-diorama.vercel.app/?zhongqiu",
-		projectImgSource: "/projects/Maps/erhai/erhai-zhongqiu-cover.png",
+		projectImgSource: "/projects-optimized/Maps/erhai/erhai-zhongqiu-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/erhai/erhai-zhongqiu-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "Blender"],
 		category: "maps",
@@ -82,7 +72,7 @@ const data = [
 	},
 	{
 		projectName: "Gas Is Everywhere in California. Fast Charging Isn't.",
-		projectImgSource: "/projects/Maps/isochrone-charging-stations.png",
+		projectImgSource: "/projects-optimized/Maps/isochrone-charging-stations.webp",
 		tools: ["QGIS"],
 		category: "maps",
 		date: "2026-09-04",
@@ -91,7 +81,7 @@ const data = [
 	{
 		projectName: "YPCCC Hazard Tool",
 		projectLink: "https://ypccc-hazard-tool.vercel.app/?hazard=heat__perception_reality_gap&state=0&county=00000&exploreMode=0",
-		projectImgSource: "/projects/Maps/ypccc-hazard-tool.png",
+		projectImgSource: "/projects-optimized/Maps/ypccc-hazard-tool.webp",
 		tools: ["React.js", "MapLibre", "D3", "deck.gl"],
 		category: "maps",
 		date: "2026-04-01",
@@ -100,7 +90,7 @@ const data = [
 	},
 	{
 		projectName: "Poyang Lake Entered the Dry Season 100 Days Earlier",
-		projectImgSource: "/projects/Maps/map_poyang.png",
+		projectImgSource: "/projects-optimized/Maps/map_poyang.webp",
 		tools: ["QGIS"],
 		category: "maps",
 		date: "2022-09-01",
@@ -109,16 +99,16 @@ const data = [
 	{
 		projectName: "Traveling Particles",
 		projectLink: "https://traveling-particles.vercel.app/",
-		projectImgSource: "/projects/CreativeCoding/three_us_road.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/three_us_road.webp",
 		tools: ["Three", "D3"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2024-11-01",
 		featured: true,
 	},
 	{
 		projectName: "California Affordable Housing",
 		projectLink: "https://ternercenter.berkeley.edu/affordability-for-whom.html",
-		projectImgSource: "/projects/Charts/svelte_california_housing.png",
+		projectImgSource: "/projects-optimized/Charts/svelte_california_housing.webp",
 		tools: ["Svelte", "D3"],
 		category: "charts",
 		date: "2023-11-01",
@@ -128,7 +118,7 @@ const data = [
 	{
 		projectName: "Election Map - 3D Visualization with Three.js and GLSL",
 		projectLink: "https://vite-three-chi.vercel.app/",
-		projectImgSource: "/projects/Charts/three_election.png",
+		projectImgSource: "/projects-optimized/Charts/three_election.webp",
 		tools: ["Three.js", "React.js"],
 		category: "charts",
 		date: "2023-11-01",
@@ -137,33 +127,33 @@ const data = [
 	{
 		projectName: "Brain Pulse Animation - Recreate Blue Yard Studio's Brain Pulse Animation",
 		projectLink: "https://brain-impulse.vercel.app/",
-		projectImgSource: "/projects/CreativeCoding/R3f-Brain.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/R3f-Brain.webp",
 		tools: ["Three.js", "React.js"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2023-11-01",
 	},
 	{
 		projectName: "Global Earthquakes - 3D Visualization with Three.js and Observable",
 		projectLink: "https://earthquake-landingpage.vercel.app/",
-		projectImgSource: "/projects/CreativeCoding/Earthquake.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Earthquake.webp",
 		tools: ["Three.js", "Svelte.js"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2023-03-01",
 	},
 	{
 		projectName: "Stitching Heart, Blooming Flowers",
 		projectLink: "https://beating-heart-phi.vercel.app/",
-		projectImgSource: "/projects/CreativeCoding/R3f-Heart.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/R3f-Heart.webp",
 		tools: ["Three.js", "React.js"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2023-02-01",
 	},
 	{
 		projectName: "Spike Planet",
 		projectLink: "https://spikey-planet.vercel.app/",
-		projectImgSource: "/projects/CreativeCoding/R3f-spikey.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/R3f-spikey.webp",
 		tools: ["Three.js", "React.js"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2023-03-01",
 	},
 	{
@@ -177,7 +167,7 @@ const data = [
 	{
 		projectName: "Number of Middle Age Himalayan Climbers Is Increasing Over Time",
 		projectLink: "https://observablehq.com/@tututwo/himalayan-ridge",
-		projectImgSource: "/projects/Charts/d3_Himalayan.png",
+		projectImgSource: "/projects-optimized/Charts/d3_Himalayan.webp",
 		tools: ["Observable"],
 		category: "charts",
 		date: "2022-01-01",
@@ -185,7 +175,7 @@ const data = [
 	{
 		projectName: "Recreate: Why teachers are walking out of the classroom",
 		projectLink: "https://teacher-svelte.netlify.app/",
-		projectImgSource: "/projects/Charts/svelte_teacherSalary.png",
+		projectImgSource: "/projects-optimized/Charts/svelte_teacherSalary.webp",
 		tools: ["Svelte", "D3"],
 		category: "charts",
 		date: "2021-07-01",
@@ -193,7 +183,7 @@ const data = [
 	{
 		projectName: "Covid Monitoring Dashboard - China",
 		projectLink: "https://www.chinacovidmonitor.org/",
-		projectImgSource: "/projects/Charts/svelte-covid-cn.png",
+		projectImgSource: "/projects-optimized/Charts/svelte-covid-cn.webp",
 		tools: ["Svelte", "D3", "R"],
 		category: "charts",
 		date: "2022-08-01",
@@ -219,118 +209,118 @@ const data = [
 	{
 		projectName: "CSS Doodle Chinese Pattern",
 		projectLink: "https://codepen.io/collection/LPePxy",
-		projectImgSource: "/projects/CreativeCoding/css-doodle-纹样.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/css-doodle-纹样.webp",
 		tools: ["CSS"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-12-02",
 	},
 	{
 		projectName: "Rotating 3D Cubes",
 		projectLink: "https://observablehq.com/@tututwo/three-js-animated-cubes?collection=@tututwo/three-js-creative-coding-practice",
-		projectImgSource: "/projects/CreativeCoding/Observable_GR_animateCubes.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_GR_animateCubes.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-01-02",
 	},
 	{
 		projectName: "Sunset Blob",
 		projectLink: "https://observablehq.com/@tututwo/the-annual-ring-v2?collection=@tututwo/three-js-creative-coding-practice",
-		projectImgSource: "/projects/CreativeCoding/Observable_GR_blobRing.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_GR_blobRing.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-01-09",
 	},
 	{
 		projectName: "Rough Fried Eggs",
 		projectLink: "https://observablehq.com/d/1d6edd39edb160e7?collection=@tututwo/three-js-creative-coding-practice",
-		projectImgSource: "/projects/CreativeCoding/Observable_GR_circlePackingMerging.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_GR_circlePackingMerging.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-02-09",
 	},
 	{
 		projectName: "Lili Pads",
 		projectLink: "https://observablehq.com/d/86bf42953f2582bd?collection=@tututwo/three-js-creative-coding-practice",
-		projectImgSource: "/projects/CreativeCoding/Observable_GR_lotusLeave.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_GR_lotusLeave.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-01-19",
 	},
 	{
 		projectName: "Rough Squares",
 		projectLink: "https://observablehq.com/@tututwo/rough-canvas-squares",
-		projectImgSource: "/projects/CreativeCoding/Observable_GR_roughSquare.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_GR_roughSquare.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-01-01",
 	},
 	{
 		projectName: "GLSL SDF Practice Collection",
 		projectLink: "https://observablehq.com/collection/@tututwo/sdf",
-		projectImgSource: "/projects/CreativeCoding/Observable_SDF.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_SDF.webp",
 		tools: ["GLSL"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2022-08-01",
 	},
 	{
 		projectName: "Star Candy Ball",
 		projectLink: "https://observablehq.com/d/027525671baa52b4",
-		projectImgSource: "/projects/CreativeCoding/Observable-Star.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable-Star.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2022-12-01",
 	},
 	{
 		projectName: "Flow Field 2D",
 		projectLink: "https://observablehq.com/d/73794013ffa23a9c?collection=@tututwo/three-js-creative-coding-practice",
-		projectImgSource: "/projects/CreativeCoding/Observable-flowfield.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable-flowfield.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2023-01-31",
 	},
 	{
 		projectName: "Unfold a Chinese Lattern",
 		projectLink: "https://observablehq.com/@tututwo/chinese-lantern",
-		projectImgSource: "/projects/CreativeCoding/Observable_lattern.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_lattern.webp",
 		tools: ["Observable"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-07-01",
 	},
 	{
 		projectName: "Canvas Lightning",
 		projectLink: "https://observablehq.com/@tututwo/lightning",
-		projectImgSource: "/projects/CreativeCoding/Observable_lightning.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_lightning.webp",
 		tools: ["GLSL"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2021-10-01",
 	},
 	{
 		projectName: "Kois",
 		projectLink: "https://observablehq.com/@tututwo/kois",
-		projectImgSource: "/projects/CreativeCoding/Observable_kois.png",
+		projectImgSource: "/projects-optimized/CreativeCoding/Observable_kois.webp",
 		tools: ["Canvas"],
-		category: "code creatively",
+		category: "creative-code",
 		date: "2022-09-10",
 		featured: true,
 	},
 	{
 		projectName: "Developing and undeveloped countries remain to be the agricultural countries, made in QGIS",
 		projectLink: "https://datawrapper.dwcdn.net/VjDoq/5/",
-		projectImgSource: "/projects/Maps/map_datawrapper_agriculture.png",
+		projectImgSource: "/projects-optimized/Maps/map_datawrapper_agriculture.webp",
 		tools: ["Datawrapper"],
 		category: "maps",
 		date: "2020-12-10",
 	},
 	{
 		projectName: "China Elevation",
-		projectImgSource: "/projects/Maps/map_elevation_ridge.png",
+		projectImgSource: "/projects-optimized/Maps/map_elevation_ridge.webp",
 		tools: ["QGIS", "Adobe Illustrator"],
 		category: "maps",
 		date: "2020-10-17",
 	},
 	{
 		projectName: "Most buildings in Manhattan were built before 1960s",
-		projectImgSource: "/projects/Maps/map_Manhattan_cover.png",
+		projectImgSource: "/projects-optimized/Maps/map_Manhattan_cover.webp",
 		tools: ["QGIS"],
 		category: "maps",
 		date: "2020-12-27",
@@ -338,21 +328,21 @@ const data = [
 	{
 		projectName: "Sichuan Basin Elevation",
 		projectLink: "https://observablehq.com/d/299f845c1c4ba8fe",
-		projectImgSource: "/projects/Maps/map_ridgelineSichuan.png",
+		projectImgSource: "/projects-optimized/Maps/map_ridgelineSichuan.webp",
 		tools: ["Observable"],
 		category: "maps",
 		date: "2022-01-27",
 	},
 	{
 		projectName: "The elevation of Jiangxi Province",
-		projectImgSource: "/projects/Maps/map_shuimomap_shuimo_cover.png",
+		projectImgSource: "/projects-optimized/Maps/map_shuimomap_shuimo_cover.webp",
 		tools: ["QGIS"],
 		category: "maps",
 		date: "2020-11-07",
 	},
 	{
 		projectName: "Two Dragons of China",
-		projectImgSource: "/projects/Maps/map_twodragons_cover.png",
+		projectImgSource: "/projects-optimized/Maps/map_twodragons_cover.webp",
 		tools: ["QGIS"],
 		category: "maps",
 		date: "2020-11-27",
@@ -375,12 +365,6 @@ export function slugify(value) {
 		.normalize('NFKD')
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
-}
-
-/** `/projects/x.png` → `/projects-optimized/x.webp`; other sources pass through. @param {string} source */
-export function toOptimizedImage(source) {
-	if (!source.startsWith('/projects/')) return source;
-	return source.replace('/projects/', '/projects-optimized/').replace(/\.[^.]+$/, '.webp');
 }
 
 /** Every Project, newest first (ISO dates sort as strings), seeded for the postcard scatter, slugged for its URL. */

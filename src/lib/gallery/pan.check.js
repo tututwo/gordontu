@@ -1,5 +1,5 @@
 // Deterministic input-state checks: `node src/lib/gallery/pan.check.js`.
-import { Pan } from './pan.js';
+import { Pan, recordSample, releaseVelocity } from './pan.js';
 
 /** @param {unknown} condition @param {string} message */
 const ok = (condition, message) => {
@@ -135,6 +135,15 @@ const detachOffset = offsetPan.attach(/** @type {any} */ (offsetNode));
 offsetNode.emit('wheel', { deltaX: 0, deltaY: -100, deltaMode: 0, ctrlKey: false, clientX: 500, clientY: 400 });
 ok(Math.abs(offsetPan.y - (offsetPan.zoom - 1) * 72) < 1e-9, 'fixed composition offset stays anchored while zooming');
 detachOffset();
+
+// A release throws at the slope of the last samples (the flip's too), and a pause throws nothing.
+performance.now = () => 1030;
+/** @type {{ x: number, time: number }[]} */
+const samples = [];
+for (const time of [990, 1000, 1010, 1020, 1030]) recordSample(samples, { x: 2 * time, time });
+ok(Math.abs(releaseVelocity(samples, 'x') - 2) < 1e-9, 'release speed is the slope of the recent samples');
+performance.now = () => 1200;
+ok(releaseVelocity(samples, 'x') === 0, 'a pause before lifting throws nothing');
 
 // An arrow key's coast, one animation frame at a time: each frame it has travelled the exact integral
 // of its decaying speed, and once it stops it asks for no more frames.

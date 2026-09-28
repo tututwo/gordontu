@@ -53,5 +53,5 @@ How the page changes on the way into or out of a Postcard gallery (canvas-ui's P
 _Avoid_: Page flip, page curl, page transition, turn
 
 **Project category**:
-One of the portfolio's canonical groupings: Interactive maps, Visual stories, or Web tools. Each has its own page (`/maps`, `/charts`, `/creative-code` — the URLs keep the earlier names Maps, Charts, Creative coding), reached from the landing page or the gallery's section switcher. The stored `value` never changes; `slug` is the URL form.
+One of the portfolio's canonical groupings: Interactive maps, Visual stories, or Web tools. Each has its own page (`/maps`, `/charts`, `/creative-code` — the URLs keep the earlier names Maps, Charts, Creative coding), reached from the landing page or the gallery's section switcher. A Project stores its category's `slug`, the URL form.
 _Avoid_: Title tag, navigation item, filter, services

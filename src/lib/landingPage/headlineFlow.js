@@ -29,9 +29,10 @@
  * where a card, or a line the stream ran onto, would reach it.
  *
  * The layout is the browser's rest layout, moved: every unit keeps its rest spacing from the one before
- * it, so with nothing lit everything is exactly where the browser put it. Pretext checks that layout
- * once: if its own line breaks disagree with the browser's, the headline is not what this was measured
- * for, the flow stays off and the icons fall back to magnifying over the sentence.
+ * it, so with nothing lit everything is exactly where the browser put it. That layout is checked once:
+ * if the units, wrapped greedily at the column's width, break other than the browser's lines, the
+ * headline is not what this was measured for, the flow stays off and the icons fall back to magnifying
+ * over the sentence.
  */
 
 /** Space kept from the window's edge, in em. */
@@ -47,8 +48,6 @@ const LOOK = 12;
 /** Between two samples, moving further than this is a jump, not a glide, in em. */
 const JUMP = 2;
 
-/** @typedef {import('@chenglou/pretext/rich-inline').RichInlineItem} Item */
-
 /**
  * Where a unit may be split, from its left: where the clip before it ends (`at`) and the one after it
  * starts (`from`), and where the ink before it ends and after it starts. Between two words (`word`)
@@ -57,13 +56,13 @@ const JUMP = 2;
  */
 
 /**
- * One thing that moves as a whole: a word, the avatar, or a link, with any punctuation glued after it.
- * A word, or the label of a link that is not lit, may be split at one of its `cuts`; `split` is the
- * element that is clipped then, and `splitBox` its rest box in its containing block (the headline for
- * a word, the link for a label), where its copy is drawn.
+ * One thing that moves as a whole: a word, the avatar, or a link, with any punctuation glued after it,
+ * `width` wide as the browser set it. A word, or the label of a link that is not lit, may be split at
+ * one of its `cuts`; `split` is the element that is clipped then, and `splitBox` its rest box in its
+ * containing block (the headline for a word, the link for a label), where its copy is drawn.
  * @typedef {{
  *   els: HTMLElement[],
- *   item: Item,
+ *   width: number,
  *   link: HTMLElement | null,
  *   label: HTMLElement | null,
  *   frame: DOMRect | null,
@@ -109,8 +108,6 @@ const move = (el, x, y) => (el.style.transform = Math.abs(x) > 0.01 || Math.abs(
 
 /** @param {HTMLElement} h1 */
 export function headlineFlow(h1) {
-	/** @type {typeof import('@chenglou/pretext/rich-inline') | undefined} */
-	let pretext;
 	/** @type {Unit[]} */
 	let units = [];
 	/** Per rest line: the top of its words; and whether the last line holds a link's frame (1) or not (0). */
@@ -161,37 +158,6 @@ export function headlineFlow(h1) {
 	const anchorOf = (/** @type {number} */ k) =>
 		k < anchors.length ? anchors[k] : anchors[anchors.length - 1] + lineHeight + drop * framed + (k - anchors.length) * lineHeight;
 
-	/** @param {string} text @param {string} font @param {number} letterSpacing */
-	function measureText(text, font, letterSpacing) {
-		if (!pretext) return 0;
-		const prepared = pretext.prepareRichInline([{ text, font, letterSpacing }]);
-		return pretext.layoutNextRichInlineLineRange(prepared, 1e6)?.width ?? 0;
-	}
-
-	/** Pretext's space between two words. @param {string} font @param {number} letterSpacing */
-	function measureSpace(font, letterSpacing) {
-		if (!pretext) return 0;
-		const prepared = pretext.prepareRichInline([{ text: 'x', font, letterSpacing }, { text: ' x', font, letterSpacing }]);
-		return pretext.layoutNextRichInlineLineRange(prepared, 1e6)?.fragments[1]?.gapBefore ?? 0;
-	}
-
-	/**
-	 * Break `items` into lines of the column's width with Pretext: each item's line. A line's first item
-	 * draws no space, but spaced items carry the space drift, so every line gets that much back.
-	 * @param {Item[]} items @param {number} slack
-	 */
-	function wrap(items, slack) {
-		/** @type {number[]} */
-		const out = [];
-		if (!pretext) return out;
-		let k = 0;
-		pretext.walkRichInlineLineRanges(pretext.prepareRichInline(items), width + slack, (range) => {
-			for (const fr of range.fragments) out[fr.itemIndex] = k;
-			k++;
-		});
-		return out;
-	}
-
 	/**
 	 * Where `el`'s text may be split, from `origin`: between two of its letters, or at a space. Letters
 	 * are where the browser set them (kerning and all), each as wide as its glyph's ink.
@@ -232,12 +198,9 @@ export function headlineFlow(h1) {
 		return cuts;
 	}
 
-	/** Read the browser's rest layout into units, and check Pretext breaks alike. */
+	/** Read the browser's rest layout into units, and check they wrap as it did. */
 	function measure() {
-		if (!pretext) return;
-		const style = getComputedStyle(h1);
-		em = parseFloat(style.fontSize);
-		const spacing = parseFloat(style.letterSpacing) || 0;
+		em = parseFloat(getComputedStyle(h1).fontSize);
 		const box = h1.getBoundingClientRect();
 		width = h1.clientWidth;
 
@@ -249,29 +212,19 @@ export function headlineFlow(h1) {
 			while (before && before.nodeType === Node.COMMENT_NODE) before = before.previousSibling;
 			const spaced = before?.nodeType === Node.TEXT_NODE && /\s$/.test(before.textContent ?? '');
 			const rect = el.getBoundingClientRect();
-			const lead = spaced ? ' ' : '';
 			if (!spaced && list.length) {
-				// Punctuation glued to the element before it (the comma after a link) travels with it, as
-				// part of its item: Pretext would otherwise let a line break between them.
+				// Punctuation glued to the element before it (the comma after a link) travels with it: no
+				// line breaks between them.
 				const unit = list[list.length - 1];
 				unit.els.push(el);
 				unit.right = rect.right - box.left;
-				unit.item.extraWidth = (unit.item.extraWidth ?? 0) + rect.width;
+				unit.width += rect.width;
 				continue;
 			}
-			// Each item carries the difference between the browser's width for it and Pretext's, so Pretext
-			// breaks lines exactly where the browser did.
-			const text = el.textContent ?? '';
 			/** @type {Unit} */
 			const unit = {
 				els: [el],
-				item: {
-					text: lead + text,
-					font: fontOf(el),
-					letterSpacing: spacing,
-					break: 'never',
-					extraWidth: rect.width - measureText(text, fontOf(el), spacing)
-				},
+				width: rect.width,
 				link: null,
 				label: null,
 				frame: null,
@@ -288,12 +241,11 @@ export function headlineFlow(h1) {
 				space: 0
 			};
 			if (el.matches('.category-link')) {
-				// At rest a link is one atomic item: its label's text, plus the frame and its margin as width.
+				// At rest a link moves as one: its frame and the margin after it, then its name.
 				const frameEl = /** @type {HTMLElement} */ (el.querySelector('.frame'));
 				const label = /** @type {HTMLElement} */ (el.querySelector('.label'));
 				const f = frameEl.getBoundingClientRect();
 				const l = label.getBoundingClientRect();
-				const name = label.firstChild?.textContent ?? '';
 				barWidth = parseFloat(getComputedStyle(label).paddingRight) || 0;
 				unit.link = el;
 				unit.label = label;
@@ -309,13 +261,7 @@ export function headlineFlow(h1) {
 				unit.cuts = [{ at: unit.labelX, from: unit.labelX, head: f.width, tail: unit.labelX + barWidth, word: false }, ...cutsOf(label, rect.left)];
 				// Lit, its name stays whole but for breaking between its words at the window's edge.
 				unit.labelCuts = cutsOf(label, l.left).filter((c) => c.word);
-				// The label's negative margins cancel its padding, so the link is as wide as frame plus name.
-				const drift = rect.width - unit.frameOuter - measureText(name, fontOf(label), spacing);
-				unit.item = { text: lead + name, font: fontOf(label), letterSpacing: spacing, break: 'never', extraWidth: unit.frameOuter + drift };
-			} else if (el.matches('.avatar')) {
-				// The avatar is a box: a zero-width word joiner carrying its width.
-				unit.item = { text: lead + '⁠', font: fontOf(h1), break: 'never', extraWidth: rect.width };
-			} else {
+			} else if (!el.matches('.avatar')) {
 				unit.split = el;
 				unit.cuts = cutsOf(el, rect.left);
 			}
@@ -361,18 +307,12 @@ export function headlineFlow(h1) {
 			anchors[k] = (anchors[k - 1] ?? 0) + step;
 		}
 
-		// Between these inline blocks the browser's space is a fraction of a pixel wider than Pretext's.
-		// Each spaced item carries the difference; a line's first item draws no space, so every line is
-		// given that much back as slack.
 		wordSpace = em / 4;
-		let spaceDrift = 0;
 		const pair = list.findIndex((unit, i) => i > 0 && unit.restLine === list[i - 1].restLine && list[i - 1].els.length === 1);
 		if (pair > 0) {
 			const prev = list[pair - 1];
 			wordSpace = list[pair].restX - prev.restX - prev.els[0].getBoundingClientRect().width;
-			spaceDrift = wordSpace - measureSpace(fontOf(h1), spacing);
 		}
-		for (const unit of list) if (unit.item.text.startsWith(' ')) unit.item.extraWidth = (unit.item.extraWidth ?? 0) + spaceDrift;
 		// Each unit keeps its rest space from the one before; one that began a line takes a plain space.
 		list.forEach((unit, i) => (unit.space = i && unit.restLine === list[i - 1].restLine ? unit.restX - list[i - 1].right : wordSpace));
 
@@ -382,12 +322,17 @@ export function headlineFlow(h1) {
 		);
 		nextTop = followers.length ? followers[0].getBoundingClientRect().top - box.top : Infinity;
 
-		// Pretext's rest layout must break exactly as the browser did, or the units are not the lines seen.
-		const rest = wrap(
-			units.map((unit) => unit.item),
-			spaceDrift
-		);
-		enabled = units.every((unit, i) => rest[i] === unit.restLine);
+		// The units, wrapped greedily at the column's width, must break exactly as the browser did, or they
+		// are not the lines seen.
+		let row = 0;
+		let filled = 0;
+		enabled = units.every((unit, i) => {
+			if (i && filled + wordSpace + unit.width > box.width + 0.5) {
+				row++;
+				filled = unit.width;
+			} else filled += (i ? wordSpace : 0) + unit.width;
+			return row === unit.restLine;
+		});
 		if (enabled) h1.dataset.flow = '';
 		else delete h1.dataset.flow;
 	}
@@ -746,15 +691,12 @@ export function headlineFlow(h1) {
 	h1.addEventListener('iconzoom', onzoom);
 	const observer = new ResizeObserver(remeasure);
 
-	// Pretext is only needed once someone hovers; fetch it after the fonts, off the first paint.
-	Promise.all([document.fonts.ready, import('@chenglou/pretext/rich-inline')])
-		.then(([, lib]) => {
-			if (disposed) return;
-			pretext = lib;
-			remeasure();
-			observer.observe(h1);
-		})
-		.catch((error) => console.warn('Headline flow unavailable:', error));
+	// Line boxes are only final once the web font is in.
+	document.fonts.ready.then(() => {
+		if (disposed) return;
+		remeasure();
+		observer.observe(h1);
+	});
 
 	return () => {
 		disposed = true;

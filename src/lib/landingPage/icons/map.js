@@ -24,12 +24,10 @@ const YAW_FOLDED = (22 * Math.PI) / 180;
 const YAW_OPEN = (45 * Math.PI) / 180;
 
 /**
- * Reference px per unit, folded and open: folded it stands about as tall as the old icons did;
- * open it eases down so the spread sits inside the lit brackets (82 px) instead of touching the
- * label's bar.
+ * Reference px per unit, folded and open alike: folded it stands about as tall as the old icons did,
+ * and open its spread sits inside the lit brackets (82 px) instead of touching the label's bar.
  */
-const SCALE_FOLDED = 48;
-const SCALE_OPEN = 48;
+const SCALE = 48;
 
 /**
  * The fold completes over the first 4% of the spring's travel home, before its slow tail, so the
@@ -99,6 +97,7 @@ void main() {
 export function createMapIcon(stage) {
 	const map = new Group();
 	stage.pivot.add(map);
+	stage.pivot.scale.setScalar(SCALE);
 
 	// The field's clock and the wipe, shared by the three printed faces.
 	const uTime = { value: 0 };
@@ -135,7 +134,6 @@ export function createMapIcon(stage) {
 		}
 		const mid = [(hinges[0][0] + hinges[3][0]) / 2, (hinges[0][1] + hinges[3][1]) / 2];
 		map.rotation.y = YAW_FOLDED + (YAW_OPEN - YAW_FOLDED) * p;
-		stage.pivot.scale.setScalar(SCALE_FOLDED + (SCALE_OPEN - SCALE_FOLDED) * p);
 		const thick = Math.max(1e-4, T * (1 - smoothstep(0, SHEET, p)));
 		// Just folded, the panels lie flat on one another (0 on 1's +x, 1's -x on 2's -x, the middle
 		// one turned round) and read as the block: no seams between them.

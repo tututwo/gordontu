@@ -41,9 +41,9 @@ const TABLE = '.gallery canvas';
 
 const SEG = 96;
 
-const SHEET_VERT = /* glsl */ `#version 300 es
+const SHEET_VERT = /* glsl */ `
 precision highp float;
-layout(location = 0) in vec2 aGrid;
+in vec2 uv;
 uniform vec2 uRes;
 uniform float uSide;
 uniform float uPeel;
@@ -59,6 +59,7 @@ out vec2 vSide;
 const float PI = 3.1415926;
 
 void main () {
+  vec2 aGrid = vec2(uv.x, 1.0 - uv.y);
   vUv = aGrid;
   vec2 p = aGrid * uRes;
   float u = uSide < 0.5 ? p.x : uRes.x - p.x;
@@ -95,7 +96,7 @@ void main () {
   gl_Position = vec4(ndc, -z / uFocal, w);
 }`;
 
-const SHEET_FRAG = /* glsl */ `#version 300 es
+const SHEET_FRAG = /* glsl */ `
 precision highp float;
 in vec2 vUv;
 in float vShade;
@@ -121,92 +122,71 @@ void main () {
 /**
  * The page as a sheet over the window, drawn at rest until `draw` peels it. `forward` peels it from
  * its right edge, the way a book's page turns to the next; otherwise from its left, turning back.
+ * @param {typeof import('three')} THREE
  * @param {HTMLCanvasElement} image the page's picture, at the window's size
  * @param {boolean} forward
  */
-function createSheet(image, forward) {
-	const canvas = document.createElement('canvas');
-	canvas.width = image.width;
-	canvas.height = image.height;
+function createSheet(THREE, image, forward) {
+	/** @type {import('three').WebGLRenderer} */
+	let renderer;
+	try {
+		renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+	} catch {
+		return null; // no WebGL 2
+	}
+	const canvas = renderer.domElement;
 	canvas.setAttribute('aria-hidden', 'true');
 	canvas.dataset.capture = 'exclude'; // never in a picture of the page itself
 	canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:2147483647;pointer-events:none';
-	const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, antialias: true });
-	if (!gl) return null;
-
-	/** @param {number} type @param {string} source */
-	const shader = (type, source) => {
-		const s = /** @type {WebGLShader} */ (gl.createShader(type));
-		gl.shaderSource(s, source);
-		gl.compileShader(s);
-		return s;
-	};
-	const program = /** @type {WebGLProgram} */ (gl.createProgram());
-	gl.attachShader(program, shader(gl.VERTEX_SHADER, SHEET_VERT));
-	gl.attachShader(program, shader(gl.FRAGMENT_SHADER, SHEET_FRAG));
-	gl.linkProgram(program);
-	gl.useProgram(program);
-	/** @param {string} name */
-	const uniform = (name) => gl.getUniformLocation(program, name);
-
-	const grid = new Float32Array((SEG + 1) * (SEG + 1) * 2);
-	for (let y = 0; y <= SEG; y++) {
-		for (let x = 0; x <= SEG; x++) grid.set([x / SEG, y / SEG], (y * (SEG + 1) + x) * 2);
-	}
-	const indices = new Uint32Array(SEG * SEG * 6);
-	for (let y = 0, i = 0; y < SEG; y++) {
-		for (let x = 0; x < SEG; x++, i += 6) {
-			const a = y * (SEG + 1) + x;
-			const c = a + SEG + 1;
-			indices.set([a, c, a + 1, a + 1, c, c + 1], i);
-		}
-	}
-	gl.bindVertexArray(gl.createVertexArray());
-	gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-	gl.bufferData(gl.ARRAY_BUFFER, grid, gl.STATIC_DRAW);
-	gl.enableVertexAttribArray(0);
-	gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-
-	// Mipmapped, so words squeezed round the curl don't shimmer as it rolls.
-	gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-	gl.generateMipmap(gl.TEXTURE_2D);
-
+	renderer.setSize(image.width, image.height, false);
 	document.body.append(canvas);
 	const width = canvas.clientWidth;
 	const height = canvas.clientHeight;
 	// Canvas UI's defaults, but for the curl, which is sized to the window so a phone's page rolls as
 	// a desk's does.
 	const curl = Math.min(width, height) * 0.3;
-	gl.uniform2f(uniform('uRes'), width, height);
-	gl.uniform1f(uniform('uSide'), forward ? 1 : 0);
-	gl.uniform1f(uniform('uCurl'), curl);
-	gl.uniform1f(uniform('uBow'), 75);
-	gl.uniform1f(uniform('uBulge'), 50);
-	gl.uniform1f(uniform('uFocal'), 2000);
-	gl.uniform1f(uniform('uShade'), 0.25);
-	gl.uniform1f(uniform('uShine'), 1);
-	gl.enable(gl.BLEND);
-	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-	gl.enable(gl.DEPTH_TEST);
-	gl.depthFunc(gl.LEQUAL);
-	gl.viewport(0, 0, canvas.width, canvas.height);
+	// Mipmapped (three's default), so words squeezed round the curl don't shimmer as it rolls.
+	const content = new THREE.CanvasTexture(image);
+	content.flipY = false;
+	const uniforms = {
+		uContent: { value: content },
+		uRes: { value: [width, height] },
+		uSide: { value: forward ? 1 : 0 },
+		uCurl: { value: curl },
+		uBow: { value: 75 },
+		uBulge: { value: 50 },
+		uFocal: { value: 2000 },
+		uShade: { value: 0.25 },
+		uShine: { value: 1 },
+		uPeel: { value: 0 },
+		uFold: { value: 0 }
+	};
+	const sheet = new THREE.Mesh(
+		new THREE.PlaneGeometry(1, 1, SEG, SEG),
+		new THREE.RawShaderMaterial({
+			glslVersion: THREE.GLSL3,
+			vertexShader: SHEET_VERT,
+			fragmentShader: SHEET_FRAG,
+			uniforms,
+			// Curled over, its back shows: the page's print, mirrored.
+			side: THREE.DoubleSide,
+			transparent: true,
+			premultipliedAlpha: true
+		})
+	);
+	// The vertex shader places it, not three.
+	sheet.frustumCulled = false;
+	const scene = new THREE.Scene().add(sheet);
+	const camera = new THREE.Camera();
 
 	/**
 	 * The sheet `peel` of the way off: from flat to rolled past the far edge, out of sight.
 	 * @param {number} peel
 	 */
 	const draw = (peel) => {
-		gl.clearColor(0, 0, 0, 0);
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		gl.uniform1f(uniform('uPeel'), peel);
-		gl.uniform1f(uniform('uFold'), peel * (width + curl));
-		gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_INT, 0);
+		uniforms.uPeel.value = peel;
+		uniforms.uFold.value = peel * (width + curl);
+		renderer.render(scene, camera);
 	};
 	draw(0);
 
@@ -214,7 +194,8 @@ function createSheet(image, forward) {
 		draw,
 		remove() {
 			canvas.remove();
-			gl.getExtension('WEBGL_lose_context')?.loseContext();
+			renderer.dispose();
+			renderer.forceContextLoss();
 		}
 	};
 }
@@ -307,11 +288,11 @@ export function peel(navigation) {
 	finish?.();
 	const turn = ++turns;
 	return Promise.race([
-		picture().catch(() => null),
+		Promise.all([import('three'), picture()]).catch(() => null),
 		new Promise((late) => setTimeout(late, PATIENCE, null))
-	]).then((image) => {
-		if (!image || turn !== turns) return;
-		const sheet = createSheet(image, way > 0);
+	]).then((ready) => {
+		if (!ready || turn !== turns) return;
+		const sheet = createSheet(ready[0], ready[1], way > 0);
 		if (sheet) navigation.complete.then(() => play(sheet), sheet.remove);
 	});
 }

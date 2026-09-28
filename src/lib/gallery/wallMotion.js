@@ -1,6 +1,7 @@
 import { gsap } from 'gsap/gsap-core';
 import { prefersReducedMotion } from 'svelte/motion';
 import { frameLoop } from '../frameLoop.js';
+import { recordSample, releaseVelocity } from './pan.js';
 
 const DECELERATION_RATE = 0.998;
 const DAMPING_RATIO = 0.88;
@@ -9,7 +10,6 @@ const ANGULAR_FREQUENCY = (Math.PI * 2) / RESPONSE;
 const MAX_FRAME_DELTA = 1 / 30;
 const MAX_ELAPSED_TIME = 0.1;
 const MAX_RELEASE_SPEED = 8;
-const POINTER_HISTORY_WINDOW = 110;
 const DRAG_THRESHOLD = 8;
 const clampElapsed = gsap.utils.clamp(0, MAX_ELAPSED_TIME);
 
@@ -133,37 +133,6 @@ export class WallMotion {
 		}
 	}
 
-	/** @param {number} x @param {number} time */
-	#recordPointerSample(x, time) {
-		this.#pointerHistory.push({ x, time });
-		const cutoff = time - POINTER_HISTORY_WINDOW;
-
-		while (this.#pointerHistory.length > 2 && this.#pointerHistory[1].time < cutoff) {
-			this.#pointerHistory.shift();
-		}
-		while (this.#pointerHistory.length > 8) this.#pointerHistory.shift();
-	}
-
-	#getReleaseVelocity() {
-		const history = this.#pointerHistory;
-		if (history.length < 2) return 0;
-		// A pause before lifting means "place it", not "throw it".
-		if (performance.now() - history[history.length - 1].time > POINTER_HISTORY_WINDOW) return 0;
-
-		const averageTime = history.reduce((sum, sample) => sum + sample.time, 0) / history.length;
-		const averageX = history.reduce((sum, sample) => sum + sample.x, 0) / history.length;
-		let covariance = 0;
-		let timeVariance = 0;
-
-		for (const sample of history) {
-			const centeredTime = sample.time - averageTime;
-			covariance += centeredTime * (sample.x - averageX);
-			timeVariance += centeredTime * centeredTime;
-		}
-
-		return timeVariance > 0 ? (covariance / timeVariance) * (1000 / this.#step()) : 0;
-	}
-
 	/**
 	 * Consumed on the click itself rather than reset on a timer — on touch, the click
 	 * can be dispatched a task later than pointerup, which a timer loses the race to.
@@ -192,7 +161,7 @@ export class WallMotion {
 		if (event.pointerId !== this.#pointerId) return;
 		const now = performance.now();
 		const delta = event.clientX - this.#dragStartX;
-		this.#recordPointerSample(event.clientX, now);
+		recordSample(this.#pointerHistory, { x: event.clientX, time: now });
 
 		if (!this.#isDragging) {
 			if (Math.abs(delta) <= DRAG_THRESHOLD) return;
@@ -224,7 +193,8 @@ export class WallMotion {
 		// erases a real flick. (pointercancel coordinates are unreliable; skip them.)
 		if (wasDragging && !wasCancelled) this.offset = this.#dragOffsetFor(event.clientX);
 
-		const releaseVelocity = gsap.utils.clamp(-MAX_RELEASE_SPEED, MAX_RELEASE_SPEED, this.#getReleaseVelocity());
+		// Steps per second.
+		const velocity = gsap.utils.clamp(-MAX_RELEASE_SPEED, MAX_RELEASE_SPEED, releaseVelocity(this.#pointerHistory, 'x') * (1000 / this.#step()));
 		this.#isDragging = false;
 		this.#pointerId = undefined;
 		if (target.hasPointerCapture(activePointerId)) target.releasePointerCapture(activePointerId);
@@ -235,7 +205,7 @@ export class WallMotion {
 			if (prefersReducedMotion.current) {
 				this.#setOffsetInstantly(Math.round(this.offset));
 			} else {
-				this.#startSpring(this.#releaseTarget(releaseVelocity), releaseVelocity);
+				this.#startSpring(this.#releaseTarget(velocity), velocity);
 			}
 		} else {
 			// Releasing a grabbed face settles onto the nearest step; an idle press is

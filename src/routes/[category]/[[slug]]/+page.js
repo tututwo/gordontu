@@ -4,7 +4,7 @@ import { allProjects, categories, projects } from '$lib/project/project.js';
 /** Each Postcard gallery with its Projects, gathered once. */
 const galleries = [allProjects, ...categories].map((category) => ({
 	category,
-	projects: category === allProjects ? projects : projects.filter((p) => p.category === category.value)
+	projects: category === allProjects ? projects : projects.filter((p) => p.category === category.slug)
 }));
 
 /** Every gallery, and every gallery with each of its postcards open. @type {import('./$types').EntryGenerator} */

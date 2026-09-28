@@ -6,4 +6,6 @@ Canvas UI draws the live page into its canvas with the html-in-canvas API, which
 
 SvelteKit's `onNavigate` waits while the picture is taken and laid over the page as the sheet at rest, then changes the page under it, and the sheet peels. From click to sheet, in production: 50–100 ms here, 150–320 ms with the CPU slowed four times. A picture that takes over a second is dropped and the page simply changes; without WebGL 2 too.
 
+**Amended 2026-09-28.** The sheet is drawn with three (imported beside snapdom, and already loaded by the landing's icons and every gallery) rather than raw WebGL 2: the same grid as a `PlaneGeometry`, the same shaders as a `RawShaderMaterial`, the picture as a mipmapped `CanvasTexture`.
+
 Rejected: holding the old page still in a View Transition while snapdom draws it (so nothing on it moves in the meantime): the browser suppresses animation frames during a transition's update, and snapdom waits on frames in several places (a WebGL canvas that is still blank, its font warm-up, Safari's image decoding), each then running to its timeout, up to a second. A CSS page curl on the View Transition's snapshot (no print on the curl, and none of canvas-ui's look). html-in-canvas behind an origin-trial token (Chrome only). A peel between the landing's tabs, and when a postcard opens or closes (those change the URL inside one page).
