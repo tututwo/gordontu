@@ -3,7 +3,10 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { allProjects, projects } from '$lib/project/project.js';
 
-	const featured = projects.filter((p) => p.featured);
+	// Pinned cards first, in their order; the rest keep projects' newest-first order (sort is stable).
+	const featured = projects
+		.filter((p) => p.featured)
+		.sort((a, b) => (a.pinned ?? Infinity) - (b.pinned ?? Infinity) || 0);
 
 	/** The card whose video lies over its image, while it plays. */
 	let playing = $state('');
@@ -35,7 +38,7 @@
 </svelte:head>
 
 <ul>
-	{#each featured as { projectName, projectImgSource, projectVideoSource, category, slug, date, client } (slug)}
+	{#each featured as { projectName, projectImgSource, projectVideoSource, category, slug, date, client, tools } (slug)}
 		<li>
 			<a
 				class="card"
@@ -59,8 +62,8 @@
 				{/if}
 				<span class="words">
 					<span class="title text-heading-16">{projectName}</span>
-					<span class="label text-eyebrow">Client</span>
-					<span class="client text-copy-14">{client ?? 'Self-initiated'}</span>
+					<span class="tools text-eyebrow">{tools.join(' · ')}</span>
+					<span class="client text-copy-14">{client ?? 'Personal'}</span>
 				</span>
 				<span class="year text-label-12-mono">{date.slice(0, 4)}</span>
 			</a>
@@ -150,7 +153,7 @@
 	}
 
 	.title,
-	.label,
+	.tools,
 	.client {
 		display: block;
 	}
@@ -159,7 +162,7 @@
 		color: var(--color-obsidian);
 	}
 
-	.label {
+	.tools {
 		margin-top: var(--spacing-12);
 	}
 

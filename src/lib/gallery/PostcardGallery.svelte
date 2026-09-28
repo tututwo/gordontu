@@ -311,7 +311,7 @@
 					<dt>Date</dt>
 					<dd>{formatDate(selected.date)}</dd>
 					<dt>Client</dt>
-					<dd>{selected.client ?? 'Self-initiated'}</dd>
+					<dd>{selected.client ?? 'Personal'}</dd>
 					<dt>Tools</dt>
 					<dd>{selected.tools.join(', ')}</dd>
 					<dt>Category</dt>

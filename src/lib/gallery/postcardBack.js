@@ -128,7 +128,7 @@ export function backTexture(project, { w, h }, pixelRatio, tokens) {
 		],
 		[
 			{ ...label, text: 'Client', gap: 20 },
-			{ ...value, text: project.client ?? 'Self-initiated' }
+			{ ...value, text: project.client ?? 'Personal' }
 		],
 		[
 			{ ...label, text: 'Tools', gap: 12 },

@@ -8,8 +8,9 @@
  * @property {string[]} tools
  * @property {string} category - its category's `slug`
  * @property {string} date
- * @property {string} [client] - who it was made for, by name; absent means Self-initiated
+ * @property {string} [client] - who it was made for, by name; absent means Personal
  * @property {boolean} [featured] - shown as a Project card on the landing's projects tab
+ * @property {number} [pinned] - its place at the top of the projects tab (1 first); unpinned cards follow, newest first
  * @property {number} seed - deterministic seed derived from projectName; the Postcard gallery
  *   scatters and tilts the Project's postcard from it, so it lands in the same spot on every visit
  * @property {string} slug - URL segment of the Project's open postcard (`/<gallery>/<slug>`), from projectName; unique
@@ -107,6 +108,7 @@ const data = [
 		category: "maps",
 		date: "2026-09-26",
 		featured: true,
+		pinned: 3,
 	},
 	{
 		projectName: "Average Color of America",
@@ -143,6 +145,7 @@ const data = [
 		date: "2026-04-01",
 		client: "Yale University",
 		featured: true,
+		pinned: 2,
 	},
 	// {
 	// 	projectName: "Poyang Lake Entered the Dry Season 100 Days Earlier",
@@ -179,6 +182,7 @@ const data = [
 		category: "charts",
 		date: "2026-09-25",
 		featured: true,
+		pinned: 1,
 	},
 	{
 		projectName: "Number of Chinese Company Infrastructure in the US and Abroad.",
