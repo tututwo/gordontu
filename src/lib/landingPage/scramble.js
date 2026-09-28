@@ -86,12 +86,10 @@ export function scrambleWord(span, text, { width, delay = 0, reveal, flicker = F
 }
 
 /**
- * The page coming in: a front runs along each line at `ACROSS` px a second (about `RATE` letters of
- * the bio), and each line's front sets off a little after the one above's (`DOWN` px a second down
- * the page), so all the lines decode at once, top ones first.
+ * The page coming in: one front runs down all its lines together, left to right at `ACROSS` px a
+ * second (about `RATE` letters of the bio), so every line decodes at once, in step.
  */
 const ACROSS = 450;
-const DOWN = 500;
 /** Text not to scramble: hidden copies for screen readers, and what is typed or drawn rather than set. */
 const SKIP = '.sr-only, textarea, select, svg, script, style';
 
@@ -152,7 +150,6 @@ export function scrambleIn(roots) {
 
 	const boxes = plans.flatMap(({ parts }) => parts.flatMap((part) => (typeof part === 'string' ? [] : [part.box])));
 	const left = Math.min(...boxes.map((b) => b.left));
-	const top = Math.min(...boxes.map((b) => b.top));
 	const tl = gsap.timeline();
 	/** @type {[Text, HTMLElement, HTMLElement][]} */
 	const swapped = [];
@@ -168,8 +165,7 @@ export function scrambleIn(roots) {
 			word.style.cssText = 'display: inline-block; white-space: nowrap';
 			shown.append(word);
 			const { width } = part.box;
-			const delay = (part.box.left - left) / ACROSS + Math.min(part.box.top - top, innerHeight) / DOWN;
-			tl.add(scrambleWord(word, part.text, { width, delay, reveal: Math.max(width / ACROSS, 0.01) }), 0);
+			tl.add(scrambleWord(word, part.text, { width, delay: (part.box.left - left) / ACROSS, reveal: Math.max(width / ACROSS, 0.01) }), 0);
 		}
 		const real = Object.assign(document.createElement('span'), { className: 'sr-only' });
 		node.replaceWith(shown, real);
