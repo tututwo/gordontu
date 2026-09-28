@@ -11,6 +11,8 @@ const MAX_FRAME_DELTA = 1 / 30;
 const MAX_ELAPSED_TIME = 0.1;
 const MAX_RELEASE_SPEED = 8;
 const DRAG_THRESHOLD = 8;
+/** How far past its one step a drag can be pulled, in steps, against a rising resistance. */
+const OVERDRAG = 0.2;
 const clampElapsed = gsap.utils.clamp(0, MAX_ELAPSED_TIME);
 
 /**
@@ -41,6 +43,8 @@ export class WallMotion {
 	#pointerId;
 	#dragStartX = 0;
 	#dragStartOffset = 0;
+	/** The face the press began on: a drag reaches at most one step either side of it. */
+	#dragBase = 0;
 	/** @type {{ x: number; time: number }[]} */
 	#pointerHistory = [];
 	#suppressClick = false;
@@ -70,7 +74,11 @@ export class WallMotion {
 
 	/** @param {number} clientX */
 	#dragOffsetFor(clientX) {
-		return this.#dragStartOffset + (clientX - this.#dragStartX) / this.#step();
+		const raw = this.#dragStartOffset + (clientX - this.#dragStartX) / this.#step();
+		// One step either way follows 1:1; past it the face rubber-bands, so a long drag never turns twice.
+		const limit = gsap.utils.clamp(this.#dragBase - 1, this.#dragBase + 1, raw);
+		const over = raw - limit;
+		return limit + (over * OVERDRAG) / (OVERDRAG + Math.abs(over));
 	}
 
 	#finishMotion() {
@@ -112,9 +120,14 @@ export class WallMotion {
 		return true;
 	}
 
-	/** Where a flick coasts to under DECELERATION_RATE, at most two steps away, snapped. @param {number} velocity steps/s */
+	/**
+	 * Where a flick coasts to under DECELERATION_RATE, snapped to a face, and never further than one step
+	 * from the face the press began on: a drag turns the card over once, however hard it is flicked.
+	 * @param {number} velocity steps/s
+	 */
 	#releaseTarget(velocity) {
-		return Math.round(this.offset + gsap.utils.clamp(-2, 2, (velocity / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE))));
+		const projected = Math.round(this.offset + (velocity / 1000) * (DECELERATION_RATE / (1 - DECELERATION_RATE)));
+		return gsap.utils.clamp(this.#dragBase - 1, this.#dragBase + 1, projected);
 	}
 
 	/** @param {number} value */
@@ -153,6 +166,7 @@ export class WallMotion {
 		this.#pointerId = event.pointerId;
 		this.#dragStartX = event.clientX;
 		this.#dragStartOffset = this.offset;
+		this.#dragBase = Math.round(this.offset);
 		this.#pointerHistory = [{ x: event.clientX, time: performance.now() }];
 	};
 
