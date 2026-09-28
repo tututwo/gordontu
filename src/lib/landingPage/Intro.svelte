@@ -60,6 +60,12 @@
 	const FRAME = 50;
 	/** Hurried along (a tap, a key, a scroll), what is left of the drawing takes this long (s). */
 	const HURRY = 0.3;
+	/**
+	 * Seen through in this browser within `FORGET` (ms, a day), the drawing plays `AGAIN` times as
+	 * fast; after that it is a first visit again.
+	 */
+	const AGAIN = 2;
+	const FORGET = 24 * 60 * 60 * 1000;
 	/** The page fades in over this long once the avatar is drawn (s); the landing's CSS has the same. */
 	const REVEAL = 0.4;
 
@@ -155,8 +161,17 @@
 		};
 		place(0);
 
-		/** How fast the drawing plays: 1, or hurried along. */
-		let rate = 1;
+		/** When this browser last watched the whole drawing (ms since the epoch), if it has. */
+		let seen = 0;
+		try {
+			seen = Number(localStorage.getItem('intro-seen')) || 0;
+		} catch {
+			// Storage blocked: every visit is a first.
+		}
+		const again = Date.now() - seen < FORGET;
+		/** How fast the drawing plays: as drawn, quicker for a return visit, or hurried along. */
+		let rate = again ? AGAIN : 1;
+		let hurried = false;
 		const clampFrame = gsap.utils.clamp(0, FRAME);
 		const loop = frameLoop((dt) => {
 			tl.time(tl.time() + (clampFrame(dt) / 1000) * rate);
@@ -167,9 +182,10 @@
 		});
 
 		function hurry() {
-			if (rate > 1) return;
-			window.posthog.capture?.('intro_skipped', { at: Math.round(tl.time() * 10) / 10 });
-			rate = Math.max(1, (tl.duration() - tl.time()) / HURRY);
+			if (hurried) return;
+			hurried = true;
+			window.posthog.capture?.('intro_skipped', { at: Math.round(tl.time() * 10) / 10, again });
+			rate = Math.max(rate, (tl.duration() - tl.time()) / HURRY);
 		}
 		const hurryOn = /** @type {const} */ (['pointerdown', 'keydown', 'wheel', 'touchmove']);
 		for (const type of hurryOn) addEventListener(type, hurry, { passive: true });
@@ -177,10 +193,15 @@
 			if (!ended) loop.start();
 		});
 
-		/** The page is shown, and the avatar is its own again. */
+		/** The page is shown, the avatar is its own again, and for a day the drawing plays quicker. */
 		function end() {
 			if (ended) return;
 			ended = true;
+			try {
+				localStorage.setItem('intro-seen', String(Date.now()));
+			} catch {
+				// Storage blocked: it plays at its own pace again next time.
+			}
 			finish();
 		}
 
