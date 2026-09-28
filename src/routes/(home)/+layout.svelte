@@ -38,7 +38,7 @@
 		{ word: ',', space: false },
 		...words('and'),
 		{ slug: 'creative-code', shape: 'tools', space: true },
-		...words('designed and built with taste and AI.')
+		...words('designed with taste and built with ingenuity.')
 	];
 
 	const socials = /** @type {const} */ ([
