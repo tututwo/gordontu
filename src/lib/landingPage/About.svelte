@@ -26,48 +26,11 @@
 	 * so coming back to it plays it scrambling back into its cipher.
 	 */
 	const kept = { leftRead: false };
-
-	/**
-	 * Look-alikes by width. The reference's type is monospace, so its random letters sit exactly where
-	 * the real ones do; in Geist a letter flickers through others of about its own width, so the letters
-	 * after it stay where they are. (GSAP's ScrambleTextPlugin draws every letter from one set, which in
-	 * a proportional face cuts letters at word edges and runs words together, so the scramble is our own
-	 * GSAP tween.) Anything not in a set (punctuation, &) stays itself.
-	 */
-	// Geist's advances, measured, in groups within 0.04 em (most within 0.02): i j l I about 0.24 em, f t r
-	// 0.33, s z 0.52, a c e k v x y 0.54, h n o u 0.57, b d g p q 0.585, m w 0.84; capitals likewise;
-	// digits are tabular. M and W have no match, so they keep still.
-	const ALIKE = ['ijlI', 'ftr', 'sz', 'acekvxy', 'hnou', 'bdgpq', 'mw', 'FJLTZ', 'EXY', 'KPS', 'ABRV', 'CDGHU', 'NOQ', '0123456789'];
-	/** @param {string} text */
-	const jumble = (text) =>
-		text.replace(/[a-z0-9]/gi, (letter) => {
-			const alike = ALIKE.find((set) => set.includes(letter)) ?? letter;
-			return alike[Math.floor(Math.random() * alike.length)];
-		});
-
-	/**
-	 * Shows a word found up to its `n`th letter, in the look it will keep (plain, or in `settle`'s
-	 * class), and the rest as look-alikes, light (`.scrambled`), spaced as what they stand in for.
-	 * @param {Element} span @param {string} text @param {number} n @param {string} settle
-	 */
-	function show(span, text, n, settle) {
-		const found = text.slice(0, n);
-		/** @type {(Node | string)[]} */
-		const parts = [];
-		if (n) parts.push(settle ? Object.assign(document.createElement('span'), { className: settle, textContent: found }) : found);
-		if (n < text.length)
-			parts.push(Object.assign(document.createElement('span'), { className: settle ? `scrambled ${settle}-like` : 'scrambled', textContent: jumble(text.slice(n)) }));
-		span.replaceChildren(...parts);
-	}
-
-	/** The scramble running on each word, so a new one takes over from it (and leaving stops it). */
-	const running = new WeakMap();
-	/** @param {Element[]} spans */
-	const stop = (spans) => spans.forEach((span) => running.get(span)?.kill());
 </script>
 
 <script>
 	import { hint, lenses, under } from './Avatar.svelte';
+	import { ALIKE, RATE, scrambleWord, stop } from './scramble.js';
 
 	/**
 	 * The bio's last line, an afterthought: it reads scrambled, and only the avatar's glasses read what
@@ -86,13 +49,8 @@
 			return alike[(i * 7 + 3) % alike.length];
 		})
 		.split(' ');
-	/**
-	 * The scramble's pace, from the reference: its front reveals 40 letters a second (spaces included),
-	 * and the letters not yet found change about every 30 ms; the lenses read a word calmly, slower on
-	 * both counts.
-	 */
-	const RATE = 40;
-	const FLICKER = 0.03;
+	/** The pen's height through the struck list, of its letters' height: where it starts each line, and where it would end the whole list. */
+	const SINK = [0.46, 0.62];
 	/** Read, the afterword turns back into its scramble after this long on the page (s), or once the page is left. */
 	const FORGET = 180;
 
@@ -128,7 +86,12 @@
 	 * @type {number[]}
 	 */
 	let fits = $state.raw([]);
-	const clamp01 = gsap.utils.clamp(0, 1);
+	/** The scratch through the old tool list: one straight stroke per line box of the <del>. @type {string[]} */
+	let strokes = $state.raw([]);
+	/** @type {HTMLElement} */
+	let del;
+	/** @type {HTMLElement} */
+	let ins;
 	/** The screen readers' copy of the afterword, and a hidden one of its cipher, to measure. @type {HTMLElement} */
 	let wordsCopy;
 	/** @type {HTMLElement} */
@@ -148,52 +111,25 @@
 	});
 
 	/**
-	 * The scramble, as in Gordon's reference recording: the whole text turns at once into light random
-	 * letters (each of about the width of the one it stands in for, see `ALIKE`), changing every
-	 * `FLICKER`, and one front sweeps across it left to right at `RATE`, each letter it passes landing
-	 * as it will stay (plain, or in `settle`'s class), so only the word under the front is ever
-	 * part-found. `calm` is how the lenses read one word: slower, easy on the eyes.
+	 * Scrambles the afterword's words (see scramble.js): one front sweeps across them left to right at
+	 * `RATE`, each letter it passes landing as it will stay (plain, or in `settle`'s class), so only the
+	 * word under the front is ever part-found. `calm` is how the lenses read one word: slower, easy on
+	 * the eyes.
 	 * @param {Element[]} spans
 	 * @param {string[]} texts
 	 * @param {{ settle?: string, calm?: boolean }} [how]
 	 */
 	function scramble(spans, texts, { settle = '', calm = false } = {}) {
-		stop(spans);
-		// Each word keeps the width it has now while it scrambles, so the line around it stays put; its
-		// look-alike letters come within about 0.15 em of it. Settled, it is let go again.
+		// Each word keeps the width it has now while it scrambles, so the line around it stays put.
 		const held = spans.map((span) => span.getBoundingClientRect().width);
-		spans.forEach((span, i) => (/** @type {HTMLElement} */ (span).style.width = `${held[i]}px`));
 		const tl = gsap.timeline();
-		const flicker = calm ? 0.14 : FLICKER;
 		// Letters before the word, spaces included: how long the front takes to reach it.
 		let before = 0;
 		spans.forEach((span, i) => {
 			const text = texts[i];
-			const delay = calm ? 0 : before / RATE;
-			const reveal = calm ? 0.9 : text.length / RATE;
+			const how = calm ? { reveal: 0.9, flicker: 0.14 } : { delay: before / RATE, reveal: text.length / RATE };
 			before += text.length + 1;
-			let found = -1;
-			let drawn = -Infinity;
-			const tween = gsap.to(
-				{},
-				{
-					duration: delay + reveal,
-					onUpdate() {
-						const time = this.time();
-						const n = Math.round(clamp01((time - delay) / reveal) * text.length);
-						if (n === found && time - drawn < flicker) return;
-						found = n;
-						drawn = time;
-						show(span, text, n, settle);
-					},
-					onComplete: () => {
-						show(span, text, text.length, settle);
-						/** @type {HTMLElement} */ (span).style.width = '';
-					}
-				}
-			);
-			running.set(span, tween);
-			tl.add(tween, 0);
+			tl.add(scrambleWord(/** @type {HTMLElement} */ (span), text, { width: held[i], settle, ...how }), 0);
 		});
 		return reduced ? tl.progress(1) : tl;
 	}
@@ -290,16 +226,35 @@
 	}
 
 	/**
-	 * Readies the afterword once the web font is in: its cipher's spacing measured (again whenever the
-	 * paragraph reflows), it is shown, scrambled (or, left decoded last time, scrambles back into it).
-	 * @param {HTMLElement} node
+	 * Lays out the bio once the web font is in, and again whenever it reflows: the scratch through the
+	 * old tool list, and the afterword's cipher spacing. Then the afterword shows, scrambled (or, left
+	 * decoded last time, scrambles back into it).
+	 * @param {HTMLElement} node the tool line
 	 */
 	function prepare(node) {
 		reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		// The list is struck in one stroke, in reading order, cut at its line breaks; on each line the pen
+		// sinks a little as it goes (`SINK`, of the letters' height, over the whole list's length), through
+		// the middle of the letters, and past the list's end it runs on a little, but stops short of the
+		// next word on its line.
 		const measure = () => {
 			const real = widths(wordsCopy);
 			const faked = widths(cipherCopy);
 			fits = real.map((width, i) => (width - faked[i]) / cipher[i].length);
+			const box = node.getBoundingClientRect();
+			const rects = [...del.getClientRects()];
+			const last = rects.at(-1);
+			const next = ins.getClientRects()[0];
+			const room = last && next && Math.abs(next.top - last.top) < last.height / 2 ? next.left - last.right - 2 : Infinity;
+			const overshoot = Math.max(0, Math.min((last?.height ?? 0) * 0.35, room));
+			const total = rects.reduce((sum, rect) => sum + rect.width, 0) + overshoot;
+			strokes = rects.map((rect, i) => {
+				const length = rect.width + (i === rects.length - 1 ? overshoot : 0);
+				const x = rect.left - box.left;
+				/** @param {number} along px from the line's start */
+				const y = (along) => rect.top - box.top + rect.height * (SINK[0] + ((SINK[1] - SINK[0]) * along) / total);
+				return `M${x} ${y(0)}L${x + length} ${y(length)}`;
+			});
 		};
 		const observer = new ResizeObserver(measure);
 		let disposed = false;
@@ -339,14 +294,19 @@
 	and turned complex research into visualization tools for Yale and UC Berkeley.
 </p>
 
-<p>I use Claude Code, Codex &amp; Jev across my toolkit to design and build interactive 2D&amp;3D experiences.</p>
+<p class={['revision', { drawn: strokes.length }]} {@attach prepare}>
+	I use <del bind:this={del}>d3.js, three.js+GLSL/TSL, React&amp;Svelte, QGIS, Blender etc..</del>
+	<ins bind:this={ins}>Claude Code, Codex &amp; Jev across my toolkit to design and build interactive 2D&amp;3D experiences.</ins>
+	<svg class="scratch" aria-hidden="true">
+		{#each strokes as d (d)}<path {d} />{/each}
+	</svg>
+</p>
 
 <!-- The words themselves are for screen readers, find and copy; the scrambles are only to look at.
      A pointer over the afterword, or a tap on it, scrambles it and makes the avatar wonder. -->
 <p
 	class={['afterword', { ready, secret: !revealed, pointing, hovered }]}
 	bind:this={secret}
-	{@attach prepare}
 	onpointerenter={entered}
 	onpointermove={point}
 	onpointerleave={left}
@@ -389,8 +349,34 @@
 		margin-top: 1em;
 	}
 
+	.revision,
 	.afterword {
 		position: relative;
+	}
+
+	del,
+	ins {
+		text-decoration: none;
+	}
+
+	/* Struck in type until the drawn scratch is in (and without script). */
+	.revision:not(.drawn) del {
+		text-decoration: line-through;
+	}
+
+	.scratch {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		pointer-events: none;
+	}
+
+	.scratch path {
+		fill: none;
+		stroke: var(--color-carbon);
+		stroke-width: 1;
 	}
 
 	.words {
@@ -412,8 +398,7 @@
 	 * too. Pointed at, the afterword reads dark, and eases back when the pointer leaves. Scrambled
 	 * letters are only to look at: selecting the paragraph copies the words themselves.
 	 */
-	p :global(.cipher),
-	p :global(.scrambled) {
+	p :global(.cipher) {
 		color: var(--color-ash);
 	}
 

@@ -90,7 +90,7 @@
 
 <div class="landing">
 	<div class="intro">
-		<h1 class="text-heading-20" {@attach headlineFlow}>
+		<h1 class="text-heading-20" data-reveal {@attach headlineFlow}>
 			{#each headline as piece}{#if piece.space}{' '}{/if}{#if 'word' in piece}<span class="word"
 						>{piece.word}</span
 					>{:else if 'avatar' in piece}<Avatar />{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
@@ -109,14 +109,14 @@
 		<hr />
 
 		<!-- Only the panel below changes between tabs, so switching keeps the scroll and the focus. -->
-		<nav class={['text-copy-14', { placed }]} aria-label="Site" data-sveltekit-noscroll data-sveltekit-keepfocus {@attach underline}>
+		<nav class={['text-copy-14', { placed }]} aria-label="Site" data-reveal data-sveltekit-noscroll data-sveltekit-keepfocus {@attach underline}>
 			{#each tabs as [label, route] (route)}
 				<a href={resolve(route)} aria-current={route === current ? 'page' : undefined}>{label}</a>
 			{/each}
 			<span class="underline" aria-hidden="true"></span>
 		</nav>
 
-		<div class="panel text-copy-16">{@render children()}</div>
+		<div class="panel text-copy-16" data-reveal>{@render children()}</div>
 	</div>
 </div>
 
@@ -171,10 +171,8 @@
 
 	/*
 	 * The Intro (Intro.svelte): as the landing loads everything but the avatar waits in its place, unseen
-	 * (screen readers still read it) and not to be clicked, while the avatar is drawn; then it comes in
-	 * piece by piece (the Intro's REVEAL), each piece's `--in` going 0 to 1: it fades in, rises half a
-	 * line-height's worth into place and comes out of a blur. `translate`, not `transform`, which
-	 * headlineFlow moves the headline's words and the page below it with.
+	 * (screen readers still read it) and not to be clicked, while the avatar is drawn; then it all shows
+	 * together, its text (in the `data-reveal` blocks) scrambling in, light until it lands.
 	 */
 	:global(html:is([data-intro='hold'], [data-intro='drawing'])) h1 > :global(:not(.avatar)),
 	:global(html:is([data-intro='hold'], [data-intro='drawing'])) :is(.socials, hr, nav, .panel) {
@@ -183,11 +181,12 @@
 	}
 
 	:global(html[data-intro='reveal']) h1 > :global(:not(.avatar)),
-	:global(html[data-intro='reveal']) :is(.socials, hr, nav),
-	:global(html[data-intro='reveal']) .panel > :global(*) {
-		opacity: var(--in, 0);
-		translate: 0 calc((1 - var(--in, 0)) * 0.5em);
-		filter: blur(calc((1 - var(--in, 0)) * 6px));
+	:global(html[data-intro='reveal']) :is(.socials, hr, nav, .panel) {
+		transition: opacity 300ms var(--ease-out);
+	}
+
+	.landing :global(.scrambled) {
+		color: var(--color-ash);
 	}
 
 	/* Inline-block so each word can be moved on its own; it wraps exactly as plain text would. */

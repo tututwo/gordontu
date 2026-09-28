@@ -142,6 +142,12 @@ export function headlineFlow(h1) {
 	/** Split elements' copies, made the first time each splits and dropped when nothing is lit. */
 	/** @type {Map<HTMLElement, HTMLElement>} */
 	const twins = new Map();
+	/**
+	 * Each split element's text, read as it is measured: while the page scrambles in (scramble.js) its
+	 * letters are stand-ins, and a copy made then must still draw the real ones.
+	 * @type {WeakMap<HTMLElement, string>}
+	 */
+	const texts = new WeakMap();
 	let stale = false;
 	let disposed = false;
 
@@ -166,6 +172,7 @@ export function headlineFlow(h1) {
 	function cutsOf(el, origin) {
 		const node = el.firstChild;
 		if (node?.nodeType !== Node.TEXT_NODE || !ink) return [];
+		texts.set(el, node.textContent ?? '');
 		ink.font = fontOf(el);
 		const range = document.createRange();
 		/** Each letter's ink, from its box's left (where the browser set it) and its glyph's own extent. */
@@ -529,7 +536,7 @@ export function headlineFlow(h1) {
 		if (!twin) {
 			twin = /** @type {HTMLElement} */ (el.cloneNode(true));
 			twin.firstChild?.remove();
-			twin.dataset.twin = el.firstChild?.textContent ?? '';
+			twin.dataset.twin = texts.get(el) ?? '';
 			twin.setAttribute('aria-hidden', 'true');
 			// Not a word of the sentence: nothing that counts words should count it.
 			twin.classList.remove('word');
