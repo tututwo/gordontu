@@ -38,6 +38,26 @@
 	let back = $state(false);
 	/** @type {import('./scene.js').HeroBox} */
 	let heroBox = $state.raw({ w: 0, h: 0, y: 0 });
+	/**
+	 * The Project on the open card, still while the card flies home: its back goes with it until it is
+	 * down on the table again. @type {Project | null}
+	 */
+	let onCard = $state.raw(null);
+	/** @type {HTMLElement | undefined} */
+	let backStage = $state();
+	/** @type {HTMLElement | undefined} */
+	let backCard = $state();
+	/** @type {HTMLElement | undefined} */
+	let caption = $state();
+	/** The back's height at rest: the card's, or more where its words need it (a phone's). */
+	let backHeight = $state(0);
+	/** The back is set for its card's size: a laptop's reads in heading-32, a tablet's in 24, a phone's in 20. */
+	const size = $derived(heroBox.w >= 880 ? 'large' : heroBox.w >= 520 ? 'medium' : 'small');
+	const TYPE = $derived({
+		large: { title: heroBox.w >= 1280 ? 'text-heading-40' : 'text-heading-32', message: 'text-copy-18' },
+		medium: { title: 'text-heading-24', message: 'text-copy-16' },
+		small: { title: 'text-heading-20', message: 'text-copy-14' }
+	});
 	/** @type {HTMLCanvasElement | undefined} */
 	let canvas = $state();
 	/** @type {ReturnType<typeof import('./scene.js').createScene> | undefined} */
@@ -90,7 +110,17 @@
 					ready = true;
 					if (opened) show(opened, true);
 				},
-				onheroresize: (box) => (heroBox = box)
+				onheroresize: (box) => (heroBox = box),
+				// Straight onto the back's style, in the frame the card is drawn in, so the two move as one.
+				onheroframe: (frame) => {
+					if (!frame) return void (onCard = null);
+					if (!backStage || !backCard) return;
+					backStage.style.perspective = `${frame.perspective}px`;
+					backCard.style.transform = frame.transform;
+					backCard.style.visibility = frame.facing ? 'visible' : 'hidden';
+					backCard.style.clipPath = frame.clip ? `inset(${frame.clip}px 0)` : '';
+					if (caption) caption.style.transform = frame.lift ? `translateY(${frame.lift}px)` : '';
+				}
 			});
 			scene = created;
 		});
@@ -100,9 +130,15 @@
 			scene = undefined;
 			ready = false;
 			selected = null;
+			onCard = null;
 			pan.reset();
 		};
 	}
+
+	$effect(() => {
+		const height = backHeight;
+		scene?.setBackHeight(height);
+	});
 
 	// Moved to a screen of another density, the postcards redraw sharp on it. A browser zoom resizes the
 	// canvas too, so there the scene follows a second time, a frame later; on the way in it isn't there yet.
@@ -123,7 +159,7 @@
 		// The index and help go with the rest of the chrome, closed: in the top layer they wouldn't fade with it.
 		for (const panel of document.querySelectorAll('.gallery [popover]')) /** @type {HTMLElement} */ (panel).togglePopover?.(false);
 		if (!ready || !scene) return;
-		selected = project;
+		selected = onCard = project;
 		turning?.kill();
 		flip.reset();
 		const landed = scene.open(project);
@@ -175,6 +211,11 @@
 	function handleFlipClick(event) {
 		// WallMotion cancels the click that follows a drag; honour that instead of double-flipping.
 		if (!event.defaultPrevented) flip.moveBy(1);
+	}
+
+	/** A click on the back turns the card over, as one on its front does, unless it is on the link. @param {MouseEvent} event */
+	function handleBackClick(event) {
+		if (!(event.target instanceof Element && event.target.closest('a'))) handleFlipClick(event);
 	}
 
 	/**
@@ -294,67 +335,77 @@
 		</span>
 	</nav>
 
-	{#if selected}
-		<div class="open" role="dialog" aria-labelledby="open-title">
-			<button
-				class="hero-hit"
-				type="button"
-				aria-label="Flip the postcard"
-				style:top="calc(50% + {heroBox.y}px)"
-				style:width="{heroBox.w}px"
-				style:height="{heroBox.h}px"
-				onclick={handleFlipClick}
-				{@attach flip.attach}
-				{@attach focusOnMount}
-			></button>
-			{#if back && heroBox.link}
-				<!-- The back's Open project link is drawn on the card; this is the real one, laid over the words. -->
-				<a
-					class="back-link"
-					href={selected.projectLink}
-					target="_blank"
-					rel="external noreferrer"
-					draggable="false"
-					style:left="calc(50% + {heroBox.link.x - heroBox.w / 2}px)"
-					style:top="calc(50% + {heroBox.y - heroBox.h / 2 + heroBox.link.y}px)"
-					style:width="{heroBox.link.w}px"
-					style:height="{heroBox.link.h}px"
-				><span class="sr-only">Open project</span></a>
+	{#if onCard}
+		<!-- Flying home it is no dialog any more, only its back going with it. -->
+		<div class="open" role="dialog" aria-label={onCard.projectName} inert={!selected}>
+			{#if selected}
+				<button
+					class="hero-hit"
+					type="button"
+					aria-label="Flip the postcard"
+					style:top="calc(50% + {heroBox.y}px)"
+					style:width="{heroBox.w}px"
+					style:height="{heroBox.h}px"
+					onclick={handleFlipClick}
+					{@attach flip.attach}
+					{@attach focusOnMount}
+				></button>
 			{/if}
-			<!-- Everything else about the Project is on the back, so the caption points there. -->
-			<div
-				class="caption text-copy-14"
-				style:top="calc(50% + {heroBox.y + heroBox.h / 2}px)"
-				style:width="max({heroBox.w}px, min(20rem, 100vw - 2rem))"
-			>
-				<h2 id="open-title" class="text-heading-16">{selected.projectName}</h2>
-				<span class="year text-label-12-mono">{selected.date.slice(0, 4)}</span>
-				<!-- The back, in words, for screen readers. -->
-				<dl class="sr-only">
-					{#if selected.message}
-						<dt>About</dt>
-						<dd>{selected.message}</dd>
-					{/if}
-					<dt>Date</dt>
-					<dd>{formatDate(selected.date)}</dd>
-					<dt>Client</dt>
-					<dd>{selected.client ?? 'Personal'}</dd>
-					<dt>Tools</dt>
-					<dd>{selected.tools.join(', ')}</dd>
-					<dt>Category</dt>
-					<dd>{categoryLabel(selected.category)}</dd>
-				</dl>
-				<!-- The way to the real project first, filled, on either face; then the flip, and the way out at the far end. -->
-				<div class="actions">
-					{#if selected.projectLink}
-						<a class="open-project text-copy-14" href={selected.projectLink} target="_blank" rel="external noreferrer">
+			<!--
+				The back, where everything about the Project is: the page's own HTML over the table's blank
+				card, moved and turned with it every frame (scene.js's HeroFrame), so its words are as sharp as
+				the page's and its link is a real one. Dragged or clicked, it turns the card over, as the front does.
+			-->
+			<div class="back-stage" bind:this={backStage}>
+				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+				<article
+					class={['back', size]}
+					bind:this={backCard}
+					bind:offsetHeight={backHeight}
+					style:width="{heroBox.w}px"
+					style:min-height="{heroBox.h}px"
+					inert={!back}
+					onclick={handleBackClick}
+					{@attach flip.attach}
+				>
+					<div class="back-body">
+						<div class="lede">
+							<p class="kicker text-label-12-mono">{formatDate(onCard.date)} · {categoryLabel(onCard.category)}</p>
+							<h2 class={TYPE[size].title}>{onCard.projectName}</h2>
+							{#if onCard.message}
+								<p class={['message', TYPE[size].message]}>{onCard.message}</p>
+							{/if}
+						</div>
+						<dl class="facts">
+							<div>
+								<dt class="text-copy-13">Client</dt>
+								<dd class="text-copy-14">{onCard.client ?? 'Personal'}</dd>
+							</div>
+							<div>
+								<dt class="text-copy-13">Tools</dt>
+								<dd class="text-copy-14">{onCard.tools.join(', ')}</dd>
+							</div>
+						</dl>
+					</div>
+					{#if onCard.projectLink}
+						<a class="open-project text-copy-14" href={onCard.projectLink} target="_blank" rel="external noreferrer" draggable="false">
 							Open project ↗
 						</a>
 					{/if}
-					<button type="button" onclick={() => flip.moveBy(1)}>{back ? 'Flip to front' : 'Flip for details'}</button>
-					<button class="close" type="button" onclick={close}>Close</button>
-				</div>
+				</article>
 			</div>
+			<!-- Under the card, what works whichever side is up: the flip, and the way out at the far end. -->
+			{#if selected}
+				<div
+					class="caption text-copy-14"
+					bind:this={caption}
+					style:top="calc(50% + {heroBox.y + heroBox.h / 2}px)"
+					style:width="max({heroBox.w}px, min(20rem, 100vw - 2rem))"
+				>
+					<button type="button" onclick={() => flip.moveBy(1)}>{back ? 'Flip to front' : 'Flip for details'}</button>
+					<button type="button" onclick={close}>Close</button>
+				</div>
+			{/if}
 		</div>
 	{/if}
 
@@ -577,55 +628,117 @@
 		outline-offset: 4px;
 	}
 
-	/* Under the open card and as wide, set like a landing Project card: the title with its year at the
-	   right edge, then the flip, the way out at the far end. On paper, like the landing's growing white
-	   card that hides the words under it: the faded postcards pass behind the words, not through them. */
-	.caption {
+	/* As big as the window, so the back's perspective centres where the table's camera looks. */
+	.back-stage {
 		position: absolute;
-		left: 50%;
+		inset: 0;
+		perspective-origin: 50% 50%;
+		pointer-events: none;
+	}
+
+	/*
+	 * The back: words on the blank card in the site's type, and nothing else (no frame, no rules), sized
+	 * with the card: what the Project is at the top, with Client and tools beside it on a wide card and
+	 * under it on a narrow one, and the way to it at the foot. A card too short for its words (a phone's)
+	 * has a longer back, which the paper grows to as it turns. Hidden, and backing onto the image, until
+	 * a frame says which way it faces.
+	 */
+	/* Centred on the card, as tall as its words or the card, whichever is more, and no taller than the
+	   window leaves room for (then its words scroll). */
+	.back {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		height: fit-content;
+		max-height: calc(100dvh - 6rem);
+		margin: auto;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--spacing-16);
+		padding: var(--spacing-20);
+		color: var(--color-obsidian);
+		visibility: hidden;
+		transform: rotateY(180deg);
+		backface-visibility: hidden;
+		pointer-events: auto;
+		touch-action: pan-y;
+		user-select: none;
+		-webkit-user-select: none;
+		cursor: grab;
+	}
+
+	.back.medium {
+		gap: var(--spacing-24);
+		padding: var(--spacing-32);
+	}
+
+	.back.large {
+		gap: var(--spacing-32);
+		padding: var(--spacing-40);
+	}
+
+	.back-body {
+		flex: 1;
+		align-self: stretch;
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.back.large .back-body {
 		display: grid;
-		grid-template-columns: 1fr auto;
-		align-items: baseline;
-		column-gap: var(--spacing-20);
-		margin-top: var(--spacing-16);
-		background: var(--color-pure-white);
-		box-shadow: 0 0 0.5rem 0.25rem var(--color-pure-white);
-		translate: -50% 0;
+		grid-template-columns: minmax(0, 1fr) 14rem;
+		align-content: start;
+		column-gap: var(--spacing-40);
 	}
 
-	.caption h2 {
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		overflow: hidden;
-	}
-
-	.year {
+	.kicker {
 		color: var(--color-stone);
 	}
 
-	/* On the narrowest phones Close drops under the rest, still at the far end. */
-	.actions {
-		display: flex;
-		flex-wrap: wrap;
-		grid-column: 1 / -1;
-		align-items: center;
-		gap: var(--spacing-12) var(--spacing-20);
-		margin-top: var(--spacing-12);
+	.lede h2 {
+		margin-top: var(--spacing-8);
 	}
 
-	.close {
-		margin-left: auto;
+	/* A reading measure. */
+	.message {
+		max-width: 36em;
+		margin-top: var(--spacing-12);
+		color: var(--color-charcoal);
+	}
+
+	.facts {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--spacing-16) var(--spacing-24);
+		margin-top: var(--spacing-24);
+	}
+
+	.back.large .facts {
+		grid-template-columns: 1fr;
+		align-content: start;
+		row-gap: var(--spacing-20);
+		margin-top: 0;
+	}
+
+	.facts dt {
+		color: var(--color-stone);
+	}
+
+	.facts dd {
+		color: var(--color-charcoal);
 	}
 
 	/* The site's filled button (the contact page's Send): the one primary action, square, 44px tall. */
 	.open-project {
+		flex: none;
 		padding: var(--spacing-12) var(--spacing-20);
 		background: var(--color-obsidian);
 		color: var(--color-pure-white);
 		text-decoration: none;
 		white-space: nowrap;
+		cursor: pointer;
+		-webkit-user-drag: none;
 		transition: background 160ms var(--ease-out);
 	}
 
@@ -635,9 +748,24 @@
 		}
 	}
 
+	/* Under the open card and as wide: the flip, and the way out at the far end. On paper, like the
+	   landing's growing white card that hides the words under it: the faded postcards pass behind the
+	   words, not through them. */
+	.caption {
+		position: absolute;
+		left: 50%;
+		display: flex;
+		justify-content: space-between;
+		gap: var(--spacing-20);
+		margin-top: var(--spacing-16);
+		background: var(--color-pure-white);
+		box-shadow: 0 0 0.5rem 0.25rem var(--color-pure-white);
+		translate: -50% 0;
+	}
+
 	/* Grey until pointed at, like the landing's tabs; padding grows the tap target to 44px without
 	   moving the text. */
-	.actions button {
+	.caption button {
 		margin-block: -0.75rem;
 		padding: 0.75rem 0;
 		border: 0;
@@ -648,26 +776,8 @@
 		transition: color 160ms var(--ease-out);
 	}
 
-	.actions button:hover {
+	.caption button:hover {
 		color: var(--color-obsidian);
-	}
-
-	/* Exactly over the words drawn on the back, padded to a 44px target without moving; it lights like
-	   an entry in the project index. */
-	.back-link {
-		position: absolute;
-		box-sizing: content-box;
-		margin: -0.8125rem -0.5rem;
-		padding: 0.8125rem 0.5rem;
-		transition: background 160ms var(--ease-out);
-	}
-
-	.back-link:hover {
-		background: var(--color-gray-alpha-100);
-	}
-
-	.back-link:active {
-		background: var(--color-gray-alpha-200);
 	}
 
 	.bottom-chrome {
@@ -830,7 +940,7 @@
 	.project-index > button:active,
 	.project-index nav a:active,
 	.help:active,
-	.actions button:active,
+	.caption button:active,
 	.open-project:active {
 		opacity: 0.55;
 	}
@@ -840,9 +950,8 @@
 		.tool-button,
 		.index-caret,
 		.help,
-		.actions button,
+		.caption button,
 		.open-project,
-		.back-link,
 		.bottom-chrome {
 			transition: none;
 		}

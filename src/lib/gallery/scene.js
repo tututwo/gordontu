@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { gsap } from 'gsap/gsap-core';
 import { frameLoop } from '../frameLoop.js';
 import { DEFAULT_CARD_RATIO, cardSize, cellSize, layoutPlane, panLimits } from './layout.js';
-import { backTexture, loadBackFont, readTokens } from './postcardBack.js';
 
 const GHOST = 0.1;
 const OPEN_MS = 520;
@@ -16,11 +15,8 @@ const PLACEHOLDER = 0xf4f4f4;
  * arm's length; closer, a wide card's edge doubled and reached past the page.
  */
 const PERSPECTIVE = 4;
-/**
- * Room under the open card for its caption (PostcardGallery's .caption: a gap, a title of at most two
- * lines, and its actions, led by the 44px Open project button), px.
- */
-const CAPTION = 120;
+/** Room under the open card for its caption (PostcardGallery's .caption: a gap and one line of buttons), px. */
+const CAPTION = 56;
 
 /** @typedef {import('../project/project.js').Project} Project */
 
@@ -29,8 +25,16 @@ const CAPTION = 120;
  * @property {number} w
  * @property {number} h
  * @property {number} y its centre's offset from the viewport's
- * @property {{ x: number, y: number, w: number, h: number } | null} [link] where the Open project link
- *   lies on its back, card px, once the back is drawn (null if it has none)
+ */
+
+/**
+ * @typedef {object} HeroFrame the open card as CSS sees it, for the live back laid over it
+ * @property {number} perspective CSS px, the camera's distance
+ * @property {string} transform puts a box of the card's resting size, centred in the window, where the
+ *   card is now and turned as it is, facing the way its back does
+ * @property {boolean} facing whether its back faces the viewer
+ * @property {number} clip how much of the back's height, top and bottom, the paper doesn't reach yet, CSS px
+ * @property {number} lift how far the paper's lower edge has come down past the card's, CSS px
  */
 
 /**
@@ -49,11 +53,12 @@ const CAPTION = 120;
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Project[]} projects
- * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: HeroBox) => void }} options
+ * @param {{ pan: { x: number, y: number, zoom: number, constrain: () => void }, reduced: () => boolean, onready: () => void, onheroresize: (box: HeroBox) => void, onheroframe: (frame: HeroFrame | null) => void }} options
  *   `pan` is sampled every frame (screen px, +y down); `onready` fires once textures are in;
- *   `onheroresize` gets the open card's box when it opens, on every resize, and when its back is drawn.
+ *   `onheroresize` gets the open card's box when it opens and on every resize; `onheroframe` gets, with
+ *   every frame drawn, where the open card is (null once none is), so its back can move with it.
  */
-export function createScene(canvas, projects, { pan, reduced, onready, onheroresize }) {
+export function createScene(canvas, projects, { pan, reduced, onready, onheroresize, onheroframe }) {
 	// The drawing buffer is kept between frames so the Peel's picture of the page has the postcards (peel.js).
 	const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
 	const scene = new THREE.Scene();
@@ -61,7 +66,6 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	let cameraZ = 1000;
 	const geometry = new THREE.PlaneGeometry(1, 1);
 	const raycaster = new THREE.Raycaster();
-	const tokens = readTokens();
 
 	let width = 1;
 	let height = 1;
@@ -85,6 +89,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: 0xffffff })
 	);
 	const heroFront = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ transparent: true, depthTest: false }));
+	// Blank paper: the back's words are HTML, laid over it by PostcardGallery and turned with it.
 	const heroBack = new THREE.Mesh(
 		geometry,
 		new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, color: 0xffffff })
@@ -97,8 +102,6 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	scene.add(hero);
 	/** @type {Card | undefined} */
 	let heroCard;
-	/** @type {THREE.Texture | undefined} */
-	let heroBackTexture;
 	// Where the open card comes to rest, world units; it flies there from its card.
 	const heroTo = { position: new THREE.Vector3(), scale: new THREE.Vector3(1, 1, 1) };
 	// Open progress 0..1, tweened by GSAP: retargeting starts from the current value.
@@ -109,6 +112,9 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	// Closing, the card unwinds whatever turn it is at back to its front as it flies home.
 	let closing = false;
 	let closingTurn = 0;
+	// The back's height at rest, CSS px (PostcardGallery measures its words): taller than the card when
+	// they need it, which the paper grows to as it turns past edge-on.
+	let backHeight = 0;
 	// Settles the open card's landing; each open replaces it, so an open overtaken by another never lands.
 	let land = /** @type {(value?: unknown) => void} */ (() => {});
 
@@ -189,9 +195,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		relayout();
 		if (heroCard && !closing) {
 			aimHero(heroCard);
-			// Redrawing the back reports the box too, with its link where it now lies.
-			if (heroBackTexture) drawBack(heroCard);
-			else onheroresize(heroBoxFor(heroCard));
+			onheroresize(heroBoxFor(heroCard));
 		}
 		wake();
 	}
@@ -263,10 +267,41 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			hero.scale.lerpVectors(home.scale, heroTo.scale, t);
 			hero.rotation.z = home.rotation.z * (1 - t);
 			if (closing) hero.rotation.y = closingTurn * t;
+			const { h } = heroBoxFor(heroCard);
+			heroBack.scale.y = backHeight > h + 1 ? 1 + (backHeight / h - 1) * Math.max(0, -Math.cos(hero.rotation.y)) : 1;
 		}
 
 		renderer.render(scene, camera);
+		onheroframe(heroCard ? heroFrame(heroCard) : null);
 		return animating;
+	}
+
+	/**
+	 * The open card as CSS sees it (HeroFrame). A point on the table (z = 0) is `zoom` CSS px per world
+	 * unit from the window's centre, which is where the camera looks; the camera stands `cameraZ` units
+	 * off, so CSS's perspective is that many units in px. Three's y is up and CSS's down, which turns the
+	 * tilt the other way; the turn is the same. @param {Card} card
+	 */
+	function heroFrame(card) {
+		const zoom = Math.max(0.001, pan.zoom);
+		const box = heroBoxFor(card);
+		const x = (hero.position.x - camera.position.x) * zoom;
+		const y = (camera.position.y - hero.position.y) * zoom;
+		const sx = (hero.scale.x * zoom) / box.w;
+		const sy = (hero.scale.y * zoom) / box.h;
+		const { y: turn, z: tilt } = hero.rotation;
+		// Squarely on its back and at rest, a plain translation, so its words are drawn as crisply as the page's.
+		const flat = Math.cos(turn) < -0.999999 && !tilt && Math.abs(sx - 1) < 1e-6 && Math.abs(sy - 1) < 1e-6;
+		const paper = box.h * heroBack.scale.y;
+		return {
+			perspective: cameraZ * zoom,
+			transform: flat
+				? `translate(${x}px, ${y}px)`
+				: `translate(${x}px, ${y}px) rotateY(${turn}rad) rotateZ(${-tilt}rad) scale(${sx}, ${sy}) rotateY(180deg)`,
+			facing: Math.cos(turn) < 0,
+			clip: backHeight > box.h + 1 ? (backHeight - paper) / 2 : 0,
+			lift: (paper - box.h) / 2
+		};
 	}
 
 	/**
@@ -286,7 +321,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		 * `scale` device px to a CSS px. @param {number} size @param {number} span @param {number} scale
 		 */
 		const snap = (size, span, scale) => (span + 2 * Math.round((size * scale - span) / 2)) / scale;
-		const maxW = width * 0.8;
+		// A tenth of the window at each side, narrowing to 24px on a phone, where the back needs the width.
+		const maxW = width - 2 * Math.min(width * 0.1, Math.max(24, width * 0.25 - 72));
 		const maxH = Math.max(height * 0.4, Math.min(height * 0.7, height - CAPTION - 64));
 		const w = Math.min(maxW, maxH * card.ratio);
 		return { w: snap(w, view.z, sx), h: snap(w / card.ratio, view.w, sy), y: -Math.round((CAPTION / 2) * sy) / sy };
@@ -298,19 +334,6 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		const box = heroBoxFor(card);
 		heroTo.position.set(-pan.x / zoom, (pan.y + homeY - box.y) / zoom, 0);
 		heroTo.scale.set(box.w / zoom, box.h / zoom, 1);
-	}
-
-	/** Draw the open card's back at its size on screen, and report where its link lies. @param {Card} card */
-	function drawBack(card) {
-		heroBackTexture?.dispose();
-		const box = heroBoxFor(card);
-		const back = backTexture(card.project, box, renderer.getPixelRatio(), tokens);
-		heroBackTexture = back.texture;
-		heroBackTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-		heroBack.material.map = heroBackTexture;
-		heroBack.material.needsUpdate = true;
-		onheroresize({ ...box, link: back.link });
-		wake();
 	}
 
 	/** @param {number} target */
@@ -334,10 +357,6 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		hero.visible = false;
 		heroCard = undefined;
 		closing = false;
-		heroBackTexture?.dispose();
-		heroBackTexture = undefined;
-		heroBack.material.map = null;
-		heroBack.material.needsUpdate = true;
 	}
 
 	// --- observers ---
@@ -397,8 +416,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 		},
 
 		/**
-		 * Fly a card from its place on the plane to the centre of the view; resolves once it has landed with
-		 * its back drawn, unless it is closed or another opens first.
+		 * Fly a card from its place on the plane to the centre of the view; resolves once it has landed,
+		 * unless it is closed or another opens first.
 		 * @param {Project} project
 		 * @returns {Promise<unknown>}
 		 */
@@ -416,11 +435,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			heroFront.material.needsUpdate = true;
 			hero.rotation.y = 0;
 			hero.visible = true;
-			const drawn = loadBackFont(tokens).then(() => {
-				if (heroCard === card && !closing && !disposed) drawBack(card);
-			});
 			tweenOpen(1);
-			return Promise.all([new Promise((resolve) => (land = resolve)), drawn]);
+			return new Promise((resolve) => (land = resolve));
 		},
 
 		close() {
@@ -430,6 +446,12 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			closingTurn = turn > Math.PI ? turn - 2 * Math.PI : turn < -Math.PI ? turn + 2 * Math.PI : turn;
 			closing = true;
 			tweenOpen(0);
+		},
+
+		/** The back's height at rest, CSS px. @param {number} height */
+		setBackHeight(height) {
+			backHeight = height;
+			wake();
 		},
 
 		/** @param {number} radians */
@@ -457,7 +479,6 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 				card.material.dispose();
 				card.backingMaterial.dispose();
 			}
-			heroBackTexture?.dispose();
 			heroPaper.material.dispose();
 			heroFront.material.dispose();
 			heroBack.material.dispose();
