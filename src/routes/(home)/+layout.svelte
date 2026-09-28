@@ -170,7 +170,7 @@
 	}
 
 	/*
-	 * The Intro (Intro.svelte): on a first visit everything but the avatar waits in its place, unseen
+	 * The Intro (Intro.svelte): as the landing loads everything but the avatar waits in its place, unseen
 	 * (screen readers still read it) and not to be clicked, while the avatar is drawn; then it all fades
 	 * in together, over the Intro's REVEAL.
 	 */

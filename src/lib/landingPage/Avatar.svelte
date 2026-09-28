@@ -299,7 +299,7 @@
 			.call(() => (wondering = false), [], 1.4);
 	}
 
-	/** On a first visit, the avatar is drawn in before the page shows (Intro.svelte). */
+	/** On loading the landing, the avatar is drawn in before the page shows (Intro.svelte). */
 	let intro = $state(false);
 
 	onMount(() => {

@@ -1,9 +1,9 @@
 <script module>
 	/**
-	 * The Intro (CONTEXT.md). app.html's first script decides it, before anything is drawn: on a
-	 * browser's first visit to the landing it marks the page `data-intro="hold"`, which keeps
-	 * everything but the avatar's place hidden (see the landing's layout and Avatar.svelte). Here the
-	 * avatar draws itself (`drawing`), then the page fades in (`reveal`) and the mark goes.
+	 * The Intro (CONTEXT.md). app.html's first script decides it, before anything is drawn: on every
+	 * load of the landing it marks the page `data-intro="hold"`, which keeps everything but the
+	 * avatar's place hidden (see the landing's layout and Avatar.svelte). Here the avatar draws itself
+	 * (`drawing`), then the page fades in (`reveal`) and the mark goes.
 	 */
 	const html = typeof document === 'undefined' ? null : document.documentElement;
 	let show = () => {};
@@ -177,15 +177,10 @@
 			if (!ended) loop.start();
 		});
 
-		/** The page is shown, the avatar is its own again, and this browser has seen the Intro. */
+		/** The page is shown, and the avatar is its own again. */
 		function end() {
 			if (ended) return;
 			ended = true;
-			try {
-				localStorage.setItem('intro-seen', '1');
-			} catch {
-				// Storage blocked: it plays again next time.
-			}
 			finish();
 		}
 

@@ -10,15 +10,14 @@
   <meta name="theme-color" content="#fff" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script>
-    // The Intro (src/lib/landingPage/Intro.svelte): a browser's first visit to the landing (or any
-    // with ?intro) holds the page back while the avatar is drawn. Decided here, before anything is
-    // drawn. If the page's own script never takes over to draw it, the page shows anyway.
+    // The Intro (src/lib/landingPage/Intro.svelte): every load of the landing holds the page back
+    // while the avatar is drawn. Decided here, before anything is drawn. If the page's own script
+    // never takes over to draw it, the page shows anyway.
     try {
       const html = document.documentElement;
       if (
         /^\/(about|projects|writing|contact)?$/.test(location.pathname) &&
-        !matchMedia('(prefers-reduced-motion: reduce)').matches &&
-        (!localStorage.getItem('intro-seen') || new URLSearchParams(location.search).has('intro'))
+        !matchMedia('(prefers-reduced-motion: reduce)').matches
       ) {
         html.dataset.intro = 'hold';
         setTimeout(() => html.dataset.intro === 'hold' && delete html.dataset.intro, 6000);
