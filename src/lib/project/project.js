@@ -5,6 +5,8 @@
  * @property {string} projectImgSource - the image: an external URL, or its webp under `/projects-optimized/`
  * @property {string} [projectVideoSource] - a short muted 16:9 clip, served as is; the Project card plays it
  *   over the image while a mouse is on the card
+ * @property {string} [message] - its Message: what its postcard's back says, in one to three sentences,
+ *   on what it is and what a visitor can do with it; absent until written
  * @property {string[]} tools
  * @property {string} category - its category's `slug`
  * @property {string} date
@@ -63,6 +65,7 @@ export function formatDate(value) {
 const data = [
 	{
 		projectName: "Nadir San Francisco",
+		message: "San Francisco drawn as an illustrated 3D city from open data on its buildings, streets, shoreline and terrain. Pan and zoom, jump between neighborhoods, or curl a district into a small planet.",
 		projectLink: "https://fov-eosin.vercel.app/",
 		projectImgSource: "/projects-optimized/Maps/nadir-sf/nadir-sf-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/nadir-sf/nadir-sf-card.mp4",
@@ -73,6 +76,7 @@ const data = [
 	},
 	{
 		projectName: "Black Hole",
+		message: "A study of Maxime Heckel's black hole, itself after Melissa Rodriguez's artwork: 200 animated dashed curves ringing an event horizon. Drag to orbit, zoom, pause, or turn the rings from color to white.",
 		projectLink: "https://black-whole-omega.vercel.app/",
 		projectImgSource: "/projects-optimized/CreativeCoding/black-hole/black-hole-cover.webp",
 		tools: ["Three.js", "React.js"],
@@ -81,6 +85,7 @@ const data = [
 	},
 	{
 		projectName: "Voronoi Studies",
+		message: "Voronoi mosaics rebuilt every frame, grown from a study of a butterfly animation: butterflies of blue-and-white porcelain, and cherry blossom the wind takes cell by cell. Scrub, record a loop, or tune it.",
 		projectLink: "https://voronoi-butterfly.vercel.app/",
 		projectImgSource: "/projects-optimized/CreativeCoding/voronoi-studies/voronoi-studies-cover.webp",
 		projectVideoSource: "/projects-optimized/CreativeCoding/voronoi-studies/voronoi-studies-card.mp4",
@@ -91,6 +96,7 @@ const data = [
 	},
 	{
 		projectName: "Rain Relief",
+		message: "After the New York Times' 2021 map: every 30-year stretch of U.S. rainfall since 1901, wetter ground rising and drier ground sinking against the 20th-century average. Scrub the years, pull the jelly land, or hover a place.",
 		projectLink: "https://us-rain.vercel.app/",
 		projectImgSource: "/projects-optimized/Maps/rain-relief/rain-relief-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/rain-relief/rain-relief-card.mp4",
@@ -101,6 +107,7 @@ const data = [
 	},
 	{
 		projectName: "Foldable Map",
+		message: "A paper map of Golden Gate Park that folds inside a foldable phone, on akashtdev's iPhone Duo model. Pull the phone open to unfold it, fly to the park's highlights, tilt the ground, or restyle the map.",
 		projectLink: "https://foldable-map-sigma.vercel.app/",
 		projectImgSource: "/projects-optimized/Maps/foldable-map/foldable-map-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/foldable-map/foldable-map-card.mp4",
@@ -112,6 +119,7 @@ const data = [
 	},
 	{
 		projectName: "Average Color of California",
+		message: "Every California county subdivision filled with the mean color of its land in NASA satellite imagery, a frame per day for a year. Snow comes and goes on the Sierra; green hills turn tan by summer.",
 		projectImgSource: "/projects-optimized/Maps/ca-color/ca-color-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/ca-color/ca-color-card.mp4",
 		tools: ["Python", "NumPy", "GeoPandas"],
@@ -121,6 +129,7 @@ const data = [
 	},
 	{
 		projectName: "Erhai Moon",
+		message: "A Mid-Autumn card with a window onto Erhai Lake in Dali, cut from real terrain: koi, a white moon in the sky, a gold one in the water. Tilt your phone or move the mouse to look in; click the lake to stir the koi.",
 		projectLink: "https://erhai-diorama.vercel.app/?zhongqiu",
 		projectImgSource: "/projects-optimized/Maps/erhai/erhai-zhongqiu-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/erhai/erhai-zhongqiu-card.mp4",
@@ -131,6 +140,7 @@ const data = [
 	},
 	{
 		projectName: "Gas Is Everywhere in California. Fast Charging Isn't.",
+		message: "California, shaded by what lies within a 15-minute drive: a gas station, a DC fast charger, or both. Of the area within 15 minutes of gas, 30% has no fast charger that close; the reverse is 0.7%.",
 		projectImgSource: "/projects-optimized/Maps/isochrone-charging-stations.webp",
 		tools: ["QGIS"],
 		category: "maps",
@@ -138,6 +148,7 @@ const data = [
 	},
 	{
 		projectName: "YPCCC Hazard Tool",
+		message: "The CDC's Heat and Health Index set against how worried residents are about extreme heat, county by county, to find where the gap is widest. Pick a state, lasso counties on the scatterplot, download the data.",
 		projectLink: "https://ypccc-hazard-tool.vercel.app/?hazard=heat__perception_reality_gap&state=0&county=00000&exploreMode=0",
 		projectImgSource: "/projects-optimized/Maps/ypccc-hazard-tool.webp",
 		tools: ["React.js", "MapLibre", "D3", "deck.gl"],
@@ -157,6 +168,7 @@ const data = [
 	// },
 	{
 		projectName: "Traveling Particles",
+		message: "Average daily traffic in 2024 on every mainline Interstate in the lower 48, drawn as glowing vessels that widen and brighten with traffic, pulses running both ways. Drag, zoom, or hover a road for its count.",
 		projectLink: "https://traveling-particles.vercel.app/",
 		projectImgSource: "/projects-optimized/CreativeCoding/three_us_road.webp",
 		tools: ["Three", "D3"],
@@ -165,6 +177,7 @@ const data = [
 	},
 	{
 		projectName: "California Affordable Housing",
+		message: "A county-by-county tool for a measure of whether California is affordable to the people who might live there, not only those who do. Pick a county, rent or own, and compare groups by age, education and race.",
 		projectLink: "https://ternercenter.berkeley.edu/affordability-for-whom.html",
 		projectImgSource: "/projects-optimized/Charts/svelte_california_housing.webp",
 		tools: ["Svelte", "D3"],
@@ -175,6 +188,7 @@ const data = [
 	},
 	{
 		projectName: "Presidential Margins, 1868–2020",
+		message: "Each county's Democratic–Republican margin in 39 presidential elections since 1868, raised so wider gaps stand taller. Play or scrub the years to watch counties flip; drag to pan and orbit.",
 		projectLink: "https://vite-three-chi.vercel.app/",
 		projectImgSource: "/projects-optimized/Charts/election-3d/election-3d-cover.webp",
 		projectVideoSource: "/projects-optimized/Charts/election-3d/election-3d-card.mp4",
@@ -186,6 +200,7 @@ const data = [
 	},
 	{
 		projectName: "Number of Chinese Company Infrastructure in the US and Abroad.",
+		message: "Overlapping bars count Chinese companies' infrastructure abroad by type, with the U.S. count inside each bar. In the U.S., none build 5G, terrestrial cable or satellite calibration infrastructure.",
 		projectLink: "https://twitter.com/tu_yukun/status/1646917464767225862/photo/1",
 		projectImgSource: "https://pbs.twimg.com/media/FtcYkEzXoAAxtcw?format=png&name=medium",
 		tools: ["Observable"],
@@ -194,6 +209,7 @@ const data = [
 	},
 	{
 		projectName: "Number of Middle Age Himalayan Climbers Is Increasing Over Time",
+		message: "A ridgeline chart of Mount Everest climbers by age, one ridge per year from 1985 to 2019, from the Himalayan Database. Climbers aged 40 to 60 grow in number, reaching a record 285 in 2019.",
 		projectLink: "https://observablehq.com/@tututwo/himalayan-ridge",
 		projectImgSource: "/projects-optimized/Charts/d3_Himalayan.webp",
 		tools: ["Observable"],
@@ -202,6 +218,7 @@ const data = [
 	},
 	{
 		projectName: "Covid Monitoring Dashboard - China",
+		message: "Zero-COVID China in 2022: vaccination, international flights and quarantine, daily cases by province, and containment rules in ten major cities. Play the date slider and click a province for details.",
 		projectLink: "https://covid-dashboard-orcin.vercel.app/",
 		projectImgSource: "/projects-optimized/Charts/svelte-covid-cn.webp",
 		tools: ["Svelte", "D3", "R"],
@@ -211,6 +228,7 @@ const data = [
 	},
 	{
 		projectName: "How dry would each state be if Americans only consumed local state-produced beer?",
+		message: "A tile map of beer glasses comparing each state's 2018 beer production with what its adults drink. Only a third of states brew enough, though the U.S. as a whole brews over 30% more than it drinks.",
 		projectLink: "https://twitter.com/_tuyukun/status/1281702418581827584",
 		projectImgSource: "https://pbs.twimg.com/media/EcmEau_UMAAat7E?format=jpg&name=4096x4096",
 		tools: ["R"],
@@ -219,6 +237,7 @@ const data = [
 	},
 	{
 		projectName: "How much money did award-winning shows earn before the award date?",
+		message: "Red spikes rank Tony-winning Best Musicals from 1986 to 2019 by what each grossed on Broadway before its award. Hamilton towers over the rest at nearly $76 million.",
 		projectLink: "https://twitter.com/_tuyukun/status/1297733577849765888/photo/1",
 		projectImgSource: "https://pbs.twimg.com/media/EgJ5z45UMAA1-dD?format=png&name=medium",
 		tools: ["R"],
@@ -227,6 +246,7 @@ const data = [
 	},
 	{
 		projectName: "CSS Doodle Chinese Pattern",
+		message: "A set of CodePen sketches that redraw traditional Chinese patterns in CSS: plum blossom, interlocking squares, checkerboard and fish scales, each white on deep red.",
 		projectLink: "https://codepen.io/collection/LPePxy",
 		projectImgSource: "/projects-optimized/CreativeCoding/css-doodle-纹样.webp",
 		tools: ["CSS"],
@@ -235,6 +255,7 @@ const data = [
 	},
 	{
 		projectName: "Rough Fried Eggs",
+		message: "A hand-drawn circle-packing study: packed circles merge into white blobs with thick outlines, and a random few, cross-hatched in yellow, sit in their own whites like fried eggs.",
 		projectLink: "https://observablehq.com/d/1d6edd39edb160e7?collection=@tututwo/three-js-creative-coding-practice",
 		projectImgSource: "/projects-optimized/CreativeCoding/Observable_GR_circlePackingMerging.webp",
 		tools: ["Observable"],
@@ -243,6 +264,7 @@ const data = [
 	},
 	{
 		projectName: "GLSL SDF Practice Collection",
+		message: "Four shader studies that paint a spinning cube's faces with coordinate-based patterns: a Mondrian grid, a blue-green checkerboard, a patchwork grid and framed edges. Drag to orbit each cube.",
 		projectLink: "https://observablehq.com/collection/@tututwo/sdf",
 		projectImgSource: "/projects-optimized/CreativeCoding/Observable_SDF.webp",
 		tools: ["GLSL"],
@@ -251,6 +273,7 @@ const data = [
 	},
 	{
 		projectName: "Flow Field 2D",
+		message: "Thousands of particles follow a noise-driven field of angles, leaving glowing trails. Sliders set the particle count, speed, noise scale, grid size and palette.",
 		projectLink: "https://observablehq.com/d/73794013ffa23a9c?collection=@tututwo/three-js-creative-coding-practice",
 		projectImgSource: "/projects-optimized/CreativeCoding/Observable-flowfield.webp",
 		tools: ["Observable"],
@@ -259,6 +282,7 @@ const data = [
 	},
 	{
 		projectName: "Kois",
+		message: "A flocking simulation of koi, drawn as soft tapering blobs that align, gather and keep apart as they swim. Sliders set the koi count, speed, steering force, perception radius and palette.",
 		projectLink: "https://observablehq.com/@tututwo/kois",
 		projectImgSource: "/projects-optimized/CreativeCoding/Observable_kois.webp",
 		tools: ["Canvas"],
@@ -267,6 +291,7 @@ const data = [
 	},
 	{
 		projectName: "Developing and undeveloped countries remain to be the agricultural countries, made in QGIS",
+		message: "A world cartogram of squares, one per country and sized by population, shaded by the share of land used for agriculture, from Our World in Data. Hover a square for its exact share, or zoom in.",
 		projectLink: "https://datawrapper.dwcdn.net/VjDoq/5/",
 		projectImgSource: "/projects-optimized/Maps/map_datawrapper_agriculture.webp",
 		tools: ["Datawrapper"],
@@ -275,6 +300,7 @@ const data = [
 	},
 	{
 		projectName: "China Elevation",
+		message: "China's terrain drawn as stacked ridgelines, white on black. The ranges and plateaus rise in dense, jagged lines, while the basins and eastern plains lie flat and gray.",
 		projectImgSource: "/projects-optimized/Maps/map_elevation_ridge.webp",
 		tools: ["QGIS", "Adobe Illustrator"],
 		category: "maps",
@@ -282,6 +308,7 @@ const data = [
 	},
 	{
 		projectName: "Most buildings in Manhattan were built before 1960s",
+		message: "Manhattan's buildings colored by the year they were built, from deep red before 1800 to dark blue after 2005. The warm, pre-1960 shades fill most of the island.",
 		projectImgSource: "/projects-optimized/Maps/map_Manhattan_cover.webp",
 		tools: ["QGIS"],
 		category: "maps",
@@ -289,6 +316,7 @@ const data = [
 	},
 	{
 		projectName: "Sichuan Basin Elevation",
+		message: "A ridgeline map of Sichuan's elevation: hundreds of stacked lines spike over the western mountains and settle flat across the basin floor. Adjust the line count, overlap, colors and thresholds.",
 		projectLink: "https://observablehq.com/d/299f845c1c4ba8fe",
 		projectImgSource: "/projects-optimized/Maps/map_ridgelineSichuan.webp",
 		tools: ["Observable"],
@@ -297,6 +325,7 @@ const data = [
 	},
 	{
 		projectName: "The elevation of Jiangxi Province",
+		message: "Jiangxi's terrain as a Chinese ink-wash painting: gray peaks rise out of white mist under a flock of birds, beside two lines of verse in calligraphy.",
 		projectImgSource: "/projects-optimized/Maps/map_shuimomap_shuimo_cover.webp",
 		tools: ["QGIS"],
 		category: "maps",
@@ -304,6 +333,7 @@ const data = [
 	},
 	{
 		projectName: "Two Dragons of China",
+		message: "The two dragons are the Yangtze and Yellow rivers, drawn with their tributaries on black: the Yellow River's network in warm yellows, the Yangtze's in blue, its main stem swelling toward the sea.",
 		projectImgSource: "/projects-optimized/Maps/map_twodragons_cover.webp",
 		tools: ["QGIS"],
 		category: "maps",

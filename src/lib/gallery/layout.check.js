@@ -11,6 +11,8 @@ const ok = (condition, message) => {
 
 ok(slugify('Election Map - 3D Visualization with Three.js and GLSL') === 'election-map-3d-visualization-with-three-js-and-glsl', 'slugify');
 ok(projects.every((p) => p.slug.length > 0), 'slugs non-empty');
+// A Message is one to three sentences, short enough for a phone's postcard to show it whole.
+ok(projects.every((p) => !p.message || p.message.length <= 240), 'Messages fit a postcard (240 characters at most)');
 
 // The widest, a square and the tallest of the real images: each card is exactly its image, in one envelope.
 for (const ratio of [960 / 378, 1, 850 / 1572]) {

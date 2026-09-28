@@ -9,7 +9,10 @@
 <svelte:head>
 	{#if data.opened}
 		<title>{data.opened.projectName} — {data.category.label} — Gordon Tu</title>
-		<meta name="description" content="{data.opened.projectName} — {categoryLabel(data.opened.category)} by Gordon Tu." />
+		<meta
+			name="description"
+			content={data.opened.message ?? `${data.opened.projectName} — ${categoryLabel(data.opened.category)} by Gordon Tu.`}
+		/>
 	{:else}
 		<title>{data.category.label} — Gordon Tu</title>
 		<meta name="description" content={data.category.description} />

@@ -16,8 +16,11 @@ const PLACEHOLDER = 0xf4f4f4;
  * arm's length; closer, a wide card's edge doubled and reached past the page.
  */
 const PERSPECTIVE = 4;
-/** Room under the open card for its caption (PostcardGallery's .caption: a gap and at most three lines), px. */
-const CAPTION = 96;
+/**
+ * Room under the open card for its caption (PostcardGallery's .caption: a gap, a title of at most two
+ * lines, and its actions, led by the 44px Open project button), px.
+ */
+const CAPTION = 120;
 
 /** @typedef {import('../project/project.js').Project} Project */
 
@@ -106,6 +109,8 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 	// Closing, the card unwinds whatever turn it is at back to its front as it flies home.
 	let closing = false;
 	let closingTurn = 0;
+	// Settles the open card's landing; each open replaces it, so an open overtaken by another never lands.
+	let land = /** @type {(value?: unknown) => void} */ (() => {});
 
 	// --- cards + textures ---
 	const loader = new THREE.TextureLoader();
@@ -228,6 +233,7 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 				opening = undefined;
 				// The close settles on the frame it lands, before that frame renders.
 				if (!openProgress.value) settleClosed();
+				else land();
 			}
 		}
 		const ghost = 1 - (1 - GHOST) * openProgress.value;
@@ -390,10 +396,15 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			return /** @type {Card} */ (top.object.userData.card).project;
 		},
 
-		/** Fly a card from its place on the plane to the centre of the view. @param {Project} project */
+		/**
+		 * Fly a card from its place on the plane to the centre of the view; resolves once it has landed with
+		 * its back drawn, unless it is closed or another opens first.
+		 * @param {Project} project
+		 * @returns {Promise<unknown>}
+		 */
 		open(project) {
 			const card = cards.find((c) => c.project === project);
-			if (!card) return;
+			if (!card) return new Promise(() => {});
 			settleClosed();
 			heroCard = card;
 			setCameraDistance(PERSPECTIVE * heroBoxFor(card).w);
@@ -405,10 +416,11 @@ export function createScene(canvas, projects, { pan, reduced, onready, onherores
 			heroFront.material.needsUpdate = true;
 			hero.rotation.y = 0;
 			hero.visible = true;
-			loadBackFont(tokens).then(() => {
+			const drawn = loadBackFont(tokens).then(() => {
 				if (heroCard === card && !closing && !disposed) drawBack(card);
 			});
 			tweenOpen(1);
+			return Promise.all([new Promise((resolve) => (land = resolve)), drawn]);
 		},
 
 		close() {

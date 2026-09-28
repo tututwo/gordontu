@@ -5,8 +5,12 @@ This context describes how Gordon's creative and technical work is presented to 
 ## Language
 
 **Project**:
-A published piece of Gordon's creative or technical work, with a title, image, tools, category, Client, and date, and a web page of its own unless the Project is just its image.
+A published piece of Gordon's creative or technical work, with a title, image, Message, tools, category, Client, and date, and a web page of its own unless the Project is just its image.
 _Avoid_: Post, moment, photo
+
+**Message**:
+What a Project's postcard says on its back, in Gordon's words: one to three sentences on what the Project is and what a visitor can do with it. A Project may not have one yet.
+_Avoid_: Description, blurb, summary, caption
 
 **Client**:
 Whoever a Project was made for, by name (World Bank, Yale University); two or more share one line. A Project nobody commissioned is Self-initiated.
@@ -45,7 +49,7 @@ The avatar's glasses, which come off. Pressing the avatar lifts them off to one 
 _Avoid_: Magnifier, lens tool, X-ray
 
 **Postcard gallery**:
-A page of Projects scattered once as postcards on a bounded plane you drag around. There is one per Project category, holding that category's Projects, and one titled All projects (`/all`), holding every Project mixed together, newest first; its tool rail reaches all four. Each postcard is its Project's image in its own proportions. One postcard can be opened (it flies to the centre; picking it from the project index does the same). Under it sit its title and year, a Flip for details button and Close; everything else about the Project is on its back, set like a Project card (date, title, Client, tools, the category as a stamp) and, for a Project with a web page of its own, addressed to it: Open project, on the address lines. An open postcard has its own URL, the gallery's plus the Project's slug (`/maps/<slug>`, `/all/<slug>`): opening one puts it in the address bar, closing takes it out, and arriving at it opens that postcard. Flipping never changes the URL.
+A page of Projects scattered once as postcards on a bounded plane you drag around. There is one per Project category, holding that category's Projects, and one titled All projects (`/all`), holding every Project mixed together, newest first; its tool rail reaches all four. Each postcard is its Project's image in its own proportions. One postcard can be opened (it flies to the centre; picking it from the project index does the same). Under it sit its title and year, then, for a Project with a web page of its own, Open project, the one solid button, there whichever side is up, a Flip for details button, and Close at the far end. Everything else about the Project is on its back, written like a real postcard's: on the left the date, the title and its Message, with Client and tools at the foot; on the right the category as a stamp over three address lines, which for a Project with a web page of its own are addressed to it (Open project, again). The writing grows with the card, so a big one reads like a filled-in postcard; on a card too small for all of it, the tools, then the Client, then the date and title (which the caption has anyway) give way to the Message, and one too narrow for two sides is all letter. An open postcard has its own URL, the gallery's plus the Project's slug (`/maps/<slug>`, `/all/<slug>`): opening one puts it in the address bar, closing takes it out, and arriving at it (from a Project card, a shared link, a reload) opens that postcard face up and, once it lands, turns it over to its back, since whoever arrives that way came for that Project; opened within the gallery, it stays face up. Flipping never changes the URL.
 _Avoid_: Grid, wall, canvas, infinite canvas, Project page (there is none: a Project's URL is its open postcard)
 
 **Peel**:

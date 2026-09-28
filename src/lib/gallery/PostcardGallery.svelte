@@ -1,4 +1,5 @@
 <script>
+	import { gsap } from 'gsap/gsap-core';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -55,6 +56,10 @@
 	});
 	/** Whether the press now ending began with a card open: then a click on the table around it closes it. */
 	let closeOnClick = false;
+	/** How long a postcard the URL opened rests face up once it has landed, before it turns over, s. */
+	const TURN_DELAY = 0.4;
+	/** That turn, while it waits; a press or a key gets there first and calls it off. @type {gsap.core.Tween | undefined} */
+	let turning;
 
 	// The flip is the old landing wall's drag/spring controller: one card-width of drag is one
 	// half-turn, release springs to the nearest face, keys and clicks come free.
@@ -83,7 +88,7 @@
 				reduced: () => prefersReducedMotion.current,
 				onready: () => {
 					ready = true;
-					if (opened) show(opened);
+					if (opened) show(opened, true);
 				},
 				onheroresize: (box) => (heroBox = box)
 			});
@@ -109,18 +114,30 @@
 	/** This gallery's URL, with `project`'s postcard open (`/maps/<slug>`) or none (`/maps`). @param {Project | null} project */
 	const urlFor = (project) => resolve('/[category]/[[slug]]', { category: category.slug, slug: project?.slug });
 
-	/** @param {Project} project */
-	function show(project) {
+	/**
+	 * Open `project`'s postcard. One the URL opened (a Project card, a shared link, a reload) came for its
+	 * details, so it `turn`s over by itself once it has landed; with reduced motion it opens on its back.
+	 * @param {Project} project @param {boolean} [turn]
+	 */
+	function show(project, turn = false) {
 		// The index and help go with the rest of the chrome, closed: in the top layer they wouldn't fade with it.
 		for (const panel of document.querySelectorAll('.gallery [popover]')) /** @type {HTMLElement} */ (panel).togglePopover?.(false);
 		if (!ready || !scene) return;
 		selected = project;
+		turning?.kill();
 		flip.reset();
-		scene.open(project);
+		const landed = scene.open(project);
+		if (!turn) return;
+		if (prefersReducedMotion.current) flip.moveBy(1);
+		else
+			landed.then(() => {
+				if (selected === project && flip.offset === 0) turning = gsap.delayedCall(TURN_DELAY, () => flip.moveBy(1));
+			});
 	}
 
 	function hide() {
 		selected = null;
+		turning?.kill();
 		// The scene unwinds the card to its front on the way home; this only rewinds the controller.
 		scene?.close();
 		flip.reset();
@@ -202,7 +219,13 @@
 	}
 </script>
 
-<svelte:window onkeydown={(event) => event.key === 'Escape' && close()} />
+<svelte:window
+	onpointerdown={() => turning?.kill()}
+	onkeydown={(event) => {
+		turning?.kill();
+		if (event.key === 'Escape') close();
+	}}
+/>
 
 <div class={['gallery', { open: selected !== null }]}>
 	<!-- Keyed: a section switch disposes the WebGL context, and a lost context can't host a new renderer. -->
@@ -308,6 +331,10 @@
 				<span class="year text-label-12-mono">{selected.date.slice(0, 4)}</span>
 				<!-- The back, in words, for screen readers. -->
 				<dl class="sr-only">
+					{#if selected.message}
+						<dt>About</dt>
+						<dd>{selected.message}</dd>
+					{/if}
 					<dt>Date</dt>
 					<dd>{formatDate(selected.date)}</dd>
 					<dt>Client</dt>
@@ -317,9 +344,15 @@
 					<dt>Category</dt>
 					<dd>{categoryLabel(selected.category)}</dd>
 				</dl>
+				<!-- The way to the real project first, filled, on either face; then the flip, and the way out at the far end. -->
 				<div class="actions">
+					{#if selected.projectLink}
+						<a class="open-project text-copy-14" href={selected.projectLink} target="_blank" rel="external noreferrer">
+							Open project ↗
+						</a>
+					{/if}
 					<button type="button" onclick={() => flip.moveBy(1)}>{back ? 'Flip to front' : 'Flip for details'}</button>
-					<button type="button" onclick={close}>Close</button>
+					<button class="close" type="button" onclick={close}>Close</button>
 				</div>
 			</div>
 		</div>
@@ -572,12 +605,34 @@
 		color: var(--color-stone);
 	}
 
+	/* On the narrowest phones Close drops under the rest, still at the far end. */
 	.actions {
 		display: flex;
+		flex-wrap: wrap;
 		grid-column: 1 / -1;
-		justify-content: space-between;
-		gap: var(--spacing-20);
-		margin-top: var(--spacing-6);
+		align-items: center;
+		gap: var(--spacing-12) var(--spacing-20);
+		margin-top: var(--spacing-12);
+	}
+
+	.close {
+		margin-left: auto;
+	}
+
+	/* The site's filled button (the contact page's Send): the one primary action, square, 44px tall. */
+	.open-project {
+		padding: var(--spacing-12) var(--spacing-20);
+		background: var(--color-obsidian);
+		color: var(--color-pure-white);
+		text-decoration: none;
+		white-space: nowrap;
+		transition: background 160ms var(--ease-out);
+	}
+
+	@media (hover: hover) {
+		.open-project:hover {
+			background: var(--color-charcoal);
+		}
 	}
 
 	/* Grey until pointed at, like the landing's tabs; padding grows the tap target to 44px without
@@ -775,7 +830,8 @@
 	.project-index > button:active,
 	.project-index nav a:active,
 	.help:active,
-	.actions button:active {
+	.actions button:active,
+	.open-project:active {
 		opacity: 0.55;
 	}
 
@@ -785,6 +841,7 @@
 		.index-caret,
 		.help,
 		.actions button,
+		.open-project,
 		.back-link,
 		.bottom-chrome {
 			transition: none;
