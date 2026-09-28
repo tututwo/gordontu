@@ -41,8 +41,8 @@
 	/** Gordon's calendar, offered once the message is sent to anyone who would rather talk sooner. */
 	const CALL = 'https://cal.com/gordon-tu-jjhuo5/30min';
 
-	/** From the bio (VISA) and the Projects' Clients (project.js). */
-	const workedWith = ['VISA', 'Yale University', 'UC Berkeley', 'World Bank'];
+	/** From the bio (VISA), the Projects' Clients (project.js), and Climate TRACE. */
+	const workedWith = ['VISA', 'Yale University', 'UC Berkeley', 'World Bank', 'Climate TRACE'];
 
 	/**
 	 * What the composer can be filling in, what a changed answer is called, and its hint.
