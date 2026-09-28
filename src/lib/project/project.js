@@ -111,9 +111,9 @@ const data = [
 		pinned: 3,
 	},
 	{
-		projectName: "Average Color of America",
-		projectImgSource: "/projects-optimized/Maps/us-color/us-color-cover.webp",
-		projectVideoSource: "/projects-optimized/Maps/us-color/us-color-card.mp4",
+		projectName: "Average Color of California",
+		projectImgSource: "/projects-optimized/Maps/ca-color/ca-color-cover.webp",
+		projectVideoSource: "/projects-optimized/Maps/ca-color/ca-color-card.mp4",
 		tools: ["Python", "NumPy", "GeoPandas"],
 		category: "maps",
 		date: "2026-09-24",
