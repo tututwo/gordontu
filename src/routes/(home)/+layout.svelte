@@ -171,8 +171,10 @@
 
 	/*
 	 * The Intro (Intro.svelte): as the landing loads everything but the avatar waits in its place, unseen
-	 * (screen readers still read it) and not to be clicked, while the avatar is drawn; then it all fades
-	 * in together, over the Intro's REVEAL.
+	 * (screen readers still read it) and not to be clicked, while the avatar is drawn; then it comes in
+	 * piece by piece (the Intro's REVEAL), each piece's `--in` going 0 to 1: it fades in, rises half a
+	 * line-height's worth into place and comes out of a blur. `translate`, not `transform`, which
+	 * headlineFlow moves the headline's words and the page below it with.
 	 */
 	:global(html:is([data-intro='hold'], [data-intro='drawing'])) h1 > :global(:not(.avatar)),
 	:global(html:is([data-intro='hold'], [data-intro='drawing'])) :is(.socials, hr, nav, .panel) {
@@ -181,8 +183,11 @@
 	}
 
 	:global(html[data-intro='reveal']) h1 > :global(:not(.avatar)),
-	:global(html[data-intro='reveal']) :is(.socials, hr, nav, .panel) {
-		transition: opacity 400ms var(--ease-out);
+	:global(html[data-intro='reveal']) :is(.socials, hr, nav),
+	:global(html[data-intro='reveal']) .panel > :global(*) {
+		opacity: var(--in, 0);
+		translate: 0 calc((1 - var(--in, 0)) * 0.5em);
+		filter: blur(calc((1 - var(--in, 0)) * 6px));
 	}
 
 	/* Inline-block so each word can be moved on its own; it wraps exactly as plain text would. */

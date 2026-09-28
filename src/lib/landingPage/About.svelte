@@ -68,11 +68,7 @@
 
 <script>
 	import { hint, lenses, under } from './Avatar.svelte';
-	import { shown } from './Intro.svelte';
 
-	/** The new tools, which come in scrambled after the old ones are struck out. */
-	const sentence = 'Claude Code, Codex & Jev across my toolkit to design and build interactive 2D&3D experiences.';
-	const tools = sentence.split(' ');
 	/**
 	 * The bio's last line, an afterthought: it reads scrambled, and only the avatar's glasses read what
 	 * it says.
@@ -97,15 +93,10 @@
 	 */
 	const RATE = 40;
 	const FLICKER = 0.03;
-	/** The pen's height through the struck list, of its letters' height: where it starts each line, and where it would end the whole list. */
-	const SINK = [0.46, 0.62];
 	/** Read, the afterword turns back into its scramble after this long on the page (s), or once the page is left. */
 	const FORGET = 180;
 
-	/** The Bio revision's pen: how far the scratch has run across the tool list, 0–1 along its run. */
-	const bio = $state({ strike: 0 });
-	let revising = $state(false);
-	/** Left decoded last time: it comes back decoded, then scrambles into its cipher (see `revise`). */
+	/** Left decoded last time: it comes back decoded, then scrambles into its cipher (see `prepare`). */
 	const cameBackRead = kept.leftRead;
 	let revealed = $state(cameBackRead);
 	/** Read once, on arrival: flipping it mid-visit leaves the page as it is rather than replaying it. */
@@ -131,9 +122,6 @@
 	let read = false;
 	/** A timer, not a tween: three idle minutes should not keep GSAP drawing frames. @type {ReturnType<typeof setTimeout> | undefined} */
 	let forgetting;
-	/** The scratch: one straight stroke per line box of the <del>, and the stretch of the pen's run it takes. */
-	/** @type {{ d: string, start: number, length: number }[]} */
-	let strokes = $state.raw([]);
 	/**
 	 * The letter spacing that makes each word of the cipher as wide as the word it stands for (px), so
 	 * it keeps the spacing of the sentence under it.
@@ -141,14 +129,10 @@
 	 */
 	let fits = $state.raw([]);
 	const clamp01 = gsap.utils.clamp(0, 1);
-	/** @type {HTMLElement} */
-	let del;
 	/** The screen readers' copy of the afterword, and a hidden one of its cipher, to measure. @type {HTMLElement} */
 	let wordsCopy;
 	/** @type {HTMLElement} */
 	let cipherCopy;
-	/** The new tools as the page shows them, word by word. @type {HTMLElement} */
-	let shownTools;
 	/** The afterword's words as the page shows them: scrambled, until they are read. @type {HTMLElement} */
 	let shownWords;
 	/** @type {HTMLElement | undefined} */
@@ -306,56 +290,23 @@
 	}
 
 	/**
-	 * Plays the Bio revision forward from the start state the CSS below holds (unstruck list, no new
-	 * tools) while scripting runs without reduced motion: after a beat a pen-like scratch sweeps across
-	 * the tool list, and the new tools come in scrambled, word by word, and settle. The afterword is
-	 * simply there, scrambled, from the start (or, left decoded last time, scrambles back into it). With
-	 * reduced motion it jumps to the end.
+	 * Readies the afterword once the web font is in: its cipher's spacing measured (again whenever the
+	 * paragraph reflows), it is shown, scrambled (or, left decoded last time, scrambles back into it).
 	 * @param {HTMLElement} node
 	 */
-	function revise(node) {
+	function prepare(node) {
 		reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-		// Taking over from the CSS failsafe that reveals the revision if this never runs.
-		revising = true;
-
-		// The list is struck in one stroke, in reading order at one speed, cut at its line breaks; on
-		// each line the pen sinks a little as it goes (`SINK`, of the letters' height, over the whole
-		// list's length), through the middle of the letters, and past the list's end it runs on a
-		// little, but stops short of the next word on its line. Redrawn whenever the paragraph reflows,
-		// as is the cipher's spacing.
 		const measure = () => {
 			const real = widths(wordsCopy);
 			const faked = widths(cipherCopy);
 			fits = real.map((width, i) => (width - faked[i]) / cipher[i].length);
-			const box = node.getBoundingClientRect();
-			const rects = [...del.getClientRects()];
-			const last = rects.at(-1);
-			const next = shownTools.getClientRects()[0];
-			const room = last && next && Math.abs(next.top - last.top) < last.height / 2 ? next.left - last.right - 2 : Infinity;
-			const overshoot = Math.max(0, Math.min((last?.height ?? 0) * 0.35, room));
-			const total = rects.reduce((sum, rect) => sum + rect.width, 0) + overshoot;
-			let run = 0;
-			strokes = rects.map((rect, i) => {
-				const length = rect.width + (i === rects.length - 1 ? overshoot : 0);
-				const x = rect.left - box.left;
-				/** @param {number} along px from the line's start */
-				const y = (along) => rect.top - box.top + rect.height * (SINK[0] + ((SINK[1] - SINK[0]) * along) / total);
-				const stroke = { d: `M${x} ${y(0)}L${x + length} ${y(length)}`, start: run / total, length: length / total };
-				run += length;
-				return stroke;
-			});
 		};
 		const observer = new ResizeObserver(measure);
 		let disposed = false;
-		/** @type {gsap.core.Timeline | undefined} */
-		let tl;
-		/** Every word a scramble may be running on, to stop them all on leaving. @type {Element[]} */
-		let scrambling = [];
+		/** @type {gsap.core.Tween | undefined} */
+		let later;
 
-		// Line boxes are only final once the web font has swapped in. A tab opened in the background has
-		// no frames, and GSAP runs on frames: the revision plays when the tab is first seen. On a first
-		// visit it waits for the Intro to show the page.
-		Promise.all([document.fonts.ready, shown]).then(() => {
+		document.fonts.ready.then(() => {
 			if (disposed) return;
 			measure();
 			ready = true;
@@ -364,23 +315,15 @@
 			document.fonts.addEventListener('loadingdone', measure);
 			// The glasses come closer over the afterword's words, secret or read (see Avatar's `CLOSER`).
 			lenses.text = shownWords;
-			scrambling = [...shownTools.children, ...shownWords.children];
-			const newTools = [...shownTools.children];
-			tl = gsap
-				.timeline()
-				.to(bio, { strike: 1, duration: 0.6, ease: 'power2.inOut' }, 0.8)
-				.to(newTools, { opacity: 1, duration: 0.2 }, '+=0.2')
-				.add(scramble(newTools, tools), '<');
 			// Left decoded, it is back as the words, and a moment later scrambles into its cipher.
-			if (cameBackRead) tl.call(conceal, [], 0.5);
-			if (reduced) tl.progress(1);
+			if (cameBackRead) later = gsap.delayedCall(reduced ? 0 : 0.5, conceal);
 		});
 
 		return () => {
 			disposed = true;
 			lenses.text = null;
-			tl?.kill();
-			stop(scrambling);
+			later?.kill();
+			stop([...shownWords.children]);
 			clearTimeout(forgetting);
 			observer.disconnect();
 			document.fonts.removeEventListener('loadingdone', measure);
@@ -396,26 +339,14 @@
 	and turned complex research into visualization tools for Yale and UC Berkeley.
 </p>
 
-<p class={['revision', { revising }]} {@attach revise}>
-	I use <del bind:this={del}>d3.js, three.js+GLSL/TSL, React&amp;Svelte, QGIS, Blender etc..</del>
-	<!-- Read once as a sentence; the words one by one are only for the scramble. -->
-	<ins
-		><span class="sr-only">{sentence}</span><span class="words" aria-hidden="true" bind:this={shownTools}
-			>{#each tools as word, i}{#if i}{' '}{/if}<span class="word">{word}</span>{/each}</span
-		></ins
-	>
-	<svg class="scratch" aria-hidden="true">
-		{#each strokes as { d, start, length }}
-			<path {d} pathLength="1" style:stroke-dashoffset={1 - clamp01((bio.strike - start) / length)} />
-		{/each}
-	</svg>
-</p>
+<p>I use Claude Code, Codex &amp; Jev across my toolkit to design and build interactive 2D&amp;3D experiences.</p>
 
 <!-- The words themselves are for screen readers, find and copy; the scrambles are only to look at.
      A pointer over the afterword, or a tap on it, scrambles it and makes the avatar wonder. -->
 <p
 	class={['afterword', { ready, secret: !revealed, pointing, hovered }]}
 	bind:this={secret}
+	{@attach prepare}
 	onpointerenter={entered}
 	onpointermove={point}
 	onpointerleave={left}
@@ -458,14 +389,8 @@
 		margin-top: 1em;
 	}
 
-	.revision,
 	.afterword {
 		position: relative;
-	}
-
-	del,
-	ins {
-		text-decoration: none;
 	}
 
 	.words {
@@ -602,59 +527,9 @@
 		background: var(--color-pure-white);
 	}
 
-	.scratch {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		overflow: visible;
-		pointer-events: none;
-	}
-
-	.scratch path {
-		fill: none;
-		stroke: var(--color-carbon);
-		stroke-width: 1;
-		stroke-dasharray: 1;
-	}
-
-	/*
-	 * The Bio revision's start state (the new tools not in yet), held only while the script that
-	 * plays it can run. If that script never arrives, a zero-length animation shows the finished
-	 * revision after 5 s; the script marks the revision `revising` on arrival and takes over (the
-	 * afterword has its own gate, `ready`).
-	 */
-	@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-		del {
-			animation: bio-failsafe-del 0s 5s forwards;
-		}
-
-		ins .word {
-			opacity: 0;
-			animation: bio-failsafe-shown 0s 5s forwards;
-		}
-
-		.revising :is(del, ins .word) {
-			animation: none;
-		}
-	}
-
-	@keyframes bio-failsafe-del {
-		to {
-			text-decoration-line: line-through;
-		}
-	}
-
 	@keyframes bio-failsafe-shown {
 		to {
 			opacity: 1;
-		}
-	}
-
-	/* No script, no drawn scratch: fall back to a plain strikethrough. */
-	@media (scripting: none) {
-		del {
-			text-decoration: line-through;
 		}
 	}
 </style>

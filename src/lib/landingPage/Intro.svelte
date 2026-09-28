@@ -66,8 +66,12 @@
 	 */
 	const AGAIN = 2;
 	const FORGET = 24 * 60 * 60 * 1000;
-	/** The page fades in over this long once the avatar is drawn (s); the landing's CSS has the same. */
-	const REVEAL = 0.4;
+	/**
+	 * Drawn, the page comes in around the avatar in reading order, each piece rising a little out of a
+	 * blur as it fades in, and settling slowly, like a critically damped spring: the headline word by
+	 * word (`words` apart), then, `after` in, the links, the tabs and the tab's blocks (`parts` apart).
+	 */
+	const REVEAL = { duration: 1.4, ease: 'power3.out', words: 0.035, after: 0.5, parts: 0.09 };
 
 	/**
 	 * Plays the drawing once the web font is in (so the avatar's place in the headline is final): the
@@ -205,15 +209,29 @@
 			finish();
 		}
 
-		/** Fades the page in; once it is in, what waited for it goes on (WebGL, the Bio revision). */
+		/**
+		 * Brings the page in (see `REVEAL`); once it is in, what waited for it goes on (WebGL, the icons).
+		 * GSAP runs one variable per piece, `--in` (0–1), which the landing's CSS turns into its opacity,
+		 * blur and rise, so it never fights headlineFlow's own transforms and opacity. Not a timeline
+		 * this component owns: the Intro is gone as soon as the page starts coming in.
+		 */
 		function finish() {
 			if (!html) return;
+			const { duration, ease, words, after, parts } = REVEAL;
+			const headline = gsap.utils.toArray('.landing h1 > :not(.avatar)');
+			const rest = gsap.utils.toArray('.landing .socials, .landing hr, .landing nav, .landing .panel > *');
+			gsap
+				.timeline({
+					defaults: { duration, ease },
+					onComplete() {
+						if (html.dataset.intro === 'reveal') delete html.dataset.intro;
+						show();
+					}
+				})
+				.fromTo(headline, { '--in': 0 }, { '--in': 1, stagger: words }, 0)
+				.fromTo(rest, { '--in': 0 }, { '--in': 1, stagger: parts }, after);
 			html.dataset.intro = 'reveal';
 			onend();
-			gsap.delayedCall(REVEAL, () => {
-				if (html.dataset.intro === 'reveal') delete html.dataset.intro;
-				show();
-			});
 		}
 
 		return () => {
