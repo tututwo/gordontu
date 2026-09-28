@@ -80,6 +80,8 @@
 	const TURN_DELAY = 0.4;
 	/** That turn, while it waits; a press or a key gets there first and calls it off. @type {gsap.core.Tween | undefined} */
 	let turning;
+	/** Whether the open card came from the URL rather than a press or a key here: it takes focus without a ring. */
+	let arrived = false;
 
 	// The flip is the old landing wall's drag/spring controller: one card-width of drag is one
 	// half-turn, release springs to the nearest face, keys and clicks come free.
@@ -160,6 +162,7 @@
 		for (const panel of document.querySelectorAll('.gallery [popover]')) /** @type {HTMLElement} */ (panel).togglePopover?.(false);
 		if (!ready || !scene) return;
 		selected = onCard = project;
+		arrived = turn;
 		turning?.kill();
 		flip.reset();
 		const landed = scene.open(project);
@@ -193,8 +196,12 @@
 		go(project);
 	}
 
-	/** Keyboard users land on the flip target as soon as a card opens. @param {HTMLElement} node */
-	const focusOnMount = (node) => node.focus({ preventScroll: true });
+	/**
+	 * Keyboard users land on the flip target as soon as a card opens. Arriving from a link, the browser
+	 * can't tell a key from a click, so the ring waits for the next key.
+	 * @param {HTMLElement} node
+	 */
+	const focusOnMount = (node) => node.focus({ preventScroll: true, ...(arrived && { focusVisible: false }) });
 
 	function close() {
 		if (!selected) return;
@@ -624,6 +631,16 @@
 	}
 
 	.hero-hit:focus-visible {
+		outline: 2px solid var(--color-obsidian);
+		outline-offset: 4px;
+	}
+
+	/* The ring goes round the side that is up: with the back up, round the back, however tall it is. */
+	.open:has(.back:not([inert])) .hero-hit:focus-visible {
+		outline: none;
+	}
+
+	.open:has(.hero-hit:focus-visible) .back:not([inert]) {
 		outline: 2px solid var(--color-obsidian);
 		outline-offset: 4px;
 	}
