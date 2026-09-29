@@ -47,15 +47,15 @@
 		{ label: 'GitHub', href: 'https://github.com/tututwo', Icon: GithubLogoIcon, weight: 'fill' }
 	]);
 
-	// Each tab has its own URL; the home page opens on about. Matched by route, as the server resolves
-	// hrefs relative to the page.
+	// Each tab has its own URL; the home page (and the demo's ending, which films it) opens on about.
+	// Matched by route, as the server resolves hrefs relative to the page.
 	const tabs = /** @type {const} */ ([
 		['about', '/(home)/about'],
 		['projects', '/(home)/projects'],
 		['writing', '/(home)/writing'],
 		['contact', '/(home)/contact']
 	]);
-	const current = $derived(page.route.id === '/(home)' ? '/(home)/about' : page.route.id);
+	const current = $derived(tabs.some(([, route]) => route === page.route.id) ? page.route.id : '/(home)/about');
 
 	/**
 	 * Whether the underline has had its first place, after which it glides. Until then (and without
