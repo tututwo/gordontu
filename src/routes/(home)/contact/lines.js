@@ -500,6 +500,16 @@ export const jokes = [
 			'Wow, Luisa, Qiqi, through my website? That’s how far we’ve drifted? Just message us and set up dinner. …Unless you’re someone else. Then hello, stranger, welcome.',
 			'Luisa, Qiqi… I miss you guys. Dinner. Soon. Send us a message. …Wait, wrong Luisa/Qiqi? Oops. Hi! Nice to meet you.'
 		]
+	},
+	{
+		names: ['zaba', 'zababa'],
+		lines: [
+			'Zaba! Wannnna grab a drink?! Let’s go to Agnes’ place again.',
+			'Zababa?! Wannnna grab a drink? Agnes’ place, again, obviously. …Wait, you’re not that Zaba? Then hi! The offer kind of still stands.',
+			'Zaba, you don’t need a contact form for this. Wannnna grab a drink?! Let’s go to Agnes’ place again.',
+			'Wannnna grab a drink, Zaba?! Agnes’ place, same as last time. …Unless you’re a different Zaba, in which case: hi, and who are you?',
+			'Zababa! Drinks. Agnes’ place. Again. Wannnna?! …Oh, a new Zaba? Sorry! Hi. Nice to meet you.'
+		]
 	}
 ];
 

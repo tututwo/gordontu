@@ -17,6 +17,7 @@ assert(joke('Jenn') === 'jen' && joke('Jen') === 'jen', 'Jenn and Jen');
 assert(joke('Jenkins') === undefined && joke('Jenny') === undefined, 'only whole words');
 assert(joke('Heather Winston') === 'winston', 'the first in the list wins');
 assert(joke('Ziqi Wang') === 'luisa' && joke('Luisa Vasquez') === 'luisa', 'Luisa and Qiqi');
+assert(joke('Zaba') === 'zaba' && joke('ZABABA') === 'zaba', 'Zaba and Zababa');
 assert(joke('Karlane') === undefined, 'no part of a word');
 
 const words = draw();

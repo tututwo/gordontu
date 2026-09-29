@@ -37,7 +37,7 @@ The landing's contact tab: a line under the tabs inviting a project, a question 
 _Avoid_: Inquiry, lead, contact form (for the whole page), chatbot
 
 **Name joke**:
-What Gordon says, on the Contact page, instead of "nice to meet you" when the visitor's name is one of his people's: Winston (sworn at for costing him web traffic instead of texting), Heather (his partner), Karla ("Hai ya~~"), Jen, Jenn or Jennifer (greeted as Jenn, as if already on Slack together), Gordon (Gordon too, Tu), Wendy (who could just WeChat him), and Luisa, Ziqi or Qiqi (asked why they never do dinner anymore). Any word of the name counts, in any case, but only a whole word: Jenkins is not a Jen. Each joke allows that the visitor may just share the name, and has five wordings, one drawn per visit; the chat then goes on to the project as usual. A name with two jokes gets the first in that order.
+What Gordon says, on the Contact page, instead of "nice to meet you" when the visitor's name is one of his people's: Winston (sworn at for costing him web traffic instead of texting), Heather (his partner), Karla ("Hai ya~~"), Jen, Jenn or Jennifer (greeted as Jenn, as if already on Slack together), Gordon (Gordon too, Tu), Wendy (who could just WeChat him), Luisa, Ziqi or Qiqi (asked why they never do dinner anymore), and Zaba or Zababa (asked out for a drink at Agnes' place again). Any word of the name counts, in any case, but only a whole word: Jenkins is not a Jen. Each joke allows that the visitor may just share the name, and has five wordings, one drawn per visit; the chat then goes on to the project as usual. A name with two jokes gets the first in that order.
 _Avoid_: Easter egg, special greeting
 
 **Category link**:
