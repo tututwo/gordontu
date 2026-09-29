@@ -423,8 +423,109 @@ export const lines = {
 	]
 };
 
-/** One wording of each line, for one visit's chat. */
-export const draw = () =>
-	/** @type {{ [K in keyof typeof lines]: (typeof lines)[K][number] }} */ (
-		Object.fromEntries(Object.entries(lines).map(([key, list]) => [key, list[Math.floor(Math.random() * list.length)]]))
+/**
+ * Name jokes: for a few of Gordon's people, a line that takes the place of "nice to meet you". Each
+ * one allows that the visitor may just share the name. A name sets one off when any of its words
+ * (in any case) is in `names`; the first joke in the list wins.
+ * @type {{ names: string[], lines: (string | ((name: string) => string))[] }[]}
+ */
+export const jokes = [
+	{
+		names: ['winston'],
+		lines: [
+			'Winston?? What the fuck, man. Just text me. Every time you load this page I pay Cloudflare like a tenth of a cent, you cheap son of a bitch. …Oh god, unless you’re a different Winston. Then hi! Welcome! Forget everything I just said.',
+			'Oh for fuck’s sake, Winston. You have my number. You have my WeChat. And you came HERE? To burn my bandwidth? …Hold on, are you some other Winston? Shit. Sorry. Hi, nice to meet you.',
+			'Winston. Buddy. You absolute walnut. My phone works. Texting is free. This website is NOT. …Unless you’re not my Winston, in which case: welcome, valued visitor, and my phone is none of your business.',
+			'WINSTON. You know every page view here costs me money, right? You’re basically mugging me in slow motion. …Wait. Different Winston? Jesus. Okay. Hi. Lovely to meet you, stranger Winston.',
+			'Winston, I swear to god, if you’re filling out my contact form instead of texting me, I’m sending you the invoice for this server. …You don’t know what I’m talking about? Wrong Winston. My bad. Hi!'
+		]
+	},
+	{
+		names: ['heather'],
+		lines: [
+			'Oh, my partner’s name is Heather. Wait, Heather, is that you? Okay, just tell me anything you want.',
+			'Heather? As in, the Heather I live with? Babe, I’m literally in the next room. …Or you’re a different Heather, which is awkward. Either way, tell me anything you want.',
+			'Heather! My partner’s a Heather. If this is you: I already did the dishes. If it isn’t: hi, nice to meet you, and please don’t tell her I said I did the dishes.',
+			'Hold on, Heather? Is this a test? Is this about the thing? …Okay, if you’re not my Heather, pretend I’m normal. Tell me anything you want.',
+			'Heather, you could’ve just yelled across the apartment. …Unless you’re another Heather. Then hello! My partner’s a Heather too, so you’re off to a great start.'
+		]
+	},
+	{
+		names: ['karla'],
+		lines: [
+			'Hai ya~~',
+			'Hai ya~~ Karla, what now?',
+			'Hai yaaa~~ Karla. …Wait, which Karla? Doesn’t matter. Hai ya~~',
+			'Karla! Hai ya~~ (If you don’t get that, you’re not that Karla. Hi anyway!)',
+			'Hai ya~~~~ Okay Karla, go ahead.'
+		]
+	},
+	{
+		// Always Jenn to begin with; after that, whatever they typed.
+		names: ['jen', 'jenn', 'jennifer'],
+		lines: [
+			(name) => `Hey Jenn, I thought we were in the same Slack channel already. Wait, are you that ${name}? You know what, just leave a message here.`,
+			(name) => `Jenn? Why aren’t we doing this on Slack? …Unless you’re a different ${name}. Then hi! Leave a message here. It’s basically Slack, but worse.`,
+			(name) => `Jenn! I could’ve sworn we share a Slack channel. Wait, do we? Are you that ${name}? Okay, never mind, leave a message here.`,
+			(name) => `Hey Jenn, did Slack go down? …Or are you a brand-new ${name}? Either way, message me here.`,
+			(name) => `Jenn, you know I’m literally one @ away on Slack, right? …Oh, you’re not that ${name}. Cool, cool. Hi! Leave it here.`
+		]
+	},
+	{
+		names: ['gordon'],
+		lines: [
+			'Hi Gordon! I’m Gordon too (Tu)!',
+			'Gordon? No way. I’m Gordon too. Gordon Tu. Gordon, too. …I’ll stop.',
+			'Another Gordon! Hi Gordon, I’m Gordon too (Tu). Get it? Nobody ever gets it.',
+			'Gordon, meet Gordon. Gordon Tu. I’ve waited my whole life to say that.',
+			'Wait, am I talking to myself? Hi Gordon, I’m Gordon, too. Tu. Gordon Tu.'
+		]
+	},
+	{
+		names: ['wendy'],
+		lines: [
+			'Okay Wendy, you can just WeChat me! Em… a new Wendy?! Sorry, pls leave your message here.',
+			'Wendy! Why aren’t you on WeChat? …Hang on, a different Wendy? Sorry! Leave it here, I’ll read it.',
+			'Wendy, 微信我就行啦! Em… wait, a new Wendy?! Oops. Sorry, leave your message here.',
+			'Wendy? Why not just WeChat me? …Oh. A new Wendy?! Hi! Sorry. Please, go ahead.',
+			'Wendy, you have my WeChat, why are we here? Em… a new Wendy?! Sorry, pls leave your message here.'
+		]
+	},
+	{
+		names: ['luisa', 'ziqi', 'qiqi'],
+		lines: [
+			'Luisa, Qiqi… Why don’t we hang out anymore? Just send us a message and invite us for dinner. …Wait, unless you’re not that one. Then hi! Nice to meet you.',
+			'Luisa? Qiqi? Is that you? We haven’t had dinner in forever. Send us a message and pick a night. …Oh, a different one? Sorry! Hi. Carry on.',
+			'Luisa, Qiqi… Do you guys even remember what we look like? Invite us for dinner already. …Hang on, are you that Luisa and Qiqi? No? Awkward. Hi!',
+			'Wow, Luisa, Qiqi, through my website? That’s how far we’ve drifted? Just message us and set up dinner. …Unless you’re someone else. Then hello, stranger, welcome.',
+			'Luisa, Qiqi… I miss you guys. Dinner. Soon. Send us a message. …Wait, wrong Luisa/Qiqi? Oops. Hi! Nice to meet you.'
+		]
+	}
+];
+
+/** @param {any[]} list */
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+/** Which of the jokes a name sets off, by its place in `jokes`, or -1. @param {string} name */
+export const jokeFor = (name) => {
+	const words = name.toLowerCase().split(/[^a-z]+/);
+	return jokes.findIndex((joke) => joke.names.some((n) => words.includes(n)));
+};
+
+/**
+ * One wording of each line, for one visit's chat. Each joke's wording is drawn here too, so going
+ * back to change the name doesn't draw it again.
+ */
+export const draw = () => {
+	const words = /** @type {{ [K in keyof typeof lines]: (typeof lines)[K][number] }} */ (
+		Object.fromEntries(Object.entries(lines).map(([key, list]) => [key, pick(list)]))
 	);
+	const drawn = jokes.map((joke) => pick(joke.lines));
+	const meet = words.meet;
+	/** @param {string} name */
+	words.meet = (name) => {
+		const line = drawn[jokeFor(name)];
+		return !line ? meet(name) : typeof line === 'function' ? line(name) : line;
+	};
+	return words;
+};
