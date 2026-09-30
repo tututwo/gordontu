@@ -25,13 +25,23 @@
 
 	/**
 	 * The credits come in as the landing does after its Intro: all at once as light look-alikes, then
-	 * decoding in step (scramble.js). With reduced motion they are simply there.
+	 * decoding in step (scramble.js), once the web font is in, as each word is held at its width. With
+	 * reduced motion they are simply there.
 	 * @param {HTMLElement} node
 	 */
 	function arrive(node) {
-		const scramble = matchMedia('(prefers-reduced-motion: reduce)').matches ? null : scrambleIn([node]);
-		shown = true;
-		return () => scramble?.kill();
+		/** @type {gsap.core.Timeline | null | undefined} */
+		let scramble;
+		let gone = false;
+		document.fonts.ready.then(() => {
+			if (gone) return;
+			scramble = matchMedia('(prefers-reduced-motion: reduce)').matches ? null : scrambleIn([node]);
+			shown = true;
+		});
+		return () => {
+			gone = true;
+			scramble?.kill();
+		};
 	}
 </script>
 
