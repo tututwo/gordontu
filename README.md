@@ -10,3 +10,5 @@ npm run check   # svelte-check
 npm run build
 node --test 'src/**/*.check.js'
 ```
+
+Pushing to `main` deploys to Cloudflare Workers: Workers Builds runs `npm run build`, then `npx wrangler deploy`. `docs/cloudflare-lab-plan.md` records the setup.

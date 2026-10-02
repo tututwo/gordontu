@@ -1,6 +1,7 @@
-// Run with: node tests/range.test.js
+// Run with `node src/lib/server/range.check.js`: a video's Range request gets the bytes it asks for
+// as a 206 (Safari won't play without it), a range past the end a 416, and anything else the file.
 import assert from 'node:assert/strict';
-import { partial } from '../src/lib/server/range.js';
+import { partial } from './range.js';
 
 const file = Uint8Array.from({ length: 100 }, (_, i) => i).buffer;
 const headers = new Headers({ 'Content-Type': 'video/mp4', 'Content-Length': '100', ETag: '"v1"' });
@@ -38,4 +39,4 @@ assert.equal(sliced.get('Content-Type'), 'video/mp4');
 assert.equal(sliced.get('ETag'), '"v1"');
 assert.equal(sliced.get('Content-Length'), null);
 
-console.log('range: all checks pass');
+console.log('range: ok');
