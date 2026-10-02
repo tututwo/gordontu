@@ -1,0 +1,14 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "gordontu",
+	// SvelteKit's Worker (.svelte-kit/cloudflare/_worker.js) wrapped to answer video byte ranges.
+	"main": "worker.js",
+	"compatibility_date": "2026-09-28",
+	"compatibility_flags": ["nodejs_als"],
+	// Videos reach worker.js first for their ranges; everything else is served straight from the assets.
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare", "run_worker_first": ["/*.mp4"] },
+	"observability": { "enabled": true },
+	// A route, not a Custom Domain: those can't replace the proxied A record, and deleting it first would
+	// leave a gap resolvers cache for 30 minutes. The record's origin is never reached; the Worker answers.
+	"routes": [{ "pattern": "gordontu.com/*", "zone_name": "gordontu.com" }]
+}

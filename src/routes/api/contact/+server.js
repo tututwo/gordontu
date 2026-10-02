@@ -2,15 +2,15 @@ import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { readMessage, toEmail } from '$lib/contact.js';
 
-// The one route that runs on the server (a Vercel function): the rest of the site is prerendered.
+// The one route that runs on the server (a Cloudflare Worker): the rest of the site is prerendered.
 export const prerender = false;
 
 // SvelteKit already refuses form posts from other sites (its CSRF origin check).
-// ponytail: no rate limit; add one (e.g. Vercel's firewall) if spam gets past the honeypot.
+// ponytail: no rate limit; add a Cloudflare rate limiting rule if spam gets past the honeypot.
 export async function POST({ request }) {
 	const message = readMessage(await request.formData());
 	if ('spam' in message) {
-		// Counted in Vercel's logs, to see how many bots come before reaching for a CAPTCHA.
+		// Counted in Workers Logs, to see how many bots come before reaching for a CAPTCHA.
 		console.log('contact: honeypot caught a bot');
 		return json({ ok: true });
 	}

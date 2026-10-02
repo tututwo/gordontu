@@ -1,0 +1,4 @@
+// What adapter-cloudflare reads (svelte.config.js) instead of wrangler.jsonc: it writes SvelteKit's
+// Worker to its config's `main`, which in wrangler.jsonc is worker.js, the wrapper. Empty keeps its
+// defaults, the paths wrangler.jsonc deploys: .svelte-kit/cloudflare, and the ASSETS binding.
+{}
