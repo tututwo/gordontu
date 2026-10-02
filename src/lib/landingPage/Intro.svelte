@@ -1,7 +1,7 @@
 <script module>
 	/**
-	 * The Intro (CONTEXT.md). app.html's first script decides it, before anything is drawn: on every
-	 * load of the landing it marks the page `data-intro="hold"`, which keeps everything but the
+	 * The Intro (CONTEXT.md). app.html's first script decides it, before anything is drawn: once per
+	 * 24 hours in this browser it marks the page `data-intro="hold"`, which keeps everything but the
 	 * avatar's place hidden (see the landing's layout and Avatar.svelte). Here the avatar draws itself
 	 * (`drawing`), then the page shows, its text scrambling in (`reveal`), and the mark goes.
 	 */
@@ -61,12 +61,6 @@
 	const FRAME = 50;
 	/** Hurried along (a tap, a key, a scroll), what is left of the drawing takes this long (s). */
 	const HURRY = 0.3;
-	/**
-	 * Seen through in this browser within `FORGET` (ms, a day), the drawing plays `AGAIN` times as
-	 * fast; after that it is a first visit again.
-	 */
-	const AGAIN = 2;
-	const FORGET = 24 * 60 * 60 * 1000;
 
 	/**
 	 * Plays the drawing once the web font is in (so the avatar's place in the headline is final): the
@@ -160,16 +154,8 @@
 		};
 		place(0);
 
-		/** When this browser last watched the whole drawing (ms since the epoch), if it has. */
-		let seen = 0;
-		try {
-			seen = Number(localStorage.getItem('intro-seen')) || 0;
-		} catch {
-			// Storage blocked: every visit is a first.
-		}
-		const again = Date.now() - seen < FORGET;
-		/** How fast the drawing plays: as drawn, quicker for a return visit, or hurried along. */
-		let rate = again ? AGAIN : 1;
+		/** How fast the drawing plays: as drawn, or hurried along. */
+		let rate = 1;
 		let hurried = false;
 		const clampFrame = gsap.utils.clamp(0, FRAME);
 		const loop = frameLoop((dt) => {
@@ -183,7 +169,7 @@
 		function hurry() {
 			if (hurried) return;
 			hurried = true;
-			window.posthog.capture?.('intro_skipped', { at: Math.round(tl.time() * 10) / 10, again });
+			window.posthog.capture?.('intro_skipped', { at: Math.round(tl.time() * 10) / 10 });
 			rate = Math.max(rate, (tl.duration() - tl.time()) / HURRY);
 		}
 		const hurryOn = /** @type {const} */ (['pointerdown', 'keydown', 'wheel', 'touchmove']);
@@ -192,15 +178,10 @@
 			if (!ended) loop.start();
 		});
 
-		/** The page is shown, the avatar is its own again, and for a day the drawing plays quicker. */
+		/** The page is shown and the avatar is its own again. */
 		function end() {
 			if (ended) return;
 			ended = true;
-			try {
-				localStorage.setItem('intro-seen', String(Date.now()));
-			} catch {
-				// Storage blocked: it plays at its own pace again next time.
-			}
 			finish();
 		}
 
