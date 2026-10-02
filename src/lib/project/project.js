@@ -158,14 +158,6 @@ const data = [
 		featured: true,
 		pinned: 2,
 	},
-	// {
-	// 	projectName: "Poyang Lake Entered the Dry Season 100 Days Earlier",
-	// 	projectImgSource: "/projects-optimized/Maps/map_poyang.webp",
-	// 	tools: ["QGIS"],
-	// 	category: "maps",
-	// 	date: "2022-09-01",
-	// 	featured: true,
-	// },
 	{
 		projectName: "Interstate Traffic",
 		message: "Average daily traffic in 2024 on every mainline Interstate in the lower 48, drawn over 3D terrain as glowing roads that widen and brighten with traffic, comets running both ways. Fly around, or hover a road for its count.",

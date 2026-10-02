@@ -47,7 +47,7 @@
 		{ label: 'GitHub', href: 'https://github.com/tututwo', Icon: GithubLogoIcon, weight: 'fill' }
 	]);
 
-	// Each tab has its own URL; the home page (and the demo's ending, which films it) opens on about.
+	// Each tab has its own URL; the home page opens on about.
 	// Matched by route, as the server resolves hrefs relative to the page.
 	const tabs = /** @type {const} */ ([
 		['about', '/(home)/about'],

@@ -8,7 +8,7 @@ import { gsap } from 'gsap';
  * letters at word edges and runs words together (ADR-0006).
  */
 export const RATE = 40;
-export const FLICKER = 0.03;
+const FLICKER = 0.03;
 
 /**
  * Look-alikes by width. The reference's type is monospace, so its random letters sit exactly where
