@@ -280,11 +280,11 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
   ```json
    {
    	"redirects": [
-   		{ "source": "/:path*", "destination": "https://gordontu.com/maps/erhai-moon/live/:path*", "permanent": true }
+   		{ "source": "/(.*)", "destination": "https://gordontu.com/maps/erhai-moon/live/$1", "permanent": true }
    	]
    }
   ```
-   接了 git 的 Vercel 项目 push 之后就会生效。之后它还会继续从同一个 repo 构建，但构建出来的内容已经不重要，所有访问都会被跳走。black-whole、voronoi-butterfly、foldable-map 这三个在 Vercel 上看起来没有接 git（没有 `-git-` 开头的分支地址），如果 push 之后没有生效，就在本机运行一次 `vercel --prod`。
+   用 `/(.*)`，不用 `/:path*`：Vercel 的 `/:path*` 不匹配根路径 `/`（Voronoi 试点时踩到过）。接了 git 的 Vercel 项目 push 之后就会生效。之后它还会继续从同一个 repo 构建，但构建出来的内容已经不重要，所有访问都会被跳走。black-whole、voronoi-butterfly、foldable-map 这三个在 Vercel 上看起来没有接 git（没有 `-git-` 开头的分支地址），如果 push 之后没有生效，就在本机运行一次 `vercel --prod`。
    加完后用下面这条命令确认，`location` 应该是 `https://gordontu.com/maps/erhai-moon/live/?seed=1`：
 
 
