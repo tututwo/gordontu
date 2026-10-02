@@ -1,6 +1,6 @@
 # 迁到 Cloudflare，作品挂到 gordontu.com/<分类>/<slug>/live/ —— 实施计划
 
-> **状态：阶段一到三已完成（2026-10-02），阶段四刚开始：Voronoi Studies 已上线（试点）。** 计划写于 2026-09-28，"现状"一节的数据是当天查的。
+> **状态：四个阶段都已完成（2026-10-02）。** Voronoi Studies 和另外 7 个作品都在 gordontu.com 的 `/<分类>/<slug>/live/` 上，8 个 Worker 都接了 Workers Builds（push 到 main 就部署），旧的 vercel.app 都 308 过来；两个客户项目不搬。为什么这样搭见 ADR-0010。 计划写于 2026-09-28，"现状"一节的数据是当天查的。
 >
 > **2026-10-02 改了路径：** 作品不再挂在 `/lab/<名字>/`，而是挂在它项目页的下一层，`/<分类>/<slug>/live/`（分类和 slug 都取自 project.js）。项目页 `/<分类>/<slug>` 是有文字的那一页，留给搜索引擎和 AI 读、引用；作品本身大多是一张 canvas，放在 `/live/`。这样每个项目只有一个名字，没有在线版的项目也有完整的网址。下文已按新路径改过。
 > 分四个阶段做，每个阶段都可以单独验证、单独回滚。阶段四必须等阶段三完成。
@@ -297,13 +297,13 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 | 项目                          | 仓库（本地路径）                                                                 | 框架                         | 路径                          | 写死的根路径                |
 | --------------------------- | ------------------------------------------------------------------------ | -------------------------- | --------------------------- | --------------------- |
 | Voronoi Studies             | voronoi-butterfly（`~/Code/GENERATIVE_ART/voronoi-butterfly`）             | Vite 8 + React             | `/creative-code/voronoi-studies/live/`（已上线） | 0                     |
-| Black Hole                  | 不是 git 仓库（`~/Code/GENERATIVE_ART/black-whole`）                           | Vite 8 + React             | `/creative-code/black-hole/live/` | 0                     |
+| Black Hole                  | black-hole（`~/Code/GENERATIVE_ART/black-whole`，2026-10-02 建的私有仓库）       | Vite 8 + React             | `/creative-code/black-hole/live/` | 0                     |
 | Erhai Moon                  | erhai-diorama（`~/Code/erhai-diorama`）                                    | Vite 8 + React             | `/maps/erhai-moon/live/`    | 0                     |
 | Presidential Margins        | vite-three（`~/Code/React/3D-election-map`）                               | Vite 8 + React             | `/data-visualization/presidential-margins-1868-2020/live/` | 0                     |
 | Foldable Map                | foldable-map（`~/My_Journey/Map/foldable-map`）                            | Vite 8 + Svelte 5          | `/maps/foldable-map/live/`  | 0                     |
 | Rain Relief                 | us-rain（`~/My_Journey/Map/US-rain`，应用在 `3d/`）                            | Vite 8 + React             | `/maps/rain-relief/live/`   | 0（已经是 `base: './'`）   |
 | Nadir San Francisco         | fov（`~/My_Journey/Map/fov`）                                              | Vite 8 + React + TS        | `/maps/nadir-san-francisco/live/` | 代码 3 处，另有数据文件里的 149 个 |
-| Traveling Particles         | traveling-particles（`~/Code/React/practices-yuri/traveling-particles`）   | Vite 5 + React             | `/creative-code/traveling-particles/live/` | 1 处，另有一个文件超过大小上限      |
+| Interstate Traffic（原 Traveling Particles） | traveling-particles（`~/Code/React/practices-yuri/traveling-particles`）   | Vite 5 + React             | `/maps/interstate-traffic/live/` | 1 处，另有一个文件超过大小上限      |
 | YPCCC Hazard Tool（Yale）     | ypccc-hazard-tool（`~/Code/React/ypccc-hazard-tool`）                      | Vite 6 + React             | 建议不搬                        | 0                     |
 | Covid Dashboard（World Bank） | covid-dashboard（`~/Code/Svelte/ContractProjects/wb-china-covid-monitor`） | SvelteKit `1.0.0-next.499` | 建议不搬                        | 7                     |
 
@@ -369,9 +369,9 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 ## 需要你决定的
 
 1. ~~每个子项目的路径名~~ 已定（2026-10-02）：`/<分类>/<slug>/live/`，分类和 slug 取自 project.js。路径一旦定下就不要再改，因为它同时写在子项目的 base、输出目录、Route 和 project.js 四个地方；改分类名或 slug 时，作品要跟着重新构建、改 Route，并给旧地址加跳转。
-2. **两个客户项目**（YPCCC、Covid Dashboard）：建议都不搬，理由见清单。
-3. **Black Hole**：建一个 GitHub 仓库，还是在本机手动部署？
-4. **Presidential Margins 本地没提交的改动**：先提交，还是丢掉？
+2. ~~两个客户项目~~ 已定（2026-10-02）：不搬，链接保持原样。
+3. ~~Black Hole~~ 已定：建了私有仓库 `tututwo/black-hole`，和其他作品一样 push 就部署。
+4. ~~Presidential Margins 本地没提交的改动~~ 已定：先搬现在线上的版本；Codex 的改版仍未提交，等 Gordon 自己决定何时上线（push 后会自动部署）。
 5. **什么时候做**。现在不急。阶段一到三和阶段四可以分开做，但阶段四必须在阶段三之后。
 
 

@@ -15,7 +15,8 @@ export function GET() {
 			.filter((p) => p.category === slug)
 			.map((p) => {
 				const made = [p.date.slice(0, 4), p.client && `for ${p.client}`, p.tools.join(', ')].filter(Boolean);
-				return `- [${p.projectName}](${SITE}/${slug}/${p.slug}) (${made.join('; ')}): ${p.message}`;
+				const open = p.projectLink ? ` [Open project](${p.projectLink})` : '';
+				return `- [${p.projectName}](${SITE}/${slug}/${p.slug}) (${made.join('; ')}): ${p.message}${open}`;
 			})
 	]);
 	const text = [
