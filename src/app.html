@@ -19,6 +19,9 @@
       if (
         /^\/(about|projects|writing|contact)?$/.test(location.pathname) &&
         !matchMedia('(prefers-reduced-motion: reduce)').matches &&
+        // Crawlers get the page at once: their renderers' clocks may never finish the drawing, and the
+        // page's words would stay hidden from search.
+        !/bot|crawl|spider|Google-InspectionTool/i.test(navigator.userAgent) &&
         now - (Number(localStorage.getItem('intro-seen')) || 0) >= 24 * 60 * 60 * 1000
       ) {
         // Count it now, so reloading midway through the drawing also skips it.

@@ -1,0 +1,6 @@
+# Search engines and AI assistants are welcome: Gordon wants his work found, quoted and learned from.
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Allow: /
+
+Sitemap: https://gordontu.com/sitemap.xml

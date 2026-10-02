@@ -13,7 +13,10 @@ const stored = new Map();
 /** @type {Pick<Storage, 'getItem' | 'setItem'>} */
 const storage = { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
 
-function visit({ now = start, pathname = '/', reduced = false, localStorage = storage } = {}) {
+const browser = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+const googlebot = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+
+function visit({ now = start, pathname = '/', reduced = false, localStorage = storage, userAgent = browser } = {}) {
 	/** @type {{ intro?: string }} */
 	const dataset = {};
 	/** @type {() => void} */
@@ -22,6 +25,7 @@ function visit({ now = start, pathname = '/', reduced = false, localStorage = st
 		document: { documentElement: { dataset } },
 		location: { pathname },
 		matchMedia: () => ({ matches: reduced }),
+		navigator: { userAgent },
 		Date: { now: () => now },
 		localStorage,
 		setTimeout: (/** @type {() => void} */ callback, /** @type {number} */ delay) => {
@@ -49,6 +53,7 @@ assert.equal(first.dataset.intro, 'drawing', 'Fallback leaves active playback al
 stored.clear();
 assert.equal(visit({ reduced: true }).dataset.intro, undefined);
 assert.equal(visit({ pathname: '/maps' }).dataset.intro, undefined);
+assert.equal(visit({ userAgent: googlebot }).dataset.intro, undefined, 'Crawlers see the page at once');
 assert.equal(stored.size, 0, 'Excluded visits do not consume the Intro');
 stored.set('intro-seen', 'invalid');
 assert.equal(visit().dataset.intro, 'hold', 'Invalid old data does not prevent playback');
