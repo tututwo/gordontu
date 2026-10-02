@@ -13,6 +13,7 @@
 - **和 Vercel 对齐的设置**：HSTS（`max-age=63072000`）写在根目录的 `_headers`（adapter-cloudflare 7 要求放根目录，不是 `static/`）。最低 TLS 1.2。Browser Cache TTL 从默认 4 小时改成 Respect Existing Headers，免得盖掉页面的 `max-age=0`。
 - **www**：两条 A 记录切成代理，加了 Redirect Rule（www → 根域名，301，保留路径和查询参数）。
 - **Bot Fight Mode** 建 zone 时就开着，没动。它会在每页末尾插一段 JS 检测脚本（一个隐藏的 1×1 iframe），snapdom 遇到 iframe 会跳过，不影响 Peel。
+- **自动部署**：Workers Builds 接上了 `tututwo/gordontu`，push 到 `main` 就跑 `npm run build` 和 `npx wrangler deploy`，和原来的 Vercel 一样。别在本机直接 `wrangler deploy`：本机 `static/` 里有没进 git 的文件（比如演示视频的素材），会被一起传上去公开。
 - **Vercel 的主站项目**设了 Ignored Build Step `exit 0`，push 不再构建。最后一次生产部署（8142060，和 Cloudflare 上的同一个 commit）留给还在用旧 DNS 的访客和回滚。
 
 回滚（几秒生效）：在 Workers & Pages → gordontu → Domains & Routes 删掉 Route `gordontu.com/*`，请求会经 Cloudflare 代理回到 Vercel（SSL 模式 full，Vercel 上的域名还在）。
