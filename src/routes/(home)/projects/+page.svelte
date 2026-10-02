@@ -33,7 +33,7 @@
 	<title>Projects — Gordon Tu</title>
 	<meta
 		name="description"
-		content="Selected projects by Gordon Tu: interactive maps, visual stories, and web tools."
+		content="Selected projects by Gordon Tu: interactive maps, data visualization, and generative art."
 	/>
 </svelte:head>
 

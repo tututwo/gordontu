@@ -315,8 +315,8 @@
 	onpointercancel={() => (touched = false)}
 >
 	<span class="sr-only" bind:this={wordsCopy}>{afterword}</span>
-	<span class="sr-only" aria-hidden="true" bind:this={cipherCopy}>{cipher.join(' ')}</span>
-	<span class="words" aria-hidden="true" bind:this={shownWords}
+	<span class="sr-only" aria-hidden="true" data-nosnippet bind:this={cipherCopy}>{cipher.join(' ')}</span>
+	<span class="words" aria-hidden="true" data-nosnippet bind:this={shownWords}
 		>{#each cipher as word, i}{#if i}{' '}{/if}<span class="word" style:--fit={px(fits[i])}
 				>{#if cameBackRead}{words[i]}{:else}<span class="cipher">{word}</span>{/if}</span
 			>{/each}</span
