@@ -4,7 +4,7 @@ import { Spring } from '../spring.js';
 import { lineGlsl, smoothstep } from './stage.js';
 
 /**
- * visual stories: a pop-up book. At rest a closed book lies cover-up. Lit, it opens the way a book is
+ * data visualization: a pop-up book. At rest a closed book lies cover-up. Lit, it opens the way a book is
  * closed, run backwards: closed, it stands up on its spine, then spreads into a V that opens out almost
  * flat, and five cubes of different sizes push up through the gutter one after another, then drift
  * well above the spread, spread out in depth as well as along it, and melt into one another and

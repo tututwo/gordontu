@@ -1,6 +1,8 @@
-# 迁到 Cloudflare，子项目挂到 gordontu.com/lab/ —— 实施计划
+# 迁到 Cloudflare，作品挂到 gordontu.com/<分类>/<slug>/live/ —— 实施计划
 
-> **状态：阶段一到三已完成（2026-10-02），阶段四还没做。** 计划写于 2026-09-28，"现状"一节的数据是当天查的。
+> **状态：阶段一到三已完成（2026-10-02），阶段四刚开始：Voronoi Studies 已上线（试点）。** 计划写于 2026-09-28，"现状"一节的数据是当天查的。
+>
+> **2026-10-02 改了路径：** 作品不再挂在 `/lab/<名字>/`，而是挂在它项目页的下一层，`/<分类>/<slug>/live/`（分类和 slug 都取自 project.js）。项目页 `/<分类>/<slug>` 是有文字的那一页，留给搜索引擎和 AI 读、引用；作品本身大多是一张 canvas，放在 `/live/`。这样每个项目只有一个名字，没有在线版的项目也有完整的网址。下文已按新路径改过。
 > 分四个阶段做，每个阶段都可以单独验证、单独回滚。阶段四必须等阶段三完成。
 
 ## 执行记录（2026-10-02）
@@ -8,7 +10,7 @@
 和下面的计划不一样的地方：
 
 - **视频的 Range 请求**：Workers 的静态文件不支持 Range，`Range: bytes=0-1` 也回 200 和整个文件，Safari 因此不放 `<video>`。所以 `*.mp4` 先进 Worker（`wrangler.jsonc` 的 `run_worker_first`），由 `worker.js` 调 `src/lib/server/range.js` 切出 206。adapter-cloudflare 会把自己的 Worker 写到它读到的 wrangler 配置的 `main`，会盖掉 `worker.js`，所以 `svelte.config.js` 让它读一个空的 `wrangler.sveltekit.jsonc`，用默认路径 `.svelte-kit/cloudflare/_worker.js`。
-- **主站用 Route，不用 Custom Domain**：Custom Domain 不能覆盖手动建的 A 记录（错误码 100117）。先删记录会留一段空档，解析器会把"没有记录"缓存 30 分钟（SOA minimum 1800）。所以用 Route `gordontu.com/*`，再把 `@` 原有的两条 A 记录原地切成代理（橙云）。记录里仍是 Vercel 的 IP，但请求到不了那里，Worker 先回应。阶段四不受影响：Route 按最具体的匹配，`gordontu.com/lab/<name>*` 会先于 `gordontu.com/*`。
+- **主站用 Route，不用 Custom Domain**：Custom Domain 不能覆盖手动建的 A 记录（错误码 100117）。先删记录会留一段空档，解析器会把"没有记录"缓存 30 分钟（SOA minimum 1800）。所以用 Route `gordontu.com/*`，再把 `@` 原有的两条 A 记录原地切成代理（橙云）。记录里仍是 Vercel 的 IP，但请求到不了那里，Worker 先回应。阶段四不受影响：Route 按最具体的匹配，`gordontu.com/<分类>/<slug>/live*` 会先于 `gordontu.com/*`。
 - **workers.dev 关了**：配置里有 `routes` 时 wrangler 默认关掉 workers.dev。验证直接在 gordontu.com 上做。
 - **和 Vercel 对齐的设置**：HSTS（`max-age=63072000`）写在根目录的 `_headers`（adapter-cloudflare 7 要求放根目录，不是 `static/`）。最低 TLS 1.2。Browser Cache TTL 从默认 4 小时改成 Respect Existing Headers，免得盖掉页面的 `max-age=0`。
 - **www**：两条 A 记录切成代理，加了 Redirect Rule（www → 根域名，301，保留路径和查询参数）。
@@ -24,8 +26,9 @@
 
 ```
 gordontu.com/                        主站（这个 repo，SvelteKit）
-gordontu.com/lab/erhai-diorama/      erhai-diorama 仓库自己构建、自己部署
-gordontu.com/lab/foldable-map/       foldable-map 仓库
+gordontu.com/maps/erhai-moon              Erhai Moon 的项目页（主站）
+gordontu.com/maps/erhai-moon/live/        erhai-diorama 仓库自己构建、自己部署
+gordontu.com/maps/foldable-map/live/      foldable-map 仓库
 …
 ```
 
@@ -35,13 +38,13 @@ gordontu.com/lab/foldable-map/       foldable-map 仓库
 
 ```
                  Cloudflare 上的 gordontu.com zone
-gordontu.com/… ─┬─ /lab/erhai-diorama*  → Worker「erhai-diorama」 只有静态文件
-                ├─ /lab/foldable-map*   → Worker「foldable-map」  只有静态文件
-                └─ 其他所有路径          → Worker「gordontu」     预渲染页面 + /api/contact
+gordontu.com/… ─┬─ /maps/erhai-moon/live*    → Worker「erhai-diorama」 只有静态文件
+                ├─ /maps/foldable-map/live*  → Worker「foldable-map」  只有静态文件
+                └─ 其他所有路径               → Worker「gordontu」     预渲染页面 + /api/contact
 ```
 
 - 主站用 **Custom Domain** 绑在 `gordontu.com` 上，Worker 本身就是源站。
-- 每个子项目用 **Route** 绑在 `gordontu.com/lab/<name>`* 上。在 Cloudflare 里 Route 比 Custom Domain 先执行，所以 `/lab/<name>` 的请求直接交给子项目的 Worker，主站不经手。
+- 每个子项目用 **Route** 绑在 `gordontu.com/<分类>/<slug>/live`* 上。Route 按最具体的匹配，所以 `/<分类>/<slug>/live` 的请求直接交给子项目的 Worker，主站不经手；项目页 `/<分类>/<slug>` 仍由主站回应。
 - 子项目的 Worker 只有静态文件，没有脚本。Workers 的静态文件请求在免费版里也不计次数、不限量，流量也不收费。主站 Worker 只有在请求 `/api/contact` 或者 404 的时候才会运行。
 
 
@@ -52,21 +55,21 @@ gordontu.com/… ─┬─ /lab/erhai-diorama*  → Worker「erhai-diorama」 �
 
 ```diff
 -		projectLink: "https://erhai-diorama.vercel.app/?zhongqiu",
-+		projectLink: "https://gordontu.com/lab/erhai-diorama/",
++		projectLink: "https://gordontu.com/maps/erhai-moon/live/",
 ```
 
 （`?zhongqiu` 现在已经不起作用了：erhai-diorama 的 origin/main 在 c082d8b 里把中秋美术设成了默认，所以改链接时顺手去掉。）
 
 "子项目挂在哪段路径"写在子项目自己的 `wrangler.jsonc` 里，因为子项目构建的时候本来就必须知道自己的 base 路径（见阶段四）。以后每加一个子项目，主站只要改一行链接。
 
-- 链接写完整地址类似于 `https://gordontu.com/lab/…`，不写 `/lab/…`。这样在本地 `npm run dev` 和预览部署里点开，也会去到线上的子项目，而这两个环境本身都没有 /lab。
-- 这些链接已经带了 `target="_blank" rel="external"`（见 `PostcardGallery.svelte`）。SvelteKit 的客户端路由会放行它们。预渲染爬虫看到 `rel` 里有 `external` 也会跳过（`@sveltejs/kit/src/core/postbuild/crawl.js`），所以不会把 `/lab/…` 当成 `[category]/[[slug]]` 渲染出 404。
+- 链接写完整地址类似于 `https://gordontu.com/maps/erhai-moon/live/`，不写 `/maps/erhai-moon/live/`。这样在本地 `npm run dev` 和预览部署里点开，也会去到线上的作品，而这两个环境本身都没有作品。
+- 这些链接已经带了 `target="_blank" rel="external"`（见 `PostcardGallery.svelte`）。SvelteKit 的客户端路由会放行它们。预渲染爬虫看到 `rel` 里有 `external` 也会跳过（`@sveltejs/kit/src/core/postbuild/crawl.js`），所以不会去渲染 `/…/live/`。
 
 
 
 ### 为什么不用 project.js 在主站里做转发
 
-另一种做法是在主站的 `hooks.server.js` 里读 project.js，把 `/lab/<name>/*` 转发到各自的 `*.vercel.app`。不选它，原因有三个：
+另一种做法是在主站的 `hooks.server.js` 里读 project.js，把 `/…/live/*` 转发到各自的 `*.vercel.app`。不选它，原因有三个：
 
 - 子项目的每一个请求都要经过主站 Worker。一个 three.js 页面要加载 JS、贴图、模型，几十个请求，很快就会用完免费版每天 10 万次的额度。
 - 文件还是从 Vercel 发出去，省不下流量，而省流量正是迁移的理由。
@@ -233,7 +236,7 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 
 回滚（几分钟内生效）：删掉 Custom Domain，把 `@` 的两条 A 记录（`64.29.17.1`、`64.29.17.65`，灰云）加回来。所以 Vercel 上的主站项目先保留一两周。
 
-## 阶段四：子项目挂到 /lab//（一个一个来）
+## 阶段四：作品挂到 /<分类>/<slug>/live/（一个一个来）
 
 前提是阶段三已经完成：Route 只对橙云的主机名生效，而阶段三的 Custom Domain 已经建好了这条记录。
 
@@ -242,12 +245,12 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 1. **base 路径和输出目录**，改 `vite.config.js`：
   ```js
    export default defineConfig({
-   	base: '/lab/erhai-diorama/',
-   	build: { outDir: 'dist/lab/erhai-diorama' }
+   	base: '/maps/erhai-moon/live/',
+   	build: { outDir: 'dist/maps/erhai-moon/live' }
    	// …原有配置
    });
   ```
-   输出目录也要多套一层，是因为 Cloudflare 按完整的请求路径去 assets 目录里找文件，Route 不会把 `/lab/erhai-diorama` 这段前缀去掉。请求 `/lab/erhai-diorama/assets/index-abc.js` 时，文件必须在 `dist/lab/erhai-diorama/assets/index-abc.js`。另一种做法是写一个小 Worker 先去掉前缀再取文件，但那样每个请求都要运行脚本、都要计次数；多套一层目录不用写代码，请求也全部免费。
+   输出目录也要多套一层，是因为 Cloudflare 按完整的请求路径去 assets 目录里找文件，Route 不会把 `/maps/erhai-moon/live` 这段前缀去掉。请求 `/maps/erhai-moon/live/assets/index-abc.js` 时，文件必须在 `dist/maps/erhai-moon/live/assets/index-abc.js`。另一种做法是写一个小 Worker 先去掉前缀再取文件，但那样每个请求都要运行脚本、都要计次数；多套一层目录不用写代码，请求也全部免费。
 2. **改掉所有写死的根路径**。凡是以 `/` 开头、指向项目自己 `public/` 目录的地址，比如 `'/models/koi.glb'`、`fetch('/data.json')`、`<img src="/…">`，都改成：
   ```js
    `${import.meta.env.BASE_URL}models/koi.glb`
@@ -260,14 +263,14 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
    	"name": "erhai-diorama",
    	"compatibility_date": "2026-09-28",
    	"assets": { "directory": "./dist" },
-   	"routes": [{ "pattern": "gordontu.com/lab/erhai-diorama*", "zone_name": "gordontu.com" }]
+   	"routes": [{ "pattern": "gordontu.com/maps/erhai-moon/live*", "zone_name": "gordontu.com" }]
    }
   ```
-  - 不带斜杠的 `/lab/erhai-diorama` 会自动跳到带斜杠的 `/lab/erhai-diorama/`，这是默认的 `html_handling: "auto-trailing-slash"` 做的。
-  - 不要设 `not_found_handling: "single-page-application"`。它回退的是 assets 根目录下的 `/index.html`，而我们的 `index.html` 在 `lab/<name>/` 里面。这些项目都是单页的可视化，本来也用不到它。
+  - 不带斜杠的 `/maps/erhai-moon/live` 会自动跳到带斜杠的 `/maps/erhai-moon/live/`，这是默认的 `html_handling: "auto-trailing-slash"` 做的。
+  - 不要设 `not_found_handling: "single-page-application"`。它回退的是 assets 根目录下的 `/index.html`，而我们的 `index.html` 在 `<分类>/<slug>/live/` 里面。这些项目都是单页的可视化，本来也用不到它。
 4. `.gitignore` 加 `.wrangler/`，然后运行 `npm i -D wrangler`。
 5. 在 Cloudflare 选 Import a repository → 这个仓库。Worker 名字和 `wrangler.jsonc` 里的 `name` 一致；Build command 填 `npm run build`，Deploy command 用 `npx wrangler deploy`；生产分支按项目定（见清单）。
-6. 部署完成后 Route 就生效了。因为主站还没有链接指向它，可以直接在 `https://gordontu.com/lab/erhai-diorama/` 上测：
+6. 部署完成后 Route 就生效了。因为主站还没有链接指向它，可以直接在 `https://gordontu.com/maps/erhai-moon/live/` 上测：
   - 页面、模型、贴图、视频、字体都能加载，DevTools 的 Network 面板里没有 404。
   - 不带斜杠的地址会跳到带斜杠的。
   - 查询参数照常起作用（比如 voronoi 的 `?piece=`、erhai 的 `?seed=`）。
@@ -277,12 +280,12 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
   ```json
    {
    	"redirects": [
-   		{ "source": "/:path*", "destination": "https://gordontu.com/lab/erhai-diorama/:path*", "permanent": true }
+   		{ "source": "/:path*", "destination": "https://gordontu.com/maps/erhai-moon/live/:path*", "permanent": true }
    	]
    }
   ```
    接了 git 的 Vercel 项目 push 之后就会生效。之后它还会继续从同一个 repo 构建，但构建出来的内容已经不重要，所有访问都会被跳走。black-whole、voronoi-butterfly、foldable-map 这三个在 Vercel 上看起来没有接 git（没有 `-git-` 开头的分支地址），如果 push 之后没有生效，就在本机运行一次 `vercel --prod`。
-   加完后用下面这条命令确认，`location` 应该是 `https://gordontu.com/lab/erhai-diorama/?seed=1`：
+   加完后用下面这条命令确认，`location` 应该是 `https://gordontu.com/maps/erhai-moon/live/?seed=1`：
 
 
 
@@ -291,16 +294,16 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 10 个项目都没有 api 目录、`vercel.json`、middleware、service worker、og:image 或 canonical，也都没用路由库。所以挂到子路径下，要处理的只有下面列出的这些。表格按工作量从小到大排列。
 
 
-| 项目                          | 仓库（本地路径）                                                                 | 框架                         | 建议路径                        | 写死的根路径                |
+| 项目                          | 仓库（本地路径）                                                                 | 框架                         | 路径                          | 写死的根路径                |
 | --------------------------- | ------------------------------------------------------------------------ | -------------------------- | --------------------------- | --------------------- |
-| Voronoi Studies             | voronoi-butterfly（`~/Code/GENERATIVE_ART/voronoi-butterfly`）             | Vite 8 + React             | `/lab/voronoi-butterfly/`   | 0                     |
-| Black Hole                  | 不是 git 仓库（`~/Code/GENERATIVE_ART/black-whole`）                           | Vite 8 + React             | `/lab/black-hole/`          | 0                     |
-| Erhai Moon                  | erhai-diorama（`~/Code/erhai-diorama`）                                    | Vite 8 + React             | `/lab/erhai-diorama/`       | 0                     |
-| Presidential Margins        | vite-three（`~/Code/React/3D-election-map`）                               | Vite 8 + React             | `/lab/election-3d/`         | 0                     |
-| Foldable Map                | foldable-map（`~/My_Journey/Map/foldable-map`）                            | Vite 8 + Svelte 5          | `/lab/foldable-map/`        | 0                     |
-| Rain Relief                 | us-rain（`~/My_Journey/Map/US-rain`，应用在 `3d/`）                            | Vite 8 + React             | `/lab/us-rain/`             | 0（已经是 `base: './'`）   |
-| Nadir San Francisco         | fov（`~/My_Journey/Map/fov`）                                              | Vite 8 + React + TS        | `/lab/nadir-sf/`            | 代码 3 处，另有数据文件里的 149 个 |
-| Traveling Particles         | traveling-particles（`~/Code/React/practices-yuri/traveling-particles`）   | Vite 5 + React             | `/lab/traveling-particles/` | 1 处，另有一个文件超过大小上限      |
+| Voronoi Studies             | voronoi-butterfly（`~/Code/GENERATIVE_ART/voronoi-butterfly`）             | Vite 8 + React             | `/creative-code/voronoi-studies/live/`（已上线） | 0                     |
+| Black Hole                  | 不是 git 仓库（`~/Code/GENERATIVE_ART/black-whole`）                           | Vite 8 + React             | `/creative-code/black-hole/live/` | 0                     |
+| Erhai Moon                  | erhai-diorama（`~/Code/erhai-diorama`）                                    | Vite 8 + React             | `/maps/erhai-moon/live/`    | 0                     |
+| Presidential Margins        | vite-three（`~/Code/React/3D-election-map`）                               | Vite 8 + React             | `/data-visualization/presidential-margins-1868-2020/live/` | 0                     |
+| Foldable Map                | foldable-map（`~/My_Journey/Map/foldable-map`）                            | Vite 8 + Svelte 5          | `/maps/foldable-map/live/`  | 0                     |
+| Rain Relief                 | us-rain（`~/My_Journey/Map/US-rain`，应用在 `3d/`）                            | Vite 8 + React             | `/maps/rain-relief/live/`   | 0（已经是 `base: './'`）   |
+| Nadir San Francisco         | fov（`~/My_Journey/Map/fov`）                                              | Vite 8 + React + TS        | `/maps/nadir-san-francisco/live/` | 代码 3 处，另有数据文件里的 149 个 |
+| Traveling Particles         | traveling-particles（`~/Code/React/practices-yuri/traveling-particles`）   | Vite 5 + React             | `/creative-code/traveling-particles/live/` | 1 处，另有一个文件超过大小上限      |
 | YPCCC Hazard Tool（Yale）     | ypccc-hazard-tool（`~/Code/React/ypccc-hazard-tool`）                      | Vite 6 + React             | 建议不搬                        | 0                     |
 | Covid Dashboard（World Bank） | covid-dashboard（`~/Code/Svelte/ContractProjects/wb-china-covid-monitor`） | SvelteKit `1.0.0-next.499` | 建议不搬                        | 7                     |
 
@@ -309,8 +312,8 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 
 各项目要额外注意的：
 
-- **Voronoi Studies**：最适合做试点。它在 GitHub 上，没有写死的根路径，也没有环境变量。`?piece=` 用 `history.replaceState` 只改查询参数，挂在子路径下不受影响。
-- **Black Hole**：代码不用改，但这个目录不是 git 仓库，之前是用 Vercel CLI 部署的。有两个选择：先建一个 GitHub 仓库再接 Workers Builds；或者在本机 `npx wrangler deploy`，以后每次改动都手动部署。构建命令是 `tsc --noEmit && vite build`。路径名用 `black-hole`，不沿用拼错的仓库名。
+- **Voronoi Studies**：2026-10-02 已上线，`vercel.json` 把 voronoi-butterfly.vercel.app 整站 308 到新地址。目前是在本机 `npx wrangler deploy` 部署的，还没接 Workers Builds（见第 5 步）。当初选它做试点的原因：它在 GitHub 上，没有写死的根路径，也没有环境变量。`?piece=` 用 `history.replaceState` 只改查询参数，挂在子路径下不受影响。
+- **Black Hole**：代码不用改，但这个目录不是 git 仓库，之前是用 Vercel CLI 部署的。有两个选择：先建一个 GitHub 仓库再接 Workers Builds；或者在本机 `npx wrangler deploy`，以后每次改动都手动部署。构建命令是 `tsc --noEmit && vite build`。路径用项目的 slug `black-hole`，不沿用拼错的仓库名。
 - **Erhai Moon**：所有资源都用 `BASE_URL`，只需要改 base 和输出目录。生产分支用 `main`，`zhongqiu` 分支已经不需要了。本地的 `main` 比 origin/main 落后 7 个 commit，但 Workers Builds 从 GitHub 构建，不受影响。
 - **Presidential Margins**：资源都用 `BASE_URL`。本地有 8 个文件的改动还没提交，另外有一个未跟踪的 `public/county-names.json`，改过的 `ElectionScene.jsx` 会用到它。Workers Builds 从 GitHub 构建，所以要先决定这些改动要不要提交，否则上线的是旧版本。
 - **Foldable Map**：
@@ -334,9 +337,9 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 - **Traveling Particles**：
   - `static/simplified_SVG.svg` 有 31.7 MiB，超过单文件 25 MiB 的上限，会直接导致部署失败。它和 `interstate.svg`（3.5 MB）、`filtered_cj_hh.svg`（3.2 MB）都没有被代码用到，只是因为放在 public 目录里才被打包进去。把这三个文件移出 `static/`，比如移到仓库里的 `source/`。
   - `src/Highways.jsx:7` 的 `fetch("/traffic.json")` 改成 `fetch(`${import.meta.env.BASE_URL}traffic.json`)`。
-  - 它的 Vite 配置是 `root: 'src'`、`publicDir: '../static'`、`outDir: '../dist'`，所以输出目录要写成 `'../dist/lab/traveling-particles'`。`wrangler.jsonc` 放在仓库根目录，`assets.directory` 仍然是 `./dist`。
+  - 它的 Vite 配置是 `root: 'src'`、`publicDir: '../static'`、`outDir: '../dist'`，所以输出目录要写成 `'../dist/creative-code/traveling-particles/live'`。`wrangler.jsonc` 放在仓库根目录，`assets.directory` 仍然是 `./dist`。
   - 它开了 sourcemap，`.map` 文件也会公开。介意的话可以关掉。
-- **YPCCC Hazard Tool**（建议不搬）：这是客户在用的工具，Yale 那边可能已经引用了现在的链接。如果要搬，注意 `vite.config.ts:10-15`：不在 Vercel 上构建时，base 默认会变成一个 Google Cloud Storage 的地址。必须在 Build variables 里设 `VITE_ASSET_BASE_URL=/lab/ypccc-hazard-tool/`。
+- **YPCCC Hazard Tool**（建议不搬）：这是客户在用的工具，Yale 那边可能已经引用了现在的链接。如果要搬，注意 `vite.config.ts:10-15`：不在 Vercel 上构建时，base 默认会变成一个 Google Cloud Storage 的地址。必须在 Build variables 里设 `VITE_ASSET_BASE_URL=/maps/ypccc-hazard-tool/live/`。
 - **Covid Dashboard**（建议不搬）：
   - 用的是 SvelteKit 1.0 正式版之前的 `1.0.0-next.499` 和对应的 `adapter-auto`，这个版本的 adapter 不支持 Workers。
   - 代码里有 7 处 `/pngs/…` 根路径，还有 2 处相对路径要求网址以 `/` 结尾。
@@ -359,14 +362,13 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 
 - 在另一个 Vercel 账号里删掉主站项目和 gordontu.com 域名。子项目在 Vercel 上的项目保留，只负责旧地址跳转。
 - 可选：在子项目的 `wrangler.jsonc` 里加 `"workers_dev": false`，关掉 `*.workers.dev` 这个重复的地址。
-- 可选：如果以后想要一个 `/lab/` 目录页，在主站加 `src/routes/lab/+page.svelte`，用 project.js 里链接以 `https://gordontu.com/lab/` 开头的项目生成列表。`/lab/` 本身不会被任何子项目的 Route 匹配到，会落在主站上。
 - 把这份计划的状态改成"已完成"。
 
 
 
 ## 需要你决定的
 
-1. **每个子项目的路径名**。默认用仓库名，比如你举的 `erhai-diorama`。有三个例外：`fov` → `nadir-sf`、`vite-three` → `election-3d`（这两个仓库名看不出项目内容，新名字是主站 `static/projects-optimized/` 里已经在用的），以及 `black-whole` → `black-hole`（仓库名拼错了）。清单里"建议路径"一栏就是按这个规则填的。路径名一旦定下就不要再改，因为它同时写在子项目的 base、输出目录、Route 和 project.js 四个地方。
+1. ~~每个子项目的路径名~~ 已定（2026-10-02）：`/<分类>/<slug>/live/`，分类和 slug 取自 project.js。路径一旦定下就不要再改，因为它同时写在子项目的 base、输出目录、Route 和 project.js 四个地方；改分类名或 slug 时，作品要跟着重新构建、改 Route，并给旧地址加跳转。
 2. **两个客户项目**（YPCCC、Covid Dashboard）：建议都不搬，理由见清单。
 3. **Black Hole**：建一个 GitHub 仓库，还是在本机手动部署？
 4. **Presidential Margins 本地没提交的改动**：先提交，还是丢掉？

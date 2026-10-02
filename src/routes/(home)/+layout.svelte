@@ -34,7 +34,7 @@
 		...words('I make your data easier to understand and use through'),
 		{ slug: 'maps', shape: 'map', space: true },
 		{ word: ',', space: false },
-		{ slug: 'charts', shape: 'book', space: true },
+		{ slug: 'data-visualization', shape: 'book', space: true },
 		{ word: ',', space: false },
 		...words('and'),
 		{ slug: 'creative-code', shape: 'tools', space: true },

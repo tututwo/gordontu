@@ -256,7 +256,7 @@
 	<title>Contact — Gordon Tu</title>
 	<meta
 		name="description"
-		content="Get in touch with Gordon Tu about interactive maps, visual stories, and web tools."
+		content="Get in touch with Gordon Tu about interactive maps, data visualization, and web tools."
 	/>
 </svelte:head>
 

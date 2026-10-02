@@ -25,7 +25,7 @@
 	 */
 	let { projects, category, opened = null } = $props();
 
-	const icons = { all: SquaresFourIcon, maps: MapTrifoldIcon, charts: ChartBarIcon, 'creative-code': CodeIcon };
+	const icons = { all: SquaresFourIcon, maps: MapTrifoldIcon, 'data-visualization': ChartBarIcon, 'creative-code': CodeIcon };
 	const categoryLinks = [allProjects, ...categories].map((section) => ({
 		...section,
 		Icon: icons[/** @type {keyof typeof icons} */ (section.slug)]

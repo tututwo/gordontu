@@ -1,0 +1,3 @@
+# Visual stories became Data visualization (2026-10-02); links to its old URLs keep working.
+/charts /data-visualization 301
+/charts/* /data-visualization/:splat 301

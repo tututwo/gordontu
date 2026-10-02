@@ -19,14 +19,14 @@
  */
 
 /**
- * Canonical Project categories — `slug` is stored on each Project and is the URL form (`/charts`);
+ * Canonical Project categories — `slug` is stored on each Project and is the URL form (`/data-visualization`);
  * `label` and `description` feed the landing's Category links, the gallery chrome and each category
  * page's meta.
  */
 export const categories = [
 	{
-		label: 'Visual stories',
-		slug: 'charts',
+		label: 'Data visualization',
+		slug: 'data-visualization',
 		description: 'Charts that turn complex systems into clear, memorable stories.'
 	},
 	{
@@ -86,7 +86,7 @@ const data = [
 	{
 		projectName: "Voronoi Studies",
 		message: "Voronoi mosaics rebuilt every frame, grown from a study of a butterfly animation: butterflies of blue-and-white porcelain, and cherry blossom the wind takes cell by cell. Scrub, record a loop, or tune it.",
-		projectLink: "https://voronoi-butterfly.vercel.app/",
+		projectLink: "https://gordontu.com/creative-code/voronoi-studies/live/",
 		projectImgSource: "/projects-optimized/CreativeCoding/voronoi-studies/voronoi-studies-cover.webp",
 		projectVideoSource: "/projects-optimized/CreativeCoding/voronoi-studies/voronoi-studies-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL"],
@@ -181,7 +181,7 @@ const data = [
 		projectLink: "https://ternercenter.berkeley.edu/affordability-for-whom.html",
 		projectImgSource: "/projects-optimized/Charts/svelte_california_housing.webp",
 		tools: ["Svelte", "D3"],
-		category: "charts",
+		category: "data-visualization",
 		date: "2023-11-01",
 		client: "Terner Center for Housing Innovation, UC Berkeley",
 		featured: true,
@@ -193,7 +193,7 @@ const data = [
 		projectImgSource: "/projects-optimized/Charts/election-3d/election-3d-cover.webp",
 		projectVideoSource: "/projects-optimized/Charts/election-3d/election-3d-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "D3"],
-		category: "charts",
+		category: "data-visualization",
 		date: "2026-09-25",
 		featured: true,
 		pinned: 1,
@@ -204,7 +204,7 @@ const data = [
 		projectLink: "https://twitter.com/tu_yukun/status/1646917464767225862/photo/1",
 		projectImgSource: "https://pbs.twimg.com/media/FtcYkEzXoAAxtcw?format=png&name=medium",
 		tools: ["Observable"],
-		category: "charts",
+		category: "data-visualization",
 		date: "2023-04-01",
 	},
 	{
@@ -213,7 +213,7 @@ const data = [
 		projectLink: "https://observablehq.com/@tututwo/himalayan-ridge",
 		projectImgSource: "/projects-optimized/Charts/d3_Himalayan.webp",
 		tools: ["Observable"],
-		category: "charts",
+		category: "data-visualization",
 		date: "2022-01-01",
 	},
 	{
@@ -222,7 +222,7 @@ const data = [
 		projectLink: "https://covid-dashboard-orcin.vercel.app/",
 		projectImgSource: "/projects-optimized/Charts/svelte-covid-cn.webp",
 		tools: ["Svelte", "D3", "R"],
-		category: "charts",
+		category: "data-visualization",
 		date: "2022-08-01",
 		client: "World Bank",
 	},
@@ -232,7 +232,7 @@ const data = [
 		projectLink: "https://twitter.com/_tuyukun/status/1281702418581827584",
 		projectImgSource: "https://pbs.twimg.com/media/EcmEau_UMAAat7E?format=jpg&name=4096x4096",
 		tools: ["R"],
-		category: "charts",
+		category: "data-visualization",
 		date: "2020-12-10",
 	},
 	{
@@ -241,7 +241,7 @@ const data = [
 		projectLink: "https://twitter.com/_tuyukun/status/1297733577849765888/photo/1",
 		projectImgSource: "https://pbs.twimg.com/media/EgJ5z45UMAA1-dD?format=png&name=medium",
 		tools: ["R"],
-		category: "charts",
+		category: "data-visualization",
 		date: "2021-01-10",
 	},
 	{
