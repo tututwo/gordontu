@@ -4,3 +4,7 @@
 # Traveling Particles became Interstate Traffic, an Interactive map (2026-10-02).
 /creative-code/traveling-particles /maps/interstate-traffic 301
 /all/traveling-particles /all/interstate-traffic 301
+# Nadir San Francisco became City Atlas, the name its page shows (2026-10-02).
+/maps/nadir-san-francisco /maps/city-atlas 301
+/all/nadir-san-francisco /all/city-atlas 301
+/maps/nadir-san-francisco/live/* /maps/city-atlas/live/:splat 301

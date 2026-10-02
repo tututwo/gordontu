@@ -2,7 +2,7 @@
 
 > **状态：四个阶段都已完成（2026-10-02）。** Voronoi Studies 和另外 7 个作品都在 gordontu.com 的 `/<分类>/<slug>/live/` 上，8 个 Worker 都接了 Workers Builds（push 到 main 就部署），旧的 vercel.app 都 308 过来；两个客户项目不搬。为什么这样搭见 ADR-0010。 计划写于 2026-09-28，"现状"一节的数据是当天查的。
 >
-> **2026-10-02 改了路径：** 作品不再挂在 `/lab/<名字>/`，而是挂在它项目页的下一层，`/<分类>/<slug>/live/`（分类和 slug 都取自 project.js）。项目页 `/<分类>/<slug>` 是有文字的那一页，留给搜索引擎和 AI 读、引用；作品本身大多是一张 canvas，放在 `/live/`。这样每个项目只有一个名字，没有在线版的项目也有完整的网址。下文已按新路径改过。
+> **路径：** 作品挂在它项目页的下一层，`/<分类>/<slug>/live/`（分类和 slug 都取自 project.js）。项目页 `/<分类>/<slug>` 是有文字的那一页，留给搜索引擎和 AI 读、引用；作品本身大多是一张 canvas，放在 `/live/`。这样每个项目只有一个名字，没有在线版的项目也有完整的网址。
 > 分四个阶段做，每个阶段都可以单独验证、单独回滚。阶段四必须等阶段三完成。
 
 ## 执行记录（2026-10-02）
@@ -302,7 +302,7 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 | Presidential Margins        | vite-three（`~/Code/React/3D-election-map`）                               | Vite 8 + React             | `/data-visualization/presidential-margins-1868-2020/live/` | 0                     |
 | Foldable Map                | foldable-map（`~/My_Journey/Map/foldable-map`）                            | Vite 8 + Svelte 5          | `/maps/foldable-map/live/`  | 0                     |
 | Rain Relief                 | us-rain（`~/My_Journey/Map/US-rain`，应用在 `3d/`）                            | Vite 8 + React             | `/maps/rain-relief/live/`   | 0（已经是 `base: './'`）   |
-| Nadir San Francisco         | fov（`~/My_Journey/Map/fov`）                                              | Vite 8 + React + TS        | `/maps/nadir-san-francisco/live/` | 代码 3 处，另有数据文件里的 149 个 |
+| City Atlas         | fov（`~/My_Journey/Map/fov`）                                              | Vite 8 + React + TS        | `/maps/city-atlas/live/` | 代码 3 处，另有数据文件里的 149 个 |
 | Interstate Traffic（原 Traveling Particles） | traveling-particles（`~/Code/React/practices-yuri/traveling-particles`）   | Vite 5 + React             | `/maps/interstate-traffic/live/` | 1 处，另有一个文件超过大小上限      |
 | YPCCC Hazard Tool（Yale）     | ypccc-hazard-tool（`~/Code/React/ypccc-hazard-tool`）                      | Vite 6 + React             | 建议不搬                        | 0                     |
 | Covid Dashboard（World Bank） | covid-dashboard（`~/Code/Svelte/ContractProjects/wb-china-covid-monitor`） | SvelteKit `1.0.0-next.499` | 建议不搬                        | 7                     |
@@ -325,7 +325,7 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
   - 应用在仓库的 `3d/` 子目录里。Workers Builds 的 Root directory 填 `3d`，`wrangler.jsonc` 也放在 `3d/` 里。
   - `3d/vite.config.js` 已经是 `base: './'`，`data.js` 读 `meta.json`、`data.txt` 也用的是相对路径，所以 base 不用改，只改 `build.outDir`。相对 base 要求网址以 `/` 结尾，Cloudflare 自动补斜杠正好满足。
   - 仓库根目录的 Python 管线只在本地跑，它的产物 `data.txt` 已经提交。
-- **Nadir San Francisco**：要改代码。
+- **City Atlas**：要改代码。
   - `src/CitywideScene.tsx:277-278` 写死了 `'/data/sf/manifest.json'` 和 `'/data/sf/overview.json'`。
   - `:158` 读取的瓦片地址来自 `public/data/sf/manifest.json`，里面 149 个地址都是 `/data/sf/tiles/…` 这样的根路径。这个文件由 `scripts/fetch-citywide-data.mjs:291、295` 生成，重新跑 `npm run data:refresh:citywide` 还会生成根路径。
   - 改动最小的办法是在代码里统一加前缀，数据文件和生成脚本都不动：
@@ -353,7 +353,7 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 1. 用 **Voronoi Studies** 做试点，把整套流程走完：Route、多套一层的输出目录、project.js 的链接、旧地址跳转，全部确认没问题再往下做。
 2. 接着做 Erhai Moon、Presidential Margins（先处理没提交的改动）、Black Hole（先决定建仓库还是在本机部署）。
 3. 然后是 Foldable Map（Mapbox token）和 Rain Relief（Root directory 填 `3d`）。
-4. 最后是 Nadir San Francisco（改 3 处代码）和 Traveling Particles（移走大文件，改 1 处代码）。
+4. 最后是 City Atlas（改 3 处代码）和 Traveling Particles（移走大文件，改 1 处代码）。
 5. 两个客户项目不搬，链接保持原样。
 
 
@@ -381,5 +381,5 @@ curl -s https://gordontu.com/contact | grep -c 'email-protection'
 - 阶段一：操作 30 分钟，然后等 DNS 生效。
 - 阶段二：1–2 小时，大部分时间花在验证清单上。
 - 阶段三：15 分钟。
-- 阶段四：只改配置的项目每个 20–30 分钟，大部分时间花在验证上；Nadir San Francisco 和 Traveling Particles 各 1 小时左右。
+- 阶段四：只改配置的项目每个 20–30 分钟，大部分时间花在验证上；City Atlas 和 Traveling Particles 各 1 小时左右。
 

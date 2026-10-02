@@ -64,11 +64,11 @@ export function formatDate(value) {
 /** @type {Omit<Project, 'seed' | 'slug'>[]} */
 const data = [
 	{
-		projectName: "Nadir San Francisco",
+		projectName: "City Atlas",
 		message: "San Francisco drawn as an illustrated 3D city from open data on its buildings, streets, shoreline and terrain. Pan and zoom, jump between neighborhoods, or curl a district into a small planet.",
-		projectLink: "https://gordontu.com/maps/nadir-san-francisco/live/",
-		projectImgSource: "/projects-optimized/Maps/nadir-sf/nadir-sf-cover.webp",
-		projectVideoSource: "/projects-optimized/Maps/nadir-sf/nadir-sf-card.mp4",
+		projectLink: "https://gordontu.com/maps/city-atlas/live/",
+		projectImgSource: "/projects-optimized/Maps/city-atlas/city-atlas-cover.webp",
+		projectVideoSource: "/projects-optimized/Maps/city-atlas/city-atlas-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "GSAP"],
 		category: "maps",
 		date: "2026-09-28",
