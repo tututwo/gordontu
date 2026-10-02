@@ -8,13 +8,17 @@ This context describes how Gordon's creative and technical work is presented to 
 A published piece of Gordon's creative or technical work, with a title, image, Message, tools, category, Client, and date, and a web page of its own unless the Project is just its image.
 _Avoid_: Post, moment, photo
 
+**Live piece**:
+A Project's web page when gordontu.com serves it, one level under the Project's URL (`/maps/erhai-moon/live/`), opened from its postcard's back. A Project whose web page lives elsewhere (an Observable notebook, a CodePen, a Client's site, a tweet) has none.
+_Avoid_: Lab, demo, app, sub-project, deployment
+
 **Message**:
 What a Project's postcard says on its back, in Gordon's words: one to three sentences on what the Project is and what a visitor can do with it. A Project may not have one yet.
 _Avoid_: Description, blurb, summary, caption
 
 **Client**:
-Whoever a Project was made for, by name (World Bank, Yale University); two or more share one line. A Project nobody commissioned is Self-initiated.
-_Avoid_: Customer, partner, organisation type (Nonprofit)
+Whoever a Project was made for, by name (World Bank, Yale University); two or more share one line. A Project nobody commissioned is Personal.
+_Avoid_: Customer, partner, organisation type (Nonprofit), Self-initiated (for Personal)
 
 **Featured Project**:
 A Project Gordon has picked to show on the landing's projects tab. The rest are only in the Postcard galleries.

@@ -1,3 +1,6 @@
 # Visual stories became Data visualization (2026-10-02); links to its old URLs keep working.
 /charts /data-visualization 301
 /charts/* /data-visualization/:splat 301
+# Traveling Particles became Interstate Traffic, an Interactive map (2026-10-02).
+/creative-code/traveling-particles /maps/interstate-traffic 301
+/all/traveling-particles /all/interstate-traffic 301

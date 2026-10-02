@@ -66,7 +66,7 @@ const data = [
 	{
 		projectName: "Nadir San Francisco",
 		message: "San Francisco drawn as an illustrated 3D city from open data on its buildings, streets, shoreline and terrain. Pan and zoom, jump between neighborhoods, or curl a district into a small planet.",
-		projectLink: "https://fov-eosin.vercel.app/",
+		projectLink: "https://gordontu.com/maps/nadir-san-francisco/live/",
 		projectImgSource: "/projects-optimized/Maps/nadir-sf/nadir-sf-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/nadir-sf/nadir-sf-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "GSAP"],
@@ -77,7 +77,7 @@ const data = [
 	{
 		projectName: "Black Hole",
 		message: "A study of Maxime Heckel's black hole, itself after Melissa Rodriguez's artwork: 200 animated dashed curves ringing an event horizon. Drag to orbit, zoom, pause, or turn the rings from color to white.",
-		projectLink: "https://black-whole-omega.vercel.app/",
+		projectLink: "https://gordontu.com/creative-code/black-hole/live/",
 		projectImgSource: "/projects-optimized/CreativeCoding/black-hole/black-hole-cover.webp",
 		tools: ["Three.js", "React.js"],
 		category: "creative-code",
@@ -97,7 +97,7 @@ const data = [
 	{
 		projectName: "Rain Relief",
 		message: "After the New York Times' 2021 map: every 30-year stretch of U.S. rainfall since 1901, wetter ground rising and drier ground sinking against the 20th-century average. Scrub the years, pull the jelly land, or hover a place.",
-		projectLink: "https://us-rain.vercel.app/",
+		projectLink: "https://gordontu.com/maps/rain-relief/live/",
 		projectImgSource: "/projects-optimized/Maps/rain-relief/rain-relief-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/rain-relief/rain-relief-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "Python"],
@@ -108,7 +108,7 @@ const data = [
 	{
 		projectName: "Foldable Map",
 		message: "A paper map of Golden Gate Park that folds inside a foldable phone, on akashtdev's iPhone Duo model. Pull the phone open to unfold it, fly to the park's highlights, tilt the ground, or restyle the map.",
-		projectLink: "https://foldable-map-sigma.vercel.app/",
+		projectLink: "https://gordontu.com/maps/foldable-map/live/",
 		projectImgSource: "/projects-optimized/Maps/foldable-map/foldable-map-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/foldable-map/foldable-map-card.mp4",
 		tools: ["Svelte", "Three.js", "GLSL", "GSAP"],
@@ -130,7 +130,7 @@ const data = [
 	{
 		projectName: "Erhai Moon",
 		message: "A Mid-Autumn card with a window onto Erhai Lake in Dali, cut from real terrain: koi, a white moon in the sky, a gold one in the water. Tilt your phone or move the mouse to look in; click the lake to stir the koi.",
-		projectLink: "https://erhai-diorama.vercel.app/?zhongqiu",
+		projectLink: "https://gordontu.com/maps/erhai-moon/live/",
 		projectImgSource: "/projects-optimized/Maps/erhai/erhai-zhongqiu-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/erhai/erhai-zhongqiu-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "Blender"],
@@ -167,13 +167,13 @@ const data = [
 	// 	featured: true,
 	// },
 	{
-		projectName: "Traveling Particles",
-		message: "Average daily traffic in 2024 on every mainline Interstate in the lower 48, drawn as glowing vessels that widen and brighten with traffic, pulses running both ways. Drag, zoom, or hover a road for its count.",
-		projectLink: "https://traveling-particles.vercel.app/",
-		projectImgSource: "/projects-optimized/CreativeCoding/three_us_road.webp",
-		tools: ["Three", "D3"],
-		category: "creative-code",
-		date: "2024-11-01",
+		projectName: "Interstate Traffic",
+		message: "Average daily traffic in 2024 on every mainline Interstate in the lower 48, drawn over 3D terrain as glowing roads that widen and brighten with traffic, comets running both ways. Fly around, or hover a road for its count.",
+		projectLink: "https://gordontu.com/maps/interstate-traffic/live/",
+		projectImgSource: "/projects-optimized/Maps/interstate-traffic/interstate-traffic-cover.webp",
+		tools: ["Three.js", "React.js", "GLSL"],
+		category: "maps",
+		date: "2026-10-01",
 	},
 	{
 		projectName: "California Affordable Housing",
@@ -189,7 +189,7 @@ const data = [
 	{
 		projectName: "Presidential Margins, 1868–2020",
 		message: "Each county's Democratic–Republican margin in 39 presidential elections since 1868, raised so wider gaps stand taller. Play or scrub the years to watch counties flip; drag to pan and orbit.",
-		projectLink: "https://vite-three-chi.vercel.app/",
+		projectLink: "https://gordontu.com/data-visualization/presidential-margins-1868-2020/live/",
 		projectImgSource: "/projects-optimized/Charts/election-3d/election-3d-cover.webp",
 		projectVideoSource: "/projects-optimized/Charts/election-3d/election-3d-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "D3"],
