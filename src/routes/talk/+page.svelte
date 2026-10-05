@@ -63,8 +63,9 @@
 	/**
 	 * Builds the timeline: a label a beat, and between beats the world moving from one pose to the next.
 	 * Lifting and meshing come late in a turn and go early, so the camera has moved before anything
-	 * rises, and everything is back down before it moves again. Around a cut, the world moves on the
-	 * side of the turn it is seen.
+	 * rises, and everything is back down before it moves again; the glasses come off early and go back
+	 * on late, so the face is bare before it is meshed. Around a cut, the world moves on the side of the
+	 * turn it is seen.
 	 * @param {HTMLElement} root
 	 */
 	function build(root) {
@@ -74,6 +75,7 @@
 			onUpdate: turned
 		});
 		const LATE = new Set(['lift', 'wire']);
+		const EARLY = new Set(['carry']);
 		timeline.to({}, { duration: N - 1 }, 0);
 		BEATS.forEach((b, i) => {
 			timeline.addLabel(String(i), i);
@@ -84,10 +86,10 @@
 			const span = 0.72;
 			for (const key of /** @type {(keyof typeof from)[]} */ (Object.keys(to))) {
 				if (from[key] === to[key]) continue;
-				const late = LATE.has(key);
 				const grows = to[key] > from[key];
-				const duration = late ? span * 0.6 : span;
-				timeline.fromTo(pose, { [key]: from[key] }, { [key]: to[key], duration }, i - 1 + start + (late && grows ? span * 0.4 : 0));
+				const part = LATE.has(key) || EARLY.has(key) ? 0.6 : 1;
+				const delayed = LATE.has(key) ? grows : EARLY.has(key) ? !grows : false;
+				timeline.fromTo(pose, { [key]: from[key] }, { [key]: to[key], duration: span * part }, i - 1 + start + (delayed ? span * (1 - part) : 0));
 			}
 			if (b.scene === 'drawn') timeline.fromTo(sketch, { p: 0.02 }, { p: 1, duration: 0.86, ease: 'none' }, i - 1 + 0.07);
 		});

@@ -56,8 +56,9 @@ const GAP = 22;
 const PITCH = SIDE + GAP;
 const MARGIN = 31;
 const BOARD = { corner: 16, crease: 3, thick: 5 };
-/** How high the glasses' layer lifts off the face. */
+/** How high the glasses' layer lifts off the face, and how far up the board they are carried to be held above the head. */
 const LIFT = 46;
+const CARRY = { z: -109, scale: 1.35 };
 /** The film strip under the keyframes, and its six frames. */
 const STRIP = { w: PITCH + SIDE, h: 56, frame: 40, frames: 6, z: PITCH + HALF + GAP + 28 };
 /** The glasses in line, as the avatar draws them once they are off (Avatar.svelte): lenses, rim, bridge. */
@@ -85,15 +86,16 @@ const RISE = 3;
 const SPRING = { tension: 100, friction: 18 };
 
 const board = (/** @type {number} */ x, /** @type {number} */ z, /** @type {number} */ w, /** @type {number} */ h) => ({ px: x, pz: z, pw: w + 2 * MARGIN, ph: h + 2 * MARGIN });
-const REST = { az: 0, el: 90, span: 216, tx: 0, ty: 0, tz: 0, lift: 0, rims: 0, keys: 0, strip: 0, wire: 0, up: 0, ...board(0, 0, SIDE, SIDE) };
+const REST = { az: 0, el: 90, span: 216, tx: 0, ty: 0, tz: 0, lift: 0, carry: 0, rims: 0, keys: 0, strip: 0, wire: 0, up: 0, ...board(0, 0, SIDE, SIDE) };
 const DEALT = { ...REST, span: 396, tx: PITCH / 2, tz: PITCH / 2, keys: 1, ...board(PITCH / 2, PITCH / 2, PITCH + SIDE, PITCH + SIDE) };
 const REELED = PITCH + SIDE + GAP + STRIP.h;
 
 /**
  * What the stage shows in each of the talk's scenes: where the camera is (`az` round and `el` up, in
  * degrees; `span` px of the world across the stage; `tx ty tz` what it looks at), how far the glasses
- * are lifted, how much of their rims, the keyframes, the strip and the mesh is out, how far the head
- * looks up, and the board (`px pz` its centre, `pw ph` its size).
+ * are lifted off the face and how far they are carried off it to be held above the head, how much of
+ * their rims, the keyframes, the strip and the mesh is out, how far the head looks up, and the board
+ * (`px pz` its centre, `pw ph` its size).
  * @typedef {typeof REST} Pose
  * @type {Record<string, Pose>}
  */
@@ -103,8 +105,10 @@ export const POSES = {
 	layers: { ...REST, rims: 1, az: 45, el: 30, span: 300, ty: 14, lift: LIFT },
 	keys: DEALT,
 	strip: { ...DEALT, span: 474, tz: (REELED - SIDE) / 2, strip: 1, ...board(PITCH / 2, (REELED - SIDE) / 2, PITCH + SIDE, REELED) },
-	mesh: { ...REST, wire: 1 },
-	bend: { ...REST, wire: 1, up: 1 }
+	// The glasses off and held above the head, in line, as the real avatar draws them held; so the face
+	// can bend, and in `bend` looks up at them.
+	mesh: { ...REST, carry: 1, rims: 1, wire: 1, span: 268, tz: -20 },
+	bend: { ...REST, carry: 1, rims: 1, wire: 1, up: 1, span: 268, tz: -20 }
 };
 
 const rad = (/** @type {number} */ degrees) => (degrees * Math.PI) / 180;
@@ -412,7 +416,7 @@ export async function createWorld(canvas, urls, pose, read) {
 		strip: [...sheets, { name: strip.name, slot: strip.slot, y: THICK, w: STRIP.w, h: STRIP.h, part: strip }]
 	};
 	/** Where the eye starts in each scene, until the pointer picks something. */
-	const starts = /** @type {Record<string, object>} */ ({ rings: glassy, layers: glassy, strip: pickable.strip[4] });
+	const starts = /** @type {Record<string, object>} */ ({ rings: glassy, layers: glassy, strip: pickable.strip[4], mesh: glassy, bend: glassy });
 
 	let name = 'picture';
 	let width = 1;
@@ -505,9 +509,14 @@ export async function createWorld(canvas, urls, pose, read) {
 		const ends = [outline.reduce((a, b) => (across(b) < across(a) ? b : a)), outline.reduce((a, b) => (across(b) > across(a) ? b : a))];
 		redraw(plinth.sides, ends.flatMap(([x, z]) => [x + pose.px, 0, z + pose.pz, x + pose.px, -BOARD.thick, z + pose.pz]));
 
-		// The glasses' layer, and the drops under it.
-		const lifted = pose.lift > 0.5;
-		glasses.position.y = THICK + 0.15 + pose.lift;
+		// The glasses' layer, and the drops under it; or the glasses carried off the face and held above
+		// the head, where the drawing gives way to the line (as the avatar's own do, Avatar.svelte).
+		const lifted = pose.lift > 0.5 && pose.carry < 0.01;
+		glasses.position.set(0, THICK + 0.15 + pose.lift, CARRY.z * pose.carry);
+		glasses.scale.setScalar(1 + (CARRY.scale - 1) * pose.carry);
+		const picture = /** @type {MeshBasicMaterial} */ (lens.material);
+		picture.opacity = 1 - clamp01(pose.carry / 0.4);
+		lens.visible = picture.opacity > 0;
 		film.visible = drops.visible = lifted;
 		if (lifted) {
 			redraw(drops, corners.flatMap(([x, z]) => [x, THICK, z, x, THICK + pose.lift, z]));
