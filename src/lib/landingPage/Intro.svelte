@@ -28,8 +28,19 @@
 	import { BRUSH, PEN, RIMS } from './introStrokes.js';
 	import { scrambleIn } from './scramble.js';
 
-	/** @type {{ onend: () => void }} */
-	let { onend } = $props();
+	/**
+	 * `scrub`: only the drawing, for a page that turns itself (the talk at /talk). It holds nothing
+	 * back and plays nothing: the page seeks it (`seek`).
+	 * @type {{ onend?: () => void, scrub?: boolean }}
+	 */
+	let { onend = () => {}, scrub = false } = $props();
+
+	/** @type {(progress: number) => void} */
+	let seekTo = () => {};
+	/** Shows the drawing at `progress` of its length: 0 a bare sheet, 1 drawn, painted and blinked. @param {number} progress */
+	export function seek(progress) {
+		seekTo(progress);
+	}
 
 	/**
 	 * One pen, one line at a time, unhurried, so each line is seen growing from nothing to its end: a
@@ -72,7 +83,7 @@
 	function play(svg) {
 		if (!html) return;
 		// Taken over from app.html's failsafe, which would otherwise show the page.
-		html.dataset.intro = 'drawing';
+		if (!scrub) html.dataset.intro = 'drawing';
 		const one = (/** @type {string} */ selector) => /** @type {Element} */ (svg.querySelector(selector));
 		const paths = (/** @type {string} */ selector) => /** @type {NodeListOf<SVGPathElement>} */ (svg.querySelectorAll(selector));
 		let ended = false;
@@ -153,6 +164,14 @@
 			hand.setAttribute('transform', `translate(${x} ${y})`);
 		};
 		place(0);
+
+		if (scrub) {
+			seekTo = (progress) => {
+				tl.progress(progress);
+				place(tl.time());
+			};
+			return () => tl.kill();
+		}
 
 		/** How fast the drawing plays: as drawn, or hurried along. */
 		let rate = 1;
