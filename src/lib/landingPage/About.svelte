@@ -296,7 +296,7 @@
 
 <p class={['revision', { drawn: strokes.length }]} {@attach prepare}>
 	I use <del bind:this={del}>d3.js, three.js+GLSL/TSL, React&amp;Svelte, QGIS, Blender etc..</del>
-	<ins bind:this={ins}>Claude Code, Codex &amp; Jev across my toolkit to design and build interactive 2D&amp;3D experiences.</ins>
+	<ins bind:this={ins}>Claude Code &amp; Codex across my toolkit to design and build interactive 2D&amp;3D experiences.</ins>
 	<svg class="scratch" aria-hidden="true">
 		{#each strokes as d (d)}<path {d} />{/each}
 	</svg>
