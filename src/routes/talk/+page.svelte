@@ -382,11 +382,17 @@
 		else free = scrollY;
 	}
 
-	/** The arrows, space, the page keys and a clicker turn the page; N shows the notes. @param {KeyboardEvent} event */
+	/**
+	 * The arrows, space, the page keys and a clicker turn the page, wherever the focus is (taken before
+	 * a focused video can seek with them); N shows the notes. Only a button or link the keyboard has
+	 * reached keeps Space and Enter for itself.
+	 * @param {KeyboardEvent} event
+	 */
 	async function key(event) {
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
 		const target = /** @type {HTMLElement} */ (event.target);
-		if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A|VIDEO|IFRAME)$/.test(target.tagName) || target.isContentEditable) return;
+		if (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable) return;
+		if ((event.key === ' ' || event.key === 'Enter') && target.matches?.('button:focus-visible, a:focus-visible')) return;
 		/** @type {Record<string, number>} */
 		const turns = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, Enter: 1, ' ': event.shiftKey ? -1 : 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 };
 		const turn = turns[event.key];
@@ -401,6 +407,12 @@
 		event.preventDefault();
 	}
 
+	/**
+	 * A button pressed with the mouse lets go of the focus, so Space and Enter go on turning the page.
+	 * @param {MouseEvent & { currentTarget: HTMLElement }} event
+	 */
+	const release = (event) => event.detail && event.currentTarget.blur();
+
 	/** @param {PointerEvent} event */
 	const point = (event) => laid && world?.point({ x: event.clientX - laid.left, y: event.clientY - laid.top });
 	const two = (/** @type {number} */ n) => String(n).padStart(2, '0');
@@ -412,7 +424,7 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<svelte:window onkeydown={key} onscroll={hold} />
+<svelte:window onkeydowncapture={key} onscroll={hold} />
 
 <!-- The page scrolls a screen a beat (more where the way is the show); the deck stays, and shows the beat the scroll is on. -->
 <div class="talk" style:--screens={END + 1} {@attach deck}>
@@ -421,9 +433,11 @@
 
 		<header>
 			<p><strong>Gordon Tu</strong> <span>How a picture became me</span></p>
-			<p>
-				{#if notes}<span class="clock">from {STEPS[current.step].at}</span>{/if}
-				{two(beat + 1)} / {N}
+			<p class="count">
+				{#if notes}<span class="clock">← → or space · N hides this · from {STEPS[current.step].at}</span>{/if}
+				<button type="button" aria-label="Back" disabled={beat === 0} onclick={(event) => (release(event), fly(aim - 1))}>←</button>
+				<span>{two(beat + 1)} / {N}</span>
+				<button type="button" aria-label="Next" disabled={beat === N - 1} onclick={(event) => (release(event), fly(aim + 1))}>→</button>
 			</p>
 		</header>
 
@@ -487,7 +501,7 @@
 
 		<nav class="rail" aria-label="Steps">
 			{#each STEPS as { name }, i (name)}
-				<button type="button" aria-current={i === current.step ? 'step' : undefined} onclick={() => fly(BEATS.findIndex((b) => b.step === i), 0.9)}>
+				<button type="button" aria-current={i === current.step ? 'step' : undefined} onclick={(event) => (release(event), fly(BEATS.findIndex((b) => b.step === i), 0.9))}>
 					<span class="n">{i + 1}</span> <span class="name">{name}</span>
 				</button>
 			{/each}
@@ -560,8 +574,39 @@
 		margin-left: 0.5em;
 	}
 
+	/* The count between the two arrows that turn the page, the arrows quiet until pointed at. */
+	.count {
+		display: flex;
+		align-items: center;
+		margin: -0.5rem -0.5rem 0 0;
+	}
+
+	.count span {
+		margin: 0;
+	}
+
+	.count button {
+		padding: 0.5rem;
+		border: 0;
+		background: none;
+		color: var(--ink-3);
+		font: inherit;
+		line-height: 1;
+		cursor: pointer;
+		transition: color 160ms var(--ease-out);
+	}
+
+	.count button:hover {
+		color: var(--ink);
+	}
+
+	.count button:disabled {
+		color: var(--rule-2);
+		cursor: default;
+	}
+
 	.clock {
-		margin-right: 1.25em;
+		margin-right: 1.25em !important;
 	}
 
 	/* Every beat's words, and every step's name, laid in the same place; the timeline shows one. */
