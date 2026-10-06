@@ -7,9 +7,12 @@
 	import Avatar, { lenses } from '$lib/landingPage/Avatar.svelte';
 	import Intro from '$lib/landingPage/Intro.svelte';
 	import Evolution from '$lib/talk/Evolution.svelte';
-	import { BEATS, CREDITS, FILM, NUMBERS, STEPS } from '$lib/talk/beats.js';
+	import { BEATS, FILM, NUMBERS, STEPS } from '$lib/talk/beats.js';
 	import face from '$lib/talk/face.webp';
 	import glasses from '$lib/talk/glasses.webp';
+	import iteration0 from '$lib/talk/iteration-0.webp';
+	import iteration1 from '$lib/talk/iteration-1.webp';
+	import iteration2 from '$lib/talk/iteration-2.webp';
 	import keyDown from '$lib/talk/keyframe-down.webp';
 	import keyUp from '$lib/talk/keyframe-up.webp';
 	import keyWonder from '$lib/talk/keyframe-wonder.webp';
@@ -18,6 +21,8 @@
 	import down from '$lib/talk/pose-down.webp';
 	import up from '$lib/talk/pose-up.webp';
 	import qr from '$lib/talk/qr.svg';
+	import site2024 from '$lib/talk/site-2024.webp';
+	import siteOfTheDay from '$lib/talk/site-of-the-day.webp';
 	import sketch from '$lib/talk/sketch.webp';
 	import tapnow from '$lib/talk/tapnow.webp';
 	import turn1 from '$lib/talk/turn-1.webp';
@@ -30,8 +35,8 @@
 	/*
 	 * The talk, as one page that turns itself: the deck stays put while the page scrolls under it, and
 	 * the scroll drives one GSAP timeline that holds everything, scrubbed: the words, the world's poses
-	 * (world.js, on a canvas behind the whole deck), the page's own panels (the site itself, live; what
-	 * visitors did with it; the landing's drawing; the evolution; the film; the credits) and the
+	 * (world.js, on a canvas behind the whole deck), the page's own panels (the site itself, live;
+	 * screenshots; what visitors did with it; the landing's drawing; the evolution; the film) and the
 	 * hand-overs between them, where the world lays the avatar's sheet exactly over the avatar on the
 	 * panel before it gives way. The arrow keys (or a clicker) fly from beat to beat; a hand on the
 	 * wheel lands on the nearest one.
@@ -39,6 +44,8 @@
 
 	/** The pictures the world draws with (see `createWorld`). */
 	const PICTURES = { face, glasses, up, down, tapnow, paperLayers, paperExploded, sketch, turn1, turn2, turn3, turn4, worried, keyUp, keyDown, keyWonder };
+	/** The screenshots the beats show (beats.js `shots`). @type {Record<string, string>} */
+	const SHOTS = { site2024, iteration0, iteration1, iteration2, siteOfTheDay };
 
 	const N = BEATS.length;
 	/** Where each beat is on the timeline (and the page's scroll), in screens: the way to each takes its `len`. */
@@ -46,7 +53,7 @@
 	const END = AT[N - 1];
 
 	/** Which layer of the stage each scene is on: the world, or one of the page's panels. @type {Record<string, string>} */
-	const PANELS = { live: 'live', numbers: 'numbers', blank: 'drawing', drawn: 'drawing', evolution: 'evolution', film: 'film', credits: 'credits' };
+	const PANELS = { live: 'live', shots: 'shots', numbers: 'numbers', blank: 'drawing', drawn: 'drawing', evolution: 'evolution', film: 'film' };
 	const layerOf = (/** @type {string} */ scene) => PANELS[scene] ?? 'world';
 	/** The panels the world hands the avatar's sheet to (and takes it back from), laid exactly over theirs. */
 	const HANDOFF = ['live', 'drawing'];
@@ -136,7 +143,7 @@
 		const one = (/** @type {string} */ selector) => /** @type {HTMLElement} */ (root.querySelector(selector));
 		const all = (/** @type {string} */ selector) => /** @type {HTMLElement[]} */ ([...root.querySelectorAll(selector)]);
 		const canvas = /** @type {HTMLCanvasElement} */ (one('canvas.world'));
-		const panels = { live: one('.panel.live'), numbers: one('.panel.numbers'), drawing: one('.panel.drawing'), evolution: one('.panel.evolution'), film: one('.panel.film'), credits: one('.panel.credits') };
+		const panels = { live: one('.panel.live'), shots: one('.panel.shots'), numbers: one('.panel.numbers'), drawing: one('.panel.drawing'), evolution: one('.panel.evolution'), film: one('.panel.film') };
 		const box = canvas.getBoundingClientRect();
 		const stageBox = one('.stage').getBoundingClientRect();
 		/** A box of the page, in the canvas's px. @param {Element} element */
@@ -172,6 +179,8 @@
 			branches: all('.evolution .branch')
 		};
 		const tally = all('.numbers .row');
+		/** Each beat's screenshots, where it has them. */
+		const sets = BEATS.map((_, i) => root.querySelector(`.shots .set[data-beat="${i}"]`));
 
 		timeline = gsap.timeline({
 			defaults: { ease: 'power2.inOut', immediateRender: false },
@@ -229,6 +238,16 @@
 					show(to, 0.42);
 					hide(from, 0.5);
 				}
+			}
+
+			// The screenshots: while their panel stays, the next beat's set comes in over the last (each is
+			// as white as the panel), then the last goes; a set comes with its panel, and goes with it.
+			const [left, right] = [sets[i - 1], sets[i]];
+			const stays = from === to;
+			if (right) timeline.fromTo(right, { autoAlpha: 0 }, { autoAlpha: 1, duration: span(stays ? 0.24 : 0.01), ease: 'none' }, at(stays ? 0.3 : 0));
+			if (left) timeline.fromTo(left, { autoAlpha: 1 }, { autoAlpha: 0, duration: span(0.01), ease: 'none' }, at(stays ? 0.55 : 0.99));
+			for (const mark of right?.querySelectorAll('.mark') ?? []) {
+				timeline.fromTo(mark, { autoAlpha: 0, scale: 1.06 }, { autoAlpha: 1, scale: 1, duration: span(0.2), ease: 'power2.out' }, at(0.6));
 			}
 
 			// The world, from one pose to the next.
@@ -538,11 +557,40 @@
 
 		<div class="stage">
 			<!-- The site itself, live: the avatar and the bio its glasses read. -->
-			<div class={['panel live', { struck: current.struck }]} inert={layerOf(current.scene) !== 'live'}>
+			<div class="panel live" inert={layerOf(current.scene) !== 'live'}>
 				<div class="site">
 					<p class="hello">I’m Gordon. <Avatar /></p>
 					<div class="bio"><About /></div>
 				</div>
+			</div>
+
+			<!-- Each beat's screenshots (beats.js `shots`), a set a beat, side by side; a dashed placeholder
+			     where one is still to come, saying which file to send. -->
+			<div class="panel shots">
+				{#each BEATS as b, i (b.line)}
+					{#if b.shots}
+						<div class="set" data-beat={i}>
+							{#each b.shots as shot (shot.label)}
+								<figure>
+									{#if shot.src}
+										<div class="frame">
+											<img src={SHOTS[shot.src]} alt={shot.label} />
+											{#if shot.mark}
+												{@const { x, y, w, h } = shot.mark}
+												<div class="mark" style:left="{x * 100}%" style:top="{y * 100}%" style:width="{w * 100}%" style:height="{h * 100}%"></div>
+											{/if}
+										</div>
+									{:else}
+										<div class="frame wanted" style:aspect-ratio={shot.ratio ?? 4 / 3}>
+											<p><span>Placeholder</span> {shot.want}</p>
+										</div>
+									{/if}
+									<figcaption>{shot.label}</figcaption>
+								</figure>
+							{/each}
+						</div>
+					{/if}
+				{/each}
 			</div>
 
 			<!-- What visitors did with the glasses (beats.js), each count with a bar of its share of the first. -->
@@ -573,15 +621,6 @@
 						<track kind="captions" />
 					</video>
 				{/if}
-			</div>
-
-			<div class="panel credits">
-				<dl>
-					{#each CREDITS as [role, names] (role)}
-						<div><dt>{role}</dt><dd>{names}</dd></div>
-					{/each}
-					<p>Made by Gordon, with a small cast of very talented tools.</p>
-				</dl>
 			</div>
 
 			<output class="read">{over ?? current.read}</output>
@@ -851,15 +890,76 @@
 		color: var(--color-ash);
 	}
 
-	/* Where the beat is about the struck tool list, the rest of the site steps back. */
-	.hello,
-	.bio :global(.afterword) {
-		transition: opacity 400ms var(--ease-out);
+	/* Screenshots in their own sizes, up to what the stage holds, each framed in a hairline. */
+	.set {
+		grid-area: 1 / 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: clamp(0.75rem, 2.5cqw, 1.75rem);
+		width: 100%;
+		height: 100%;
+		background: #fff;
+		visibility: hidden;
+		opacity: 0;
 	}
 
-	.struck .hello,
-	.struck .bio :global(.afterword) {
-		opacity: 0.12;
+	figure {
+		display: flex;
+		flex: 1 1 0;
+		flex-direction: column;
+		align-items: center;
+		min-width: 0;
+	}
+
+	.frame {
+		position: relative;
+		max-width: 100%;
+		overflow: hidden;
+		border: 1px solid var(--rule-2);
+		border-radius: 6px;
+	}
+
+	.frame img {
+		display: block;
+		max-width: 100%;
+		max-height: calc(100cqh - 3rem);
+	}
+
+	/* Round what the beat is about, drawn in on the timeline. */
+	.mark {
+		position: absolute;
+		border: 1px solid var(--ink);
+		border-radius: 4px;
+		visibility: hidden;
+		opacity: 0;
+	}
+
+	/* Still to come: dashed, saying which file. */
+	.wanted {
+		display: grid;
+		place-items: center;
+		width: 100%;
+		max-height: calc(100cqh - 3rem);
+		padding: 1rem;
+		border-style: dashed;
+		font-size: var(--meta);
+		line-height: 1.4;
+		text-align: center;
+		color: var(--ink-3);
+	}
+
+	.wanted span {
+		display: block;
+		margin-bottom: 0.25em;
+		color: var(--ink);
+	}
+
+	figcaption {
+		margin-top: 0.6rem;
+		font-size: var(--meta);
+		line-height: 1.4;
+		color: var(--ink-3);
 	}
 
 	/* The counts in the line's own type, each over a hairline as long as its share of the first. */
@@ -948,35 +1048,6 @@
 		background: #fff;
 	}
 
-	.credits {
-		place-items: center start;
-	}
-
-	.credits dl {
-		display: grid;
-		gap: 1.25rem;
-		font-size: clamp(1rem, 1.35vw, 1.5rem);
-		line-height: 1.4;
-	}
-
-	.credits dt {
-		font-size: var(--meta);
-		color: var(--ink-3);
-	}
-
-	.credits dd {
-		margin-top: 0.2em;
-	}
-
-	.credits p {
-		max-width: 24em;
-		margin-top: 0.75rem;
-		padding-top: 1.25rem;
-		border-top: 1px solid var(--rule);
-		font-size: var(--meta);
-		color: var(--ink-2);
-	}
-
 	/* The eight steps along the foot, the one we are on in ink and marked from above. */
 	.rail {
 		grid-area: rail;
@@ -1037,15 +1108,6 @@
 
 		.rail .name {
 			display: none;
-		}
-
-		.credits {
-			place-items: start;
-			overflow-y: auto;
-		}
-
-		.credits dl {
-			gap: 0.75rem;
 		}
 	}
 
