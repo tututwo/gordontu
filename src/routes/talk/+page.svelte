@@ -99,6 +99,8 @@
 	let notes = $state(false);
 	/** The film, from YouTube when Gordon's own copy is not there. */
 	let tube = $state(false);
+	/** The talk fills the screen (F). */
+	let full = $state(false);
 
 	/** The world's pose, moved by the timeline. */
 	const pose = { ...POSES.picture };
@@ -351,20 +353,54 @@
 	/** @param {HTMLElement} root */
 	function deck(root) {
 		gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+		const sheet = /** @type {HTMLElement} */ (root.querySelector('.deck'));
 		/** @type {gsap.Context | null} */
 		let context = null;
 		let frame = 0;
+		/**
+		 * How far through the talk it was (or where the keys were taking it), as a share of the way: at
+		 * a new size (going full screen, say) the same scroll is another beat, so it scrolls back there.
+		 * @type {number | undefined}
+		 */
+		let place;
+		const mark = () => (place ??= inFlight ? AT[aim] / END : timeline?.scrollTrigger?.progress);
 		relayout = () => {
+			mark();
 			cancelAnimationFrame(frame);
 			frame = requestAnimationFrame(() => {
+				// The old timeline goes without turning the page back to its start (and the film with it).
+				timeline = null;
 				context?.revert();
+				if (place !== undefined) {
+					flying?.kill();
+					inFlight = false;
+					scrollTo(0, root.getBoundingClientRect().top + scrollY + place * (root.offsetHeight - innerHeight));
+					place = undefined;
+				}
 				context = gsap.context(() => build(root), root);
+				// ScrollTrigger measures the window afresh only in a refresh (late after a resize, never in full
+				// screen), and a timeline's trigger only a tick after it is made: both now, in this frame.
+				ScrollTrigger.refresh();
+				turned();
 			});
 		};
+		/**
+		 * A new window size comes before the scroll event in which the browser fits the old place into a
+		 * shorter page, so the place is taken now and the old trigger let go; the deck's observer lays it
+		 * out again. A phone's address bar resizes the window but not the deck (in svh): nothing to do.
+		 */
+		const resized = () => {
+			const { width, height } = sheet.getBoundingClientRect();
+			if (!laid || (width === laid.w && height === laid.h)) return;
+			mark();
+			timeline?.scrollTrigger?.kill(false);
+		};
+		addEventListener('resize', resized);
 		const observer = new ResizeObserver(() => relayout());
-		observer.observe(/** @type {Element} */ (root.querySelector('.deck')));
+		observer.observe(sheet);
 		document.fonts.ready.then(() => relayout());
 		return () => {
+			removeEventListener('resize', resized);
 			observer.disconnect();
 			cancelAnimationFrame(frame);
 			relayout = () => {};
@@ -411,10 +447,13 @@
 		else free = scrollY;
 	}
 
+	/** The talk fills the screen, or stops filling it (Esc stops it too). */
+	const fill = () => document.fullscreenEnabled && (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
+
 	/**
 	 * The arrows, space, the page keys and a clicker turn the page, wherever the focus is (taken before
-	 * a focused video can seek with them); N shows the notes. Only a button or link the keyboard has
-	 * reached keeps Space and Enter for itself.
+	 * a focused video can seek with them); F fills the screen; N shows the notes. Only a button or link
+	 * the keyboard has reached keeps Space and Enter for itself.
 	 * @param {KeyboardEvent} event
 	 */
 	async function key(event) {
@@ -428,6 +467,7 @@
 		if (turn) fly(aim + turn);
 		else if (event.key === 'Home') fly(0, 0.6);
 		else if (event.key === 'End') fly(N - 1, 0.6);
+		else if (event.key === 'f' || event.key === 'F') fill();
 		else if (event.key === 'n' || event.key === 'N') {
 			notes = !notes;
 			await tick();
@@ -454,6 +494,7 @@
 </svelte:head>
 
 <svelte:window onkeydowncapture={key} onscroll={hold} />
+<svelte:document onfullscreenchange={() => (full = !!document.fullscreenElement)} />
 
 <!-- The page scrolls a screen a beat (more where the way is the show); the deck stays, and shows the beat the scroll is on. -->
 <div class="talk" style:--screens={END + 1} {@attach deck}>
@@ -463,10 +504,14 @@
 		<header>
 			<p><strong>Gordon Tu</strong> <span>How a picture became me</span></p>
 			<p class="count">
-				{#if notes}<span class="clock">← → or space · N hides this · from {STEPS[current.step].at}</span>{/if}
+				{#if notes}<span class="clock">← → or space · F full screen · N hides this · from {STEPS[current.step].at}</span>{/if}
 				<button type="button" aria-label="Back" disabled={beat === 0} onclick={(event) => (release(event), fly(aim - 1))}>←</button>
 				<span>{two(beat + 1)} / {N}</span>
 				<button type="button" aria-label="Next" disabled={beat === N - 1} onclick={(event) => (release(event), fly(aim + 1))}>→</button>
+				<!-- Hidden where the page cannot fill the screen (an iPhone). -->
+				<button type="button" aria-label="Full screen" aria-pressed={full} title="Full screen (F)" hidden {@attach (button) => void (button.hidden = !document.fullscreenEnabled)} onclick={(event) => (release(event), fill())}>
+					<svg viewBox="0 0 16 16" aria-hidden="true"><path d={full ? 'M1 5h4V1M11 1v4h4M15 11h-4v4M5 15v-4H1' : 'M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4'} /></svg>
+				</button>
 			</p>
 		</header>
 
@@ -646,6 +691,17 @@
 	.count button:disabled {
 		color: var(--rule-2);
 		cursor: default;
+	}
+
+	/* Four corners, out to fill the screen, in to stop. */
+	.count svg {
+		display: block;
+		width: 0.875em;
+		height: 0.875em;
+		margin-left: 0.25rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.5;
 	}
 
 	.clock {
