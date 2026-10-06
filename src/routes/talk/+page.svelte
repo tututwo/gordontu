@@ -16,7 +16,6 @@
 	import keyDown from '$lib/talk/keyframe-down.webp';
 	import keyUp from '$lib/talk/keyframe-up.webp';
 	import keyWonder from '$lib/talk/keyframe-wonder.webp';
-	import paperExploded from '$lib/talk/paper-exploded.webp';
 	import paperLayers from '$lib/talk/paper-layers.webp';
 	import down from '$lib/talk/pose-down.webp';
 	import up from '$lib/talk/pose-up.webp';
@@ -43,9 +42,9 @@
 	 */
 
 	/** The pictures the world draws with (see `createWorld`). */
-	const PICTURES = { face, glasses, up, down, tapnow, paperLayers, paperExploded, sketch, turn1, turn2, turn3, turn4, worried, keyUp, keyDown, keyWonder };
+	const PICTURES = { face, glasses, up, down, tapnow, sketch, turn1, turn2, turn3, turn4, worried, keyUp, keyDown, keyWonder };
 	/** The screenshots the beats show (beats.js `shots`). @type {Record<string, string>} */
-	const SHOTS = { site2024, iteration0, iteration1, iteration2, siteOfTheDay };
+	const SHOTS = { site2024, iteration0, iteration1, iteration2, paperLayers, siteOfTheDay };
 
 	const N = BEATS.length;
 	/** Where each beat is on the timeline (and the page's scroll), in screens: the way to each takes its `len`. */
@@ -71,7 +70,6 @@
 	/** @type {Record<string, number[][]>} */
 	const WINDOWS = {
 		lift: PART,
-		cut: PART,
 		sketch: PART,
 		tries: PART,
 		keys: PART,
@@ -548,6 +546,11 @@
 						<h2>{b.line}</h2>
 						{#if b.glasses}<div class="slot"></div>{/if}
 						{#if b.sub}<p class="sub">{b.sub}</p>{/if}
+						{#if b.list}
+							<ol class="list">
+								{#each b.list as item, k (item)}<li><span>{k + 1}</span> {item}</li>{/each}
+							</ol>
+						{/if}
 						{#if b.qr}<img class="qr" src={qr} alt="" />{/if}
 						{#if notes}<p class="say">{b.say}</p>{/if}
 					</div>
@@ -564,12 +567,13 @@
 				</div>
 			</div>
 
-			<!-- Each beat's screenshots (beats.js `shots`), a set a beat, side by side; a dashed placeholder
-			     where one is still to come, saying which file to send. -->
+			<!-- Each beat's screenshots (beats.js `shots`), a set a beat: one as large as the stage holds, a
+			     few side by side, four in two rows; a dashed placeholder where one is still to come, saying
+			     which file to send. -->
 			<div class="panel shots">
 				{#each BEATS as b, i (b.line)}
 					{#if b.shots}
-						<div class="set" data-beat={i}>
+						<div class={['set', { row: b.shots.length > 1 && b.shots.length < 4, grid: b.shots.length > 3 }]} data-beat={i}>
 							{#each b.shots as shot (shot.label)}
 								<figure>
 									{#if shot.src}
@@ -787,7 +791,8 @@
 		line-height: 1.4;
 	}
 
-	.step span {
+	.step span,
+	.list span {
 		margin-right: 0.5em;
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
@@ -808,7 +813,9 @@
 		margin-top: 1.25rem;
 	}
 
-	.sub {
+	/* Under the line: a sentence, or a list numbered as the steps are. */
+	.sub,
+	.list {
 		max-width: 24em;
 		margin-top: 1.1em;
 		font-size: clamp(1.0625rem, 1.5vw, 1.625rem);
@@ -819,6 +826,13 @@
 
 	.slot + .sub {
 		margin-top: 1rem;
+	}
+
+	.list {
+		display: grid;
+		gap: 0.2em;
+		padding: 0;
+		list-style: none;
 	}
 
 	.say {
@@ -890,13 +904,16 @@
 		color: var(--color-ash);
 	}
 
-	/* Screenshots in their own sizes, up to what the stage holds, each framed in a hairline. */
+	/*
+	 * A beat's screenshots, each in its own shape and framed in a hairline, its caption flush left under
+	 * it: one as large as the stage holds, a few side by side, four in two rows.
+	 */
 	.set {
 		grid-area: 1 / 1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: clamp(0.75rem, 2.5cqw, 1.75rem);
+		gap: clamp(1rem, 3cqw, 2rem);
 		width: 100%;
 		height: 100%;
 		background: #fff;
@@ -904,11 +921,28 @@
 		opacity: 0;
 	}
 
+	/* A few, or four, in equal columns, their tops on one line and the whole centred on the stage. */
+	.set.row,
+	.set.grid {
+		display: grid;
+		align-content: center;
+		align-items: start;
+	}
+
+	.set.row {
+		grid-auto-columns: minmax(0, 1fr);
+		grid-auto-flow: column;
+	}
+
+	.set.grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		row-gap: clamp(1.25rem, 4cqh, 2.5rem);
+	}
+
 	figure {
 		display: flex;
-		flex: 1 1 0;
 		flex-direction: column;
-		align-items: center;
+		align-items: flex-start;
 		min-width: 0;
 	}
 
@@ -926,6 +960,11 @@
 		max-height: calc(100cqh - 3rem);
 	}
 
+	/* Two rows share the stage's height, each less its caption and half the gap between them. */
+	.grid .frame img {
+		max-height: calc(50cqh - 3.75rem);
+	}
+
 	/* Round what the beat is about, drawn in on the timeline. */
 	.mark {
 		position: absolute;
@@ -938,14 +977,13 @@
 	/* Still to come: dashed, saying which file. */
 	.wanted {
 		display: grid;
-		place-items: center;
+		align-content: start;
 		width: 100%;
 		max-height: calc(100cqh - 3rem);
 		padding: 1rem;
 		border-style: dashed;
 		font-size: var(--meta);
 		line-height: 1.4;
-		text-align: center;
 		color: var(--ink-3);
 	}
 

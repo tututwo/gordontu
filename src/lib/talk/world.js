@@ -35,8 +35,8 @@ import { Spring } from '$lib/landingPage/spring.js';
  * The talk's world (see beats.js): a drawing board with the avatar's sheet on it, seen from straight
  * above, from Hairline's 2:1 corner view, or from underneath, and what the talk does to that sheet.
  * Its glasses lift off as a layer over dashed drops, or are carried off and set down under the
- * talk's line; the studies and the drawings Image 2 made are dealt out beside it; a film strip slides
- * out under them; the board turns over to show what is behind it; and the avatar's own mesh
+ * talk's line; the first sketch and the drawings Image 2 made are dealt out beside it; a film strip
+ * slides out under them; the board turns over to show what is behind it; and the avatar's own mesh
  * (avatarMesh.json) is laid over the drawing and bends it, following the pointer as the avatar does.
  *
  * Drawn the way Hairline's figures are (lucasmarkes.com/lab/hairline): one stroke weight in a few
@@ -89,14 +89,9 @@ const SPRING = { tension: 100, friction: 18 };
 /**
  * The sheets dealt out with the avatar's: which picture, what it is called, where it rests (its
  * centre) and its size, square and the avatar's size unless given. Most slide out from under the
- * avatar's sheet; a study is laid over it instead, slid in from `from` to the right.
+ * avatar's sheet; the sketch is laid over it instead, slid in from `from` to the right.
  * @typedef {{ key: string, name: string, x: number, z: number, w?: number, h?: number, from?: number }} Slot
  */
-/** The paper-cut studies, laid over it side by side. @type {Slot[]} */
-const CUT = [
-	{ key: 'paperLayers', name: 'layer structure', x: -74, z: 0, w: 150, h: 150, from: 460 },
-	{ key: 'paperExploded', name: 'exploded view', x: 74, z: 0, w: 150, h: 137, from: 460 }
-];
 /** The first sketch, laid over it. @type {Slot[]} */
 const SKETCH = [{ key: 'sketch', name: 'the first sketch', x: 0, z: 0, w: 216, h: 154, from: 460 }];
 /** Image 2's tries at him looking at his glasses, round it, where the keyframes are not. @type {Slot[]} */
@@ -161,7 +156,6 @@ const REST = {
 	blank: 0,
 	wire: 0,
 	up: 0,
-	cut: 0,
 	sketch: 0,
 	tries: 0,
 	keys: 0,
@@ -186,7 +180,6 @@ export const POSES = {
 	picture: REST,
 	rings: { ...REST, rims: 1 },
 	layers: { ...REST, rims: 1, az: 45, el: 30, fw: 300, fh: 300, ty: 14, lift: LIFT },
-	cut: { ...REST, cut: 1, ...round(-149, -75, 149, 75) },
 	sketch: { ...REST, sketch: 1, ...round(-108, -77, 108, 77) },
 	turns: { ...REST, tries: 1, keys: 1, ...round(OUT.x0, OUT.x0, OUT.x1, OUT.x1) },
 	keys: { ...REST, keys: 1, ...round(SQUARE.x0, SQUARE.z0, SQUARE.x1, SQUARE.z1) },
@@ -544,7 +537,7 @@ export async function createWorld(canvas, urls, pose, read) {
 			depth: i + 1,
 			...sheet(textures[slot.key], slot.w, slot.h)
 		}));
-	const lots = { cut: lay(CUT), sketch: lay(SKETCH), tries: lay(TRIES), keys: lay(KEYS) };
+	const lots = { sketch: lay(SKETCH), tries: lay(TRIES), keys: lay(KEYS) };
 
 	// The film strip: six frames of the head on its way up, and its sprocket holes.
 	const strip = { ...STRIP, wait: 0, depth: 0.5, from: 0, key: 'strip', ...sheet(null, STRIP.w, STRIP.h) };
@@ -565,7 +558,7 @@ export async function createWorld(canvas, urls, pose, read) {
 	}
 	strip.group.add(holes);
 
-	const dealt = [...lots.cut, ...lots.sketch, ...lots.tries, ...lots.keys];
+	const dealt = [...lots.sketch, ...lots.tries, ...lots.keys];
 	scene.add(strip.group, ...dealt.map((s) => s.group), main.group);
 
 	/**
@@ -583,7 +576,6 @@ export async function createWorld(canvas, urls, pose, read) {
 	/** @type {Record<string, Pickable[]>} */
 	const pickable = {
 		layers: [glassy, { ...avatar, name: 'face.png' }],
-		cut: picks(lots.cut),
 		sketch: picks(lots.sketch),
 		turns: [avatar, ...picks(lots.tries), ...picks(lots.keys)],
 		keys: [avatar, ...picks(lots.keys)],
@@ -594,7 +586,6 @@ export async function createWorld(canvas, urls, pose, read) {
 		picture: avatar,
 		rings: glassy,
 		layers: glassy,
-		cut: pickable.cut[0],
 		sketch: pickable.sketch[0],
 		turns: avatar,
 		keys: avatar,
@@ -789,7 +780,6 @@ export async function createWorld(canvas, urls, pose, read) {
 		for (const s of [strip, ...dealt]) s.top.material = bright?.part === s ? ink.hi : s.edge;
 
 		// The other sheets slide out from under the avatar's.
-		deal(lots.cut, pose.cut, above);
 		deal(lots.sketch, pose.sketch, above);
 		deal(lots.tries, pose.tries, above);
 		deal(lots.keys, pose.keys, above);

@@ -8,13 +8,13 @@
 /** The circle's eight steps, and when each should start for the talk to end on five minutes. */
 export const STEPS = [
 	{ name: 'You', at: '0:00' },
-	{ name: 'Need', at: '0:50' },
+	{ name: 'Need', at: '0:45' },
 	{ name: 'Go', at: '1:00' },
-	{ name: 'Search', at: '1:40' },
-	{ name: 'Find', at: '2:45' },
-	{ name: 'Take', at: '3:30' },
-	{ name: 'Return', at: '4:00' },
-	{ name: 'Change', at: '4:35' }
+	{ name: 'Search', at: '1:30' },
+	{ name: 'Find', at: '2:35' },
+	{ name: 'Take', at: '3:20' },
+	{ name: 'Return', at: '3:45' },
+	{ name: 'Change', at: '4:20' }
 ];
 
 /**
@@ -25,9 +25,11 @@ export const STEPS = [
  *   the page's own (`live`, `shots`, `numbers`, `blank`, `drawn`, `evolution`, `film`)
  * @property {string} line the one line on screen
  * @property {string} [sub] the line under it
+ * @property {string[]} [list] a numbered list under it
  * @property {string} read the stage's caption, until the pointer is over something
  * @property {string} say what Gordon says (shown with N, for rehearsing)
- * @property {Shot[]} [shots] the screenshots side by side on the stage, for scene `shots`
+ * @property {Shot[]} [shots] the screenshots on the stage, for scene `shots`: one as large as it
+ *   holds, a few side by side, four in two rows
  * @property {boolean} [glasses] the glasses, taken off, are set down under the line
  * @property {boolean} [qr] the site's QR code under the line, for the room to scan
  * @property {number} [len] how much scrolling the way here takes, in screens (1 if not given)
@@ -59,41 +61,25 @@ export const BEATS = [
 	{
 		step: 0,
 		scene: 'shots',
-		line: 'This is where I almost said: ready to go.',
-		read: 'gordontu.com · before',
-		say: 'This is where I almost said I was ready to go.',
-		shots: [{ src: 'iteration2', label: 'Almost ready to go' }]
-	},
-	{
-		step: 0,
-		scene: 'shots',
-		line: 'It took three phases to get here.',
+		line: 'It took multiple phases to get there.',
 		sub: 'Each one learned from other people’s minimalist portfolios.',
-		read: 'phases 1 to 3',
-		say: 'I got here in three phases, after learning a lot from other people’s minimalist portfolio sites.',
+		read: 'gordontu.com · before',
+		say: 'This is where I almost said I was ready to go. It took multiple phases to get there, after learning a lot from other people’s minimalist portfolio sites.',
 		shots: [
 			{ src: 'site2024', label: 'Phase 1' },
 			{ src: 'iteration0', label: 'Phase 2' },
-			{ src: 'iteration1', label: 'Phase 3' }
+			{ src: 'iteration1', label: 'Phase 3' },
+			{ src: 'iteration2', label: 'Almost ready to go' }
 		]
 	},
 	{
 		step: 0,
 		scene: 'shots',
-		line: 'Then I wanted it more fun.',
+		line: 'But this is everyone else’s website. I want more fun.',
 		sub: 'And I had a message that isn’t about my work. So it got a gray bar.',
 		read: 'the gray bar',
-		say: 'But I wanted it to be more fun. And I had a message I wanted to share that isn’t really about my work. Like my old tools, struck through, it could sit there quietly. Therefore, the gray bar.',
+		say: 'But I wanted it to be more fun. And I had a message I wanted to share that isn’t really about my work. Like my old tools, struck through, it could sit there quietly. Therefore, the gray bar. Then I realized this is basically everyone else’s website, with a gray area of text. I want to be more different.',
 		shots: [{ src: 'iteration2', label: 'The gray bar', mark: { x: 0.045, y: 0.815, w: 0.925, h: 0.105 } }]
-	},
-	{
-		step: 0,
-		scene: 'shots',
-		line: 'But this is everyone else’s website.',
-		sub: 'With a gray box of text. I wanted to be different.',
-		read: 'gordontu.com · before',
-		say: 'Then I realized this isn’t really me. It’s basically everyone else’s website, with a gray area of text. I want to be more different.',
-		shots: [{ src: 'iteration2', label: 'Like everyone else’s' }]
 	},
 	{
 		step: 1,
@@ -119,7 +105,7 @@ export const BEATS = [
 		read: 'ChatGPT · 3D and 2D',
 		say: 'So I tried ChatGPT. I tried 3D, and I tried 2D. I put in pictures I like, and had it describe their style.',
 		shots: [
-			{ label: '3D', want: 'chatgpt-3d.png: a 3D try', ratio: 1 },
+			{ src: 'paperLayers', label: '3D' },
 			{ label: '2D', want: 'chatgpt-2d.png: a 2D try', ratio: 1 },
 			{ label: 'The style, in words', want: 'chatgpt-style.png: ChatGPT describing the style', ratio: 3 / 4 }
 		]
@@ -131,14 +117,6 @@ export const BEATS = [
 		sub: 'To stay in character, fit the site’s vibe, and be subtle.',
 		read: 'avatar.png · 2D',
 		say: 'After hours of back and forth, I decided to stay where I am: a 2D animation. To stay in character, to fit the overall vibe, and to be subtle on the site.'
-	},
-	{
-		step: 2,
-		scene: 'cut',
-		line: 'I took myself apart.',
-		sub: 'Glasses, hair, face, shirt: four layers. Two were enough.',
-		read: 'paper-cut studies',
-		say: 'I took myself apart like paper cut-outs: glasses, hair, face, shirt. Four layers. Two were enough.'
 	},
 	{
 		step: 2,
@@ -154,23 +132,15 @@ export const BEATS = [
 		line: 'Then I saw the gray bar.',
 		sub: 'It became a scrambled line, and my glasses decipher it.',
 		read: 'live · the hidden line',
-		say: 'Then I saw the gray bar, and I thought: let’s use those glasses to decipher my text. (Carry the glasses over the scrambled line.)'
-	},
-	{
-		step: 3,
-		scene: 'live',
-		line: 'I gamified my own portfolio.',
-		sub: 'Hidden for the curious, and only my glasses can read it.',
-		read: 'live · the hidden line',
-		say: 'Isn’t that interesting? I somehow gamified my own portfolio. It says: I practice tai chi, play acoustic guitar, and I’m learning tango with my retired neighbor.'
+		say: 'Then I saw the gray bar, and I thought: let’s use those glasses to decipher my text. (Carry the glasses over the scrambled line.) It says: I practice tai chi, play acoustic guitar, and I’m learning tango with my retired neighbor.'
 	},
 	{
 		step: 3,
 		scene: 'sketch',
 		line: 'What if I move my glasses somewhere else?',
-		sub: 'So I started tweaking the little figure.',
+		sub: 'I gamified my own portfolio.',
 		read: 'the sketch',
-		say: 'Speaking of gamification: what happens if I move my glasses somewhere else? I took my website and started tweaking the little figure.'
+		say: 'Isn’t that interesting? I somehow gamified my own portfolio. So what happens if I move my glasses somewhere else? I took my website and started tweaking the little figure.'
 	},
 	{
 		step: 3,
@@ -200,7 +170,7 @@ export const BEATS = [
 		step: 3,
 		scene: 'tapnow',
 		line: 'On TapNow, five ways to generate.',
-		sub: 'Text to image. Image to image. Text to video. Image to video. Video to video.',
+		list: ['Text to image', 'Image to image', 'Text to video', 'Image to video', 'Video to video'],
 		read: 'tapnow · profile pic',
 		say: 'Specifically on TapNow, a platform with many image and video models. There are five ways to generate: text to image, image to image, text to video, image to video, and video to video.',
 		travel: 1.8
@@ -220,17 +190,8 @@ export const BEATS = [
 		line: 'Then I went back to Opus.',
 		sub: 'Which is what I should have done in the first place.',
 		read: '87 points · 162 triangles',
-		say: 'Then I went back to Opus, which is what I should have done in the first place.',
+		say: 'Then I went back to Opus, which is what I should have done in the first place. I told it what I wanted to create, the beginning and the end, and to stay consistent with what I had, by passing it my screenshots from ChatGPT and Seedance.',
 		travel: 1.8
-	},
-	{
-		step: 4,
-		scene: 'shots',
-		line: 'I told it the beginning and the end.',
-		sub: 'And passed it my screenshots from ChatGPT and Seedance, so it stayed consistent.',
-		read: 'Claude Code · Opus 5.5',
-		say: 'I told Opus what I wanted to create, the beginning and the end, and to stay consistent with what I had, by passing it my screenshots from ChatGPT and Seedance.',
-		shots: [{ label: 'My prompt to Opus', want: 'opus-prompt.png: your prompt to Opus in Claude Code', ratio: 16 / 10 }]
 	},
 	{
 		step: 4,
