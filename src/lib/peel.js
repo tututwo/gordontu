@@ -35,9 +35,11 @@ const DURATION = 0.9;
 const PATIENCE = 1000;
 /**
  * A gallery's table, which snapdom would encode as a PNG at full size (four fifths of the picture's
- * time): it is drawn under the rest instead, straight from the GPU.
+ * time): it is drawn under the rest instead, straight from the GPU. So is the Garden's scene, which
+ * covers the page while it is open: then the rest is the Garden's own controls over it.
  */
 const TABLE = '.gallery canvas';
+const GARDEN = '.garden';
 
 const SEG = 96;
 
@@ -223,20 +225,26 @@ let finish;
 
 /**
  * The window as it looks, drawn by snapdom (the page's WebGL canvases keep their drawing buffers for
- * it) over the page's own white, with a gallery's table in between.
+ * it) over the page's own white, with a gallery's table in between, or the Garden's scene under its
+ * controls while it is open. The Garden starts from the same picture (Avatar.svelte takes it as the
+ * Glasses leave the page), and may end on one of the page `behind` it (Garden.svelte).
  * @param {object} [options] snapdom's
+ * @param {boolean} [behind] the page as it would look without the Garden over it
  */
-async function picture(options) {
+export async function picture(options, behind = false) {
 	const { snapdom } = await import('@zumer/snapdom');
 	const dpr = Math.min(devicePixelRatio, 2);
-	const rest = await (await snapdom(document.body, { clip: 'viewport', dpr, exclude: [TABLE], ...options })).toCanvas();
+	const garden = behind ? null : document.querySelector(GARDEN);
+	const subject = garden ?? document.body;
+	const exclude = garden ? ['canvas'] : behind ? [TABLE, GARDEN] : [TABLE];
+	const rest = await (await snapdom(subject, { clip: 'viewport', dpr, exclude, ...options })).toCanvas();
 	const image = document.createElement('canvas');
 	image.width = rest.width;
 	image.height = rest.height;
 	const ctx = /** @type {CanvasRenderingContext2D} */ (image.getContext('2d'));
 	ctx.fillStyle = getComputedStyle(document.documentElement).backgroundColor;
 	ctx.fillRect(0, 0, image.width, image.height);
-	const table = document.querySelector(TABLE);
+	const table = garden ? garden.querySelector('canvas') : document.querySelector(TABLE);
 	if (table instanceof HTMLCanvasElement) {
 		// Its CSS drop shadow, as the 2D canvas's own shadow: Safari's has no `filter`.
 		const [, color, x, y, blur] = getComputedStyle(table).filter.match(/drop-shadow\((.+\)) (\S+)px (\S+)px (\S+)px\)/) ?? [];
@@ -299,9 +307,10 @@ export function peel(navigation) {
 
 // snapdom's first picture of a page takes three or four times as long as the next (it embeds the fonts
 // and learns the default styles), so it takes one once the page is up, a frame's work at a time, and
-// the first peel starts as soon as later ones. Not while the landing's Intro plays: it would stutter it.
+// the first peel starts as soon as later ones. Not while the landing's Intro plays, or the Garden is
+// open: it would stutter them.
 if (browser)
 	setTimeout(function warm() {
-		if (document.documentElement.dataset.intro) setTimeout(warm, 1000);
+		if (document.documentElement.dataset.intro || document.querySelector(GARDEN)) setTimeout(warm, 1000);
 		else picture({ fast: false }).catch(() => {});
 	}, 2000);

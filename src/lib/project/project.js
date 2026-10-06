@@ -12,6 +12,7 @@
  * @property {string} date
  * @property {string} [client] - who it was made for, by name; absent means Personal
  * @property {boolean} [featured] - shown as a Project card on the landing's projects tab
+ * @property {string} [plant] - the kind of flower its Plant is in the Garden (a species in src/lib/garden/species); Featured Projects only
  * @property {number} [pinned] - its place at the top of the projects tab (1 first); unpinned cards follow, newest first
  * @property {number} seed - deterministic seed derived from projectName; the Postcard gallery
  *   scatters and tilts the Project's postcard from it, so it lands in the same spot on every visit
@@ -73,6 +74,7 @@ const data = [
 		category: "maps",
 		date: "2026-09-28",
 		featured: true,
+		plant: "planet-bloom",
 	},
 	{
 		projectName: "Black Hole",
@@ -93,6 +95,7 @@ const data = [
 		category: "creative-code",
 		date: "2026-09-28",
 		featured: true,
+		plant: "voronoi-bloom",
 	},
 	{
 		projectName: "Rain Relief",
@@ -104,6 +107,7 @@ const data = [
 		category: "maps",
 		date: "2026-09-27",
 		featured: true,
+		plant: "rain-bell",
 	},
 	{
 		projectName: "Foldable Map",
@@ -116,6 +120,7 @@ const data = [
 		date: "2026-09-26",
 		featured: true,
 		pinned: 3,
+		plant: "origami-bloom",
 	},
 	{
 		projectName: "Average Color of California",
@@ -126,6 +131,7 @@ const data = [
 		category: "maps",
 		date: "2026-09-24",
 		featured: true,
+		plant: "palette-poppy",
 	},
 	{
 		projectName: "Erhai Moon",
@@ -137,6 +143,7 @@ const data = [
 		category: "maps",
 		date: "2026-09-25",
 		featured: true,
+		plant: "moon-lotus",
 	},
 	{
 		projectName: "Gas Is Everywhere in California. Fast Charging Isn't.",
@@ -157,6 +164,7 @@ const data = [
 		client: "Yale University",
 		featured: true,
 		pinned: 2,
+		plant: "ember-spire",
 	},
 	{
 		projectName: "Interstate Traffic",
@@ -177,6 +185,7 @@ const data = [
 		date: "2023-11-01",
 		client: "Terner Center for Housing Innovation, UC Berkeley",
 		featured: true,
+		plant: "house-lupine",
 	},
 	{
 		projectName: "Presidential Margins, 1868–2020",
@@ -189,6 +198,7 @@ const data = [
 		date: "2026-09-25",
 		featured: true,
 		pinned: 1,
+		plant: "margins-mophead",
 	},
 	{
 		projectName: "Number of Chinese Company Infrastructure in the US and Abroad.",

@@ -15,14 +15,26 @@
 
 	/** What the afterword asks of the avatar when someone is curious about it; the avatar on the page sets it (see `wonder`). */
 	export const hint = { wonder() {} };
+
+	/**
+	 * What the Glasses leave for the Garden as they take the page into it (see `fly`): the page's
+	 * picture (peel.js), taken as they went, for the Garden to start from; null when it could not be
+	 * taken in time, and once the page it shows is gone (the Garden left, or the landing, for a page the
+	 * Garden opened: coming back, the Garden is shown grown and takes its own picture to leave on). The
+	 * home layout mounts the Garden with it while the page's state is `garden`.
+	 */
+	export const garden = $state({ picture: /** @type {HTMLCanvasElement | null} */ (null) });
 </script>
 
 <script>
+	import { pushState } from '$app/navigation';
+	import { page } from '$app/state';
 	import { gsap } from 'gsap';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
 	import { devicePixelRatio } from 'svelte/reactivity/window';
 	import { frameLoop } from '../frameLoop.js';
+	import { picture } from '../peel.js';
 	import Intro, { pending, shown } from './Intro.svelte';
 	// The avatar in two layers, split from static/landing/avatar.png: the drawing without its glasses,
 	// and the glasses, which over it rebuild the drawing (and are small enough for Vite to inline, so
@@ -33,6 +45,13 @@
 	import lookingDown from './looking-down.webp';
 	import lookingUp from './looking-up.webp';
 	import wonderingImage from './wondering.webp';
+
+	/**
+	 * `toGarden`: carried out of the top of the window, the Glasses take the page into the Garden. Only
+	 * where a page mounts the Garden (the Landing); elsewhere (the talk) they stay a toy.
+	 * @type {{ toGarden?: boolean }}
+	 */
+	let { toGarden = false } = $props();
 
 	/**
 	 * Pressed, the glasses come off to here, in avatar sides from where they sit: up and away from the
@@ -69,11 +88,19 @@
 	 * Where the pointer took hold (`y` on the page, `from` in the window), where it is now (`at`, in
 	 * the window), so the glasses stay with it when the page scrolls under it, and where the glasses sit
 	 * once carried (`near`, from where they rest on the face).
-	 * @type {{ x: number, y: number, from: number, size: number, at: { clientX: number, clientY: number }, near: { x: number, y: number } } | null}
+	 * @type {{ pointerId: number, x: number, y: number, from: number, size: number, at: { clientX: number, clientY: number }, near: { x: number, y: number } } | null}
 	 */
 	let grab = null;
 	/** Held this near the top or bottom of the window, they scroll the page on (px). */
 	const EDGE = 64;
+	/**
+	 * Carried out of the top of the window, the Glasses fly off it and take the page into the Garden
+	 * (CONTEXT.md); they stay flown, off the page, until the Garden is left, then come back on from high
+	 * above the face.
+	 */
+	let flown = $state(false);
+	/** The Garden waits this long (ms) for the page's picture; a slow phone goes in without it. */
+	const PATIENCE = 300;
 
 	/** How far off the face they are, 0–1: they turn and grow as they go, and the face starts. */
 	const off = $derived(Math.min(1, Math.hypot(glasses.current.x, glasses.current.y) / Math.hypot(OFF.x, OFF.y)));
@@ -267,7 +294,7 @@
 		const s = box.width / 134;
 		const a = (tilt * Math.PI) / 180;
 		const [bx, by] = BRIDGE;
-		lenses.circles = LENSES.map(([cx, cy]) => {
+		const circles = LENSES.map(([cx, cy]) => {
 			const dx = (cx - bx) * s * zoom;
 			const dy = (cy - by) * s * zoom;
 			return {
@@ -276,7 +303,50 @@
 				r: (RIM - STROKE / 2) * s * zoom
 			};
 		});
+		lenses.circles = circles;
+		// Held with both lenses entirely out of the top of the window, they take the page into the Garden
+		// (where there is one, and not while the Intro holds the page).
+		if (toGarden && grab && circles.every(({ y, r }) => y + r < 0) && !document.documentElement.dataset.intro) fly(avatar, grab.pointerId);
 	}
+
+	/**
+	 * The Glasses fly off the top of the page (a quick transition up and out, not their spring back) and
+	 * the page hands over to the Garden: the pointer lets go of them without them springing back on,
+	 * the page's picture is taken for the Garden to start from, and the Garden's state is pushed, which
+	 * the home layout mounts it on. Back (or the Garden's own leave) pops the state, and they come back
+	 * on (see `land`).
+	 * @param {HTMLElement} avatar @param {number} pointerId
+	 */
+	async function fly(avatar, pointerId) {
+		window.posthog.capture?.('garden_entered');
+		flown = true;
+		grab = null;
+		avatar.releasePointerCapture(pointerId); // → `drop`, which leaves them flown
+		garden.picture = await Promise.race([picture().catch(() => null), new Promise((late) => setTimeout(late, PATIENCE, null))]);
+		pushState('', { garden: true });
+	}
+
+	/** The Garden left, the glasses come back on with their spring, from high above the face. */
+	function land() {
+		flown = false;
+		garden.picture = null;
+		glasses.set({ x: 0, y: -innerHeight / Math.max(size, 40) }, { instant: true });
+		move({ x: 0, y: 0 });
+	}
+
+	/**
+	 * Whether the Garden has the page (its state is pushed: `true` as they fly off, 'grown' once the
+	 * Garden has opened on it; coming Back or Forward to it brings it back, so they fly off again then);
+	 * when it goes, the glasses land.
+	 */
+	let gardened = false;
+	$effect(() => {
+		if (/** @type {{ garden?: true | 'grown' }} */ (page.state).garden) gardened = flown = true;
+		else if (gardened) {
+			gardened = false;
+			untrack(land);
+		}
+	});
 
 	/** @param {{ x: number, y: number }} to */
 	const move = (to) => glasses.set(to, { instant: prefersReducedMotion.current });
@@ -308,12 +378,14 @@
 		return () => {
 			hint.wonder = () => {};
 			glance?.kill();
+			// The landing is left (for a page the Garden opened, say): its picture is out of date.
+			garden.picture = null;
 		};
 	});
 
 	/** @param {PointerEvent & { currentTarget: HTMLElement }} event */
 	function press(event) {
-		if (event.button || grab) return;
+		if (event.button || grab || flown) return;
 		window.posthog.capture?.('glasses_lifted');
 		const box = event.currentTarget.getBoundingClientRect();
 		event.currentTarget.setPointerCapture(event.pointerId);
@@ -325,7 +397,7 @@
 			x: (event.clientX - box.left) / box.width - BRIDGE[0] / 134,
 			y: (event.clientY - box.top) / box.width - BRIDGE[1] / 134 - (event.pointerType === 'touch' ? CARRY.aboveFinger : CARRY.above)
 		};
-		grab = { x: event.clientX, y: event.clientY + scrollY, from: event.clientY, size: box.width, at: event, near };
+		grab = { pointerId: event.pointerId, x: event.clientX, y: event.clientY + scrollY, from: event.clientY, size: box.width, at: event, near };
 		drag(event);
 		edgeScroll.start();
 	}
@@ -364,7 +436,8 @@
 		edgeScroll.stop();
 		lenses.held = false;
 		alarmed = false;
-		move({ x: 0, y: 0 });
+		// Flown off into the Garden, they stay off until it is left (see `land`).
+		if (!flown) move({ x: 0, y: 0 });
 		pitch.set(0, { instant: prefersReducedMotion.current });
 	}
 </script>
@@ -402,7 +475,8 @@
 		{/each}
 	</svg>
 	<span
-		class="glasses"
+		class={['glasses', { flown }]}
+		data-capture={flown ? 'exclude' : undefined}
 		style:transform-origin="{(BRIDGE[0] / 134) * 100}% {(BRIDGE[1] / 134) * 100}%"
 		style:transform="translate({glasses.current.x * 100}%, {glasses.current.y * 100}%) rotate({tilt}deg) scale({zoom}) {worn}"
 	>
@@ -479,6 +553,13 @@
 
 	.glasses {
 		width: 100%;
+	}
+
+	/* Flown off into the Garden: up and out of the window, quickly, in the page's own space (`translate`
+	   comes before the transform that holds them). Coming back is the spring's, not a transition. */
+	.glasses.flown {
+		translate: 0 -120vh;
+		transition: translate 350ms cubic-bezier(0.4, 0, 1, 1);
 	}
 
 	/* On the face they are the drawing's own; as they come off, the line close-up takes over. */
@@ -582,7 +663,8 @@
 	@media (prefers-reduced-motion: reduce) {
 		.stem,
 		.dot,
-		.wonder g {
+		.wonder g,
+		.glasses.flown {
 			transition: none;
 		}
 	}

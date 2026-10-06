@@ -1,15 +1,40 @@
 <script>
+	import { afterNavigate, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import GithubLogoIcon from 'phosphor-svelte/lib/GithubLogoIcon';
 	import LinkedinLogoIcon from 'phosphor-svelte/lib/LinkedinLogoIcon';
 	import XLogoIcon from 'phosphor-svelte/lib/XLogoIcon';
-	import Avatar from '$lib/landingPage/Avatar.svelte';
+	import Avatar, { garden, lenses } from '$lib/landingPage/Avatar.svelte';
 	import CategoryLink from '$lib/landingPage/CategoryLink.svelte';
 	import { headlineFlow } from '$lib/landingPage/headlineFlow.js';
-	import { categories } from '$lib/project/project.js';
+	import { categories, projects } from '$lib/project/project.js';
 
 	let { children } = $props();
+
+	/**
+	 * The Garden (CONTEXT.md) holds the page while its state is pushed (Avatar.svelte pushes it as the
+	 * Glasses fly off the top; Back, Esc or its own control pops it). Its scene and the Projects' layout
+	 * come in only then, so the landing's first paint ships none of it.
+	 */
+	const gardened = $derived(!!(/** @type {{ garden?: boolean }} */ (page.state).garden));
+	const loadGarden = () => Promise.all([import('$lib/garden/Garden.svelte'), import('$lib/garden/layout.js')]);
+
+	// Reloaded with the Garden open (or come back to from another site), the history entry still holds
+	// its state, but SvelteKit applies a page's state only on navigating: it is put back, so the Garden
+	// shows grown, as coming back to it does, and Back leaves it. A microtask later, once the router
+	// has started.
+	afterNavigate(({ type }) => {
+		if (type === 'enter' && history.state?.['sveltekit:states']?.garden) queueMicrotask(() => replaceState('', { garden: 'grown' }));
+	});
+
+	// Warmed up as the Glasses are lifted: the Garden's code and its sprites are in by the time they
+	// are carried out of the top.
+	$effect(() => {
+		if (!lenses.held) return;
+		loadGarden();
+		import('$lib/garden/plants.js').then(({ prefetch }) => prefetch());
+	});
 
 	/** @param {string} slug */
 	function category(slug) {
@@ -93,7 +118,7 @@
 		<h1 class="text-heading-20" data-reveal {@attach headlineFlow}>
 			{#each headline as piece}{#if piece.space}{' '}{/if}{#if 'word' in piece}<span class="word"
 						>{piece.word}</span
-					>{:else if 'avatar' in piece}<Avatar />{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
+					>{:else if 'avatar' in piece}<Avatar toGarden />{:else}<CategoryLink {...category(piece.slug)} shape={piece.shape} />{/if}{/each}
 		</h1>
 
 		<ul class="socials">
@@ -119,6 +144,12 @@
 		<div class="panel text-copy-16" data-reveal>{@render children()}</div>
 	</div>
 </div>
+
+{#if gardened}
+	{#await loadGarden() then [{ default: Garden }, { layoutCells }]}
+		<Garden cells={layoutCells(projects)} picture={garden.picture} onleave={() => history.back()} />
+	{/await}
+{/if}
 
 <style>
 	/*
