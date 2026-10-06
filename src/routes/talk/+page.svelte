@@ -8,6 +8,8 @@
 	import Intro from '$lib/landingPage/Intro.svelte';
 	import Evolution from '$lib/talk/Evolution.svelte';
 	import { BEATS, FILM, NUMBERS, STEPS } from '$lib/talk/beats.js';
+	import chatgpt2d from '$lib/talk/chatgpt-2d.webp';
+	import chatgptStyle from '$lib/talk/chatgpt-style.webp';
 	import face from '$lib/talk/face.webp';
 	import glasses from '$lib/talk/glasses.webp';
 	import iteration0 from '$lib/talk/iteration-0.webp';
@@ -44,7 +46,7 @@
 	/** The pictures the world draws with (see `createWorld`). */
 	const PICTURES = { face, glasses, up, down, tapnow, sketch, turn1, turn2, turn3, turn4, worried, keyUp, keyDown, keyWonder };
 	/** The screenshots the beats show (beats.js `shots`). @type {Record<string, string>} */
-	const SHOTS = { site2024, iteration0, iteration1, iteration2, paperLayers, siteOfTheDay };
+	const SHOTS = { site2024, iteration0, iteration1, iteration2, paperLayers, chatgpt2d, chatgptStyle, siteOfTheDay };
 
 	const N = BEATS.length;
 	/** Where each beat is on the timeline (and the page's scroll), in screens: the way to each takes its `len`. */
@@ -106,6 +108,20 @@
 	let tube = $state(false);
 	/** The talk fills the screen (F). */
 	let full = $state(false);
+	/** The talk's five minutes (s), and the last of them, in which its clock is in sight (see `.timer`). */
+	const [TALK, LAST] = [5 * 60, 90];
+	/** When the clock started (T, or else the page's first turn) and when it last read, in ms; 0 until it starts. */
+	let started = $state(0);
+	let now = $state(0);
+	/** Seconds of the talk left; below nothing, over. */
+	const left = $derived(TALK - Math.floor((now - started) / 1000));
+	$effect(() => {
+		if (!started) return;
+		const reading = setInterval(() => (now = performance.now()), 250);
+		return () => clearInterval(reading);
+	});
+	/** The clock starts again from five minutes. */
+	const start = () => (started = now = performance.now());
 
 	/** The world's pose, moved by the timeline. */
 	const pose = { ...POSES.picture };
@@ -296,6 +312,7 @@
 		let i = 0;
 		while (i < N - 1 && t >= (AT[i] + AT[i + 1]) / 2) i++;
 		if (i !== beat) {
+			if (!started) start();
 			beat = i;
 			world?.enter(BEATS[i].scene);
 		}
@@ -469,8 +486,8 @@
 
 	/**
 	 * The arrows, space, the page keys and a clicker turn the page, wherever the focus is (taken before
-	 * a focused video can seek with them); F fills the screen; N shows the notes. Only a button or link
-	 * the keyboard has reached keeps Space and Enter for itself.
+	 * a focused video can seek with them); F fills the screen; T starts the clock again; N shows the
+	 * notes. Only a button or link the keyboard has reached keeps Space and Enter for itself.
 	 * @param {KeyboardEvent} event
 	 */
 	async function key(event) {
@@ -485,6 +502,7 @@
 		else if (event.key === 'Home') fly(0, 0.6);
 		else if (event.key === 'End') fly(N - 1, 0.6);
 		else if (event.key === 'f' || event.key === 'F') fill();
+		else if (event.key === 't' || event.key === 'T') start();
 		else if (event.key === 'n' || event.key === 'N') {
 			notes = !notes;
 			await tick();
@@ -502,6 +520,7 @@
 	/** @param {PointerEvent} event */
 	const point = (event) => laid && world?.point({ x: event.clientX - laid.left, y: event.clientY - laid.top });
 	const two = (/** @type {number} */ n) => String(n).padStart(2, '0');
+	const mmss = (/** @type {number} */ s) => `${Math.floor(s / 60)}:${two(s % 60)}`;
 </script>
 
 <svelte:head>
@@ -521,7 +540,8 @@
 		<header>
 			<p><strong>Gordon Tu</strong> <span>How a picture became me</span></p>
 			<p class="count">
-				{#if notes}<span class="clock">← → or space · F full screen · N hides this · from {STEPS[current.step].at}</span>{/if}
+				{#if notes}<span class="clock">← → or space · F full screen · T restarts the clock · N hides this · from {STEPS[current.step].at}</span>{/if}
+				<span class={['timer', { shown: !!started && (notes || left <= LAST), over: left < 0 }]} role="timer">{left < 0 ? `${mmss(-left)} over` : `${mmss(left)} left`}</span>
 				<button type="button" aria-label="Back" disabled={beat === 0} onclick={(event) => (release(event), fly(aim - 1))}>←</button>
 				<span>{two(beat + 1)} / {N}</span>
 				<button type="button" aria-label="Next" disabled={beat === N - 1} onclick={(event) => (release(event), fly(aim + 1))}>→</button>
@@ -567,13 +587,13 @@
 				</div>
 			</div>
 
-			<!-- Each beat's screenshots (beats.js `shots`), a set a beat: one as large as the stage holds, a
-			     few side by side, four in two rows; a dashed placeholder where one is still to come, saying
-			     which file to send. -->
+			<!-- Each beat's screenshots (beats.js `shots`), a set a beat: one as large as the stage holds;
+			     three, the first two stacked beside a larger third; four in two rows; a dashed placeholder
+			     where one is still to come, saying which file to send. -->
 			<div class="panel shots">
 				{#each BEATS as b, i (b.line)}
 					{#if b.shots}
-						<div class={['set', { row: b.shots.length > 1 && b.shots.length < 4, grid: b.shots.length > 3 }]} data-beat={i}>
+						<div class={['set', { trio: b.shots.length === 3, grid: b.shots.length > 3 }]} data-beat={i}>
 							{#each b.shots as shot (shot.label)}
 								<figure>
 									{#if shot.src}
@@ -621,7 +641,7 @@
 				{#if tube}
 					<iframe title="Portfolio update 2026" src="https://www.youtube-nocookie.com/embed/{FILM.youtube}?rel=0&start={Math.floor(FILM.from)}&end={Math.ceil(FILM.to)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
 				{:else}
-					<video bind:this={film} src="{FILM.src}#t={FILM.from},{FILM.to}" playsinline preload="metadata" controls ontimeupdate={ending} {@attach reel}>
+					<video bind:this={film} src="{FILM.src}#t={FILM.from},{FILM.to}" playsinline preload="auto" controls ontimeupdate={ending} {@attach reel}>
 						<track kind="captions" />
 					</video>
 				{/if}
@@ -749,6 +769,28 @@
 
 	.clock {
 		margin-right: 1.25em !important;
+	}
+
+	/*
+	 * The clock, out of the room's sight until the talk's last minute and a half (always, with the
+	 * notes), then as quiet as the count beside it; past five minutes, in full ink.
+	 */
+	.count .timer {
+		margin-right: 1.25em;
+		visibility: hidden;
+		opacity: 0;
+		transition:
+			opacity 300ms var(--ease-out),
+			visibility 300ms;
+	}
+
+	.count .timer.shown {
+		visibility: visible;
+		opacity: 1;
+	}
+
+	.count .timer.over {
+		color: var(--ink);
 	}
 
 	/* Every beat's words, and every step's name, laid in the same place; the timeline shows one. */
@@ -906,7 +948,8 @@
 
 	/*
 	 * A beat's screenshots, each in its own shape and framed in a hairline, its caption flush left under
-	 * it: one as large as the stage holds, a few side by side, four in two rows.
+	 * it: one as large as the stage holds; three, the first two stacked beside a larger third, the one to
+	 * read; four in two rows.
 	 */
 	.set {
 		grid-area: 1 / 1;
@@ -921,22 +964,25 @@
 		opacity: 0;
 	}
 
-	/* A few, or four, in equal columns, their tops on one line and the whole centred on the stage. */
-	.set.row,
+	/* Two rows, the tops of each on one line, and the whole centred on the stage. */
+	.set.trio,
 	.set.grid {
 		display: grid;
 		align-content: center;
 		align-items: start;
+		row-gap: clamp(1.25rem, 4cqh, 2.5rem);
 	}
 
-	.set.row {
-		grid-auto-columns: minmax(0, 1fr);
-		grid-auto-flow: column;
+	.set.trio {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+	}
+
+	.trio figure:last-child {
+		grid-area: 1 / 2 / 3;
 	}
 
 	.set.grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		row-gap: clamp(1.25rem, 4cqh, 2.5rem);
 	}
 
 	figure {
@@ -961,7 +1007,8 @@
 	}
 
 	/* Two rows share the stage's height, each less its caption and half the gap between them. */
-	.grid .frame img {
+	.grid .frame img,
+	.trio figure:not(:last-child) img {
 		max-height: calc(50cqh - 3.75rem);
 	}
 
@@ -1150,7 +1197,8 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.rail button {
+		.rail button,
+		.count .timer {
 			transition: none;
 		}
 	}

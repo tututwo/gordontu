@@ -29,7 +29,7 @@ export const STEPS = [
  * @property {string} read the stage's caption, until the pointer is over something
  * @property {string} say what Gordon says (shown with N, for rehearsing)
  * @property {Shot[]} [shots] the screenshots on the stage, for scene `shots`: one as large as it
- *   holds, a few side by side, four in two rows
+ *   holds; three, the first two stacked beside a larger third; four in two rows
  * @property {boolean} [glasses] the glasses, taken off, are set down under the line
  * @property {boolean} [qr] the site's QR code under the line, for the room to scan
  * @property {number} [len] how much scrolling the way here takes, in screens (1 if not given)
@@ -103,11 +103,11 @@ export const BEATS = [
 		line: 'I tried ChatGPT, in 3D and 2D.',
 		sub: 'I put in pictures I like, and had it describe their style.',
 		read: 'ChatGPT · 3D and 2D',
-		say: 'So I tried ChatGPT. I tried 3D, and I tried 2D. I put in pictures I like, and had it describe their style.',
+		say: 'So I tried ChatGPT. I tried 3D, and I tried 2D. I put in pictures I like, and had it describe their style. It called it minimal kawaii line-art character illustration.',
 		shots: [
 			{ src: 'paperLayers', label: '3D' },
-			{ label: '2D', want: 'chatgpt-2d.png: a 2D try', ratio: 1 },
-			{ label: 'The style, in words', want: 'chatgpt-style.png: ChatGPT describing the style', ratio: 3 / 4 }
+			{ src: 'chatgpt2d', label: '2D' },
+			{ src: 'chatgptStyle', label: 'The style, in words' }
 		]
 	},
 	{
