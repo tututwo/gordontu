@@ -7,7 +7,7 @@
 	import Avatar, { lenses } from '$lib/landingPage/Avatar.svelte';
 	import Intro from '$lib/landingPage/Intro.svelte';
 	import Evolution from '$lib/talk/Evolution.svelte';
-	import { BEATS, CREDITS, FILM, STEPS } from '$lib/talk/beats.js';
+	import { BEATS, CREDITS, FILM, NUMBERS, STEPS } from '$lib/talk/beats.js';
 	import face from '$lib/talk/face.webp';
 	import glasses from '$lib/talk/glasses.webp';
 	import keyDown from '$lib/talk/keyframe-down.webp';
@@ -17,6 +17,7 @@
 	import paperLayers from '$lib/talk/paper-layers.webp';
 	import down from '$lib/talk/pose-down.webp';
 	import up from '$lib/talk/pose-up.webp';
+	import qr from '$lib/talk/qr.svg';
 	import sketch from '$lib/talk/sketch.webp';
 	import tapnow from '$lib/talk/tapnow.webp';
 	import turn1 from '$lib/talk/turn-1.webp';
@@ -29,10 +30,11 @@
 	/*
 	 * The talk, as one page that turns itself: the deck stays put while the page scrolls under it, and
 	 * the scroll drives one GSAP timeline that holds everything, scrubbed: the words, the world's poses
-	 * (world.js, on a canvas behind the whole deck), the page's own panels (the site itself, live; the
-	 * landing's drawing; the evolution; the film; the credits) and the hand-overs between them, where the
-	 * world lays the avatar's sheet exactly over the avatar on the panel before it gives way. The arrow
-	 * keys (or a clicker) fly from beat to beat; a hand on the wheel lands on the nearest one.
+	 * (world.js, on a canvas behind the whole deck), the page's own panels (the site itself, live; what
+	 * visitors did with it; the landing's drawing; the evolution; the film; the credits) and the
+	 * hand-overs between them, where the world lays the avatar's sheet exactly over the avatar on the
+	 * panel before it gives way. The arrow keys (or a clicker) fly from beat to beat; a hand on the
+	 * wheel lands on the nearest one.
 	 */
 
 	/** The pictures the world draws with (see `createWorld`). */
@@ -44,7 +46,7 @@
 	const END = AT[N - 1];
 
 	/** Which layer of the stage each scene is on: the world, or one of the page's panels. @type {Record<string, string>} */
-	const PANELS = { live: 'live', blank: 'drawing', drawn: 'drawing', evolution: 'evolution', film: 'film', credits: 'credits' };
+	const PANELS = { live: 'live', numbers: 'numbers', blank: 'drawing', drawn: 'drawing', evolution: 'evolution', film: 'film', credits: 'credits' };
 	const layerOf = (/** @type {string} */ scene) => PANELS[scene] ?? 'world';
 	/** The panels the world hands the avatar's sheet to (and takes it back from), laid exactly over theirs. */
 	const HANDOFF = ['live', 'drawing'];
@@ -132,7 +134,7 @@
 		const one = (/** @type {string} */ selector) => /** @type {HTMLElement} */ (root.querySelector(selector));
 		const all = (/** @type {string} */ selector) => /** @type {HTMLElement[]} */ ([...root.querySelectorAll(selector)]);
 		const canvas = /** @type {HTMLCanvasElement} */ (one('canvas.world'));
-		const panels = { live: one('.panel.live'), drawing: one('.panel.drawing'), evolution: one('.panel.evolution'), film: one('.panel.film'), credits: one('.panel.credits') };
+		const panels = { live: one('.panel.live'), numbers: one('.panel.numbers'), drawing: one('.panel.drawing'), evolution: one('.panel.evolution'), film: one('.panel.film'), credits: one('.panel.credits') };
 		const box = canvas.getBoundingClientRect();
 		const stageBox = one('.stage').getBoundingClientRect();
 		/** A box of the page, in the canvas's px. @param {Element} element */
@@ -167,6 +169,7 @@
 			nodes: all('.evolution .node'),
 			branches: all('.evolution .branch')
 		};
+		const tally = all('.numbers .row');
 
 		timeline = gsap.timeline({
 			defaults: { ease: 'power2.inOut', immediateRender: false },
@@ -238,9 +241,17 @@
 			// The landing's drawing, drawn by the scroll.
 			if (is.scene === 'drawn') timeline.fromTo(pen, { p: 0.02 }, { p: 1, duration: span(0.86), ease: 'none' }, at(0.08));
 
+			// What visitors did, a row at a time once its panel is in, each bar drawn out to its share.
+			if (is.scene === 'numbers') {
+				for (const [k, row] of tally.entries()) {
+					timeline.fromTo(row, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: span(0.1), ease: 'power2.out' }, at(0.5 + k * 0.1));
+					timeline.fromTo(row.querySelector('.fill'), { scaleX: 0 }, { scaleX: 1, duration: span(0.2), ease: 'power2.out' }, at(0.54 + k * 0.1));
+				}
+			}
+
 			// The evolution, its line drawn left to right once its panel is in, each version as the line reaches it.
 			if (is.scene === 'evolution' && evolution.trunk) {
-				const [start, draw] = [at(0.5), span(0.44)];
+				const [start, draw] = [at(0.48), span(0.4)];
 				timeline.fromTo(evolution.trunk, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: draw, ease: 'none', autoRound: false }, start);
 				for (const node of evolution.nodes) {
 					timeline.fromTo(node, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: span(0.07), ease: 'power2.out' }, start + draw * Number(node.dataset.at) - span(0.02));
@@ -249,7 +260,7 @@
 					const from = start + draw * Number(branch.dataset.at);
 					const path = branch.querySelector('path');
 					if (path) timeline.fromTo(path, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: span(0.08), ease: 'power1.out', autoRound: false }, from);
-					timeline.fromTo(branch.querySelector('.end'), { autoAlpha: 0 }, { autoAlpha: 1, duration: span(0.05), ease: 'none' }, from + span(0.06));
+					timeline.fromTo(branch.querySelector('.end'), { autoAlpha: 0 }, { autoAlpha: 1, duration: span(0.05), ease: 'none' }, from + span(0.05));
 				}
 			}
 		}
@@ -258,6 +269,8 @@
 	/** Follows the timeline: the beat on screen, the film, the drawing, and the world, drawn in the same frame as the rest. */
 	let drawnAt = -1;
 	let playing = false;
+	/** The film's music going quiet, over the clip's last second. @type {gsap.core.Tween | null} */
+	let fade = null;
 	function turned() {
 		if (!timeline || !laid) return;
 		const t = timeline.time();
@@ -274,10 +287,13 @@
 		const showing = Number(gsap.getProperty(laid.panels.film, 'opacity')) > 0.5;
 		if (showing !== playing && film && !tube) {
 			playing = showing;
+			fade?.kill();
+			fade = null;
+			film.volume = 1;
 			if (showing) film.play().catch(() => {});
 			else {
 				film.pause();
-				film.currentTime = 0;
+				film.currentTime = FILM.from;
 			}
 		}
 	}
@@ -317,6 +333,19 @@
 			ease: 'power2.out',
 			onComplete: landed
 		});
+	}
+
+	/**
+	 * The clip ends at `FILM.to`, its music fading out over its last second rather than stopping dead
+	 * (the media fragment's own end holds only for the first play: a seek back clears it).
+	 */
+	function ending() {
+		const video = film;
+		if (!video) return;
+		if (video.currentTime >= FILM.to) video.pause();
+		else if (!fade && FILM.to - video.currentTime <= 1) {
+			fade = gsap.to(video, { volume: 0, duration: FILM.to - video.currentTime, ease: 'none', onComplete: () => video.pause() });
+		}
 	}
 
 	/** @param {HTMLElement} root */
@@ -455,6 +484,7 @@
 						<h2>{b.line}</h2>
 						{#if b.glasses}<div class="slot"></div>{/if}
 						{#if b.sub}<p class="sub">{b.sub}</p>{/if}
+						{#if b.qr}<img class="qr" src={qr} alt="" />{/if}
 						{#if notes}<p class="say">{b.say}</p>{/if}
 					</div>
 				{/each}
@@ -463,10 +493,23 @@
 
 		<div class="stage">
 			<!-- The site itself, live: the avatar and the bio its glasses read. -->
-			<div class="panel live" inert={layerOf(current.scene) !== 'live'}>
+			<div class={['panel live', { struck: current.struck }]} inert={layerOf(current.scene) !== 'live'}>
 				<div class="site">
 					<p class="hello">I’m Gordon. <Avatar /></p>
 					<div class="bio"><About /></div>
+				</div>
+			</div>
+
+			<!-- What visitors did with the glasses (beats.js), each count with a bar of its share of the first. -->
+			<div class="panel numbers">
+				<div class="tally">
+					{#each NUMBERS.rows as { n, what } (what)}
+						<div class="row">
+							<p><strong>{n}</strong> {what}</p>
+							<div class="bar"><div class="fill" style:width="{(n / NUMBERS.rows[0].n) * 100}%"></div></div>
+						</div>
+					{/each}
+					<p class="source">{NUMBERS.source}</p>
 				</div>
 			</div>
 
@@ -479,9 +522,9 @@
 
 			<div class="panel film" inert={layerOf(current.scene) !== 'film'}>
 				{#if tube}
-					<iframe title="Portfolio update 2026" src="https://www.youtube-nocookie.com/embed/{FILM.youtube}?rel=0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+					<iframe title="Portfolio update 2026" src="https://www.youtube-nocookie.com/embed/{FILM.youtube}?rel=0&start={Math.floor(FILM.from)}&end={Math.ceil(FILM.to)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
 				{:else}
-					<video bind:this={film} src={FILM.src} playsinline preload="metadata" controls {@attach reel}>
+					<video bind:this={film} src="{FILM.src}#t={FILM.from},{FILM.to}" playsinline preload="metadata" controls ontimeupdate={ending} {@attach reel}>
 						<track kind="captions" />
 					</video>
 				{/if}
@@ -750,6 +793,74 @@
 
 	.live :global(.scrambled) {
 		color: var(--color-ash);
+	}
+
+	/* Where the beat is about the struck tool list, the rest of the site steps back. */
+	.hello,
+	.bio :global(.afterword) {
+		transition: opacity 400ms var(--ease-out);
+	}
+
+	.struck .hello,
+	.struck .bio :global(.afterword) {
+		opacity: 0.12;
+	}
+
+	/* The counts in the line's own type, each over a hairline as long as its share of the first. */
+	.numbers {
+		place-items: center start;
+	}
+
+	.tally {
+		display: grid;
+		gap: clamp(1.5rem, 5cqh, 3rem);
+		width: min(100%, 32em);
+		font-size: clamp(1rem, 1.35vw, 1.5rem);
+		line-height: 1.4;
+		color: var(--ink-2);
+	}
+
+	.tally strong {
+		display: block;
+		margin-bottom: 0.15em;
+		font-size: clamp(2.75rem, 11cqmin, 6rem);
+		font-weight: 500;
+		line-height: 1;
+		letter-spacing: -0.04em;
+		color: var(--ink);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* Each row comes in on the timeline, its bar drawn out from the left. */
+	.row {
+		visibility: hidden;
+		opacity: 0;
+	}
+
+	.bar {
+		height: 1px;
+		margin-top: 0.85em;
+		background: var(--rule);
+	}
+
+	.fill {
+		height: 100%;
+		background: var(--ink);
+		transform: scaleX(0);
+		transform-origin: left;
+	}
+
+	.source {
+		font-size: var(--meta);
+		color: var(--ink-3);
+	}
+
+	/* The site's address for the room to scan, under the last line. */
+	.qr {
+		display: block;
+		width: clamp(6rem, 24vh, 15rem);
+		aspect-ratio: 1;
+		margin-top: 2rem;
 	}
 
 	/* The sheet, as big as the world draws the avatar's, and the drawing's lines kept over its picture, so it stays crisp. */

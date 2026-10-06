@@ -10,9 +10,10 @@
 	/*
 	 * How the avatar got here, for the talk's evolution beat: one line from Sep 23 to Oct 1, each
 	 * version that stayed a node on it, with its picture, its day and its name, and what was tried and
-	 * thrown away branching off it, struck out. Across a wide panel the line runs left to right, the
-	 * pictures over it and the names under it, the branches dropping between the names and forking;
-	 * on a narrow one it runs down the left. The page's timeline draws it (talk/+page.svelte): the line
+	 * thrown away branching off it, struck out, with why. Across a wide panel the line runs left to
+	 * right, the pictures over it and the names under it, the branches dropping between the names and
+	 * forking, each one further right ending higher, so no branch's line crosses another's words; on a
+	 * narrow one it runs down the left. The page's timeline draws it (talk/+page.svelte): the line
 	 * first, each node as the line reaches it (`data-at`, its share of the way), each branch after it.
 	 */
 
@@ -46,9 +47,11 @@
 			const pad = Math.min(64, Math.max(36, width * 0.07));
 			const gap = (width - 2 * pad) / (n - 1);
 			const size = Math.round(Math.max(36, Math.min(84, gap * 0.66)));
-			const DEPTHS = [96, 134, 172];
+			/** How far under the line the highest branch ends, and how far apart the branches' ends are (px). */
+			const [HIGHEST, STEP] = [96, 40];
+			const deepest = HIGHEST + (EVOLUTION.dropped.length - 1) * STEP;
 			const above = size + 18;
-			const below = DEPTHS[DEPTHS.length - 1] + 14;
+			const below = deepest + 30;
 			const trunk = Math.round(Math.max(above, (height - above - below) / 2 + above));
 			const most = Math.max(10, Math.floor(gap / 7.2));
 			return {
@@ -70,13 +73,13 @@
 					const mid = pad + (dropped.after + 0.5) * gap;
 					const drop = trunk + 70;
 					const x1 = mid + gap * (0.16 + 0.7 * sibling[j]);
-					const y1 = trunk + DEPTHS[j % DEPTHS.length];
+					const y1 = trunk + deepest - j * STEP;
 					return {
 						...dropped,
 						at: (dropped.after + 0.5) / (n - 1),
 						path: `M${mid} ${trunk}V${drop}Q${mid} ${y1} ${x1} ${y1}`,
 						end: { x: x1, y: y1 },
-						text: { x: x1 + 10, y: y1 + 4 }
+						text: { x: x1 + 10, y: y1 + 4, why: y1 + 21 }
 					};
 				})
 			};
@@ -112,7 +115,7 @@
 					at: (dropped.after + 0.5) / (n - 1),
 					path: `M${line} ${y0}C${line + 40} ${y0} ${x1 - 40} ${y1} ${x1} ${y1}`,
 					end: { x: x1, y: y1 },
-					text: { x: x1 + 8, y: y1 + 4 }
+					text: { x: x1 + 8, y: y1 + 4, why: y1 + 18 }
 				};
 			})
 		};
@@ -144,7 +147,8 @@
 					<path d={branch.path} pathLength="1" />
 					<g class="end">
 						<circle cx={branch.end.x} cy={branch.end.y} r="3" />
-						<text x={branch.text.x} y={branch.text.y}>{branch.label}</text>
+						<text class="dead" x={branch.text.x} y={branch.text.y}>{branch.label}</text>
+						<text class="why" x={branch.text.x} y={branch.text.why}>{branch.why}</text>
 					</g>
 				</g>
 			{/each}
@@ -298,9 +302,18 @@
 		font-size: 11px;
 	}
 
-	/* Thrown away: struck out, as the site strikes its old tool list. */
-	.end text {
+	/* Thrown away: struck out, as the site strikes its old tool list, and why under it. */
+	.end .dead {
 		fill: rgb(0 0 0 / 0.56);
 		text-decoration: line-through;
+	}
+
+	.end .why {
+		fill: rgb(0 0 0 / 0.72);
+		font-size: 12px;
+	}
+
+	.narrow .end .why {
+		font-size: 10px;
 	}
 </style>
