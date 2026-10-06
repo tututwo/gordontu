@@ -597,13 +597,13 @@
 							{#each b.shots as shot (shot.label)}
 								<figure>
 									{#if shot.src}
-										<div class="frame">
+										<svelte:element this={shot.href ? 'a' : 'div'} class="frame" href={shot.href} target={shot.href && '_blank'} rel={shot.href && 'noopener'}>
 											<img src={SHOTS[shot.src]} alt={shot.label} />
 											{#if shot.mark}
 												{@const { x, y, w, h } = shot.mark}
 												<div class="mark" style:left="{x * 100}%" style:top="{y * 100}%" style:width="{w * 100}%" style:height="{h * 100}%"></div>
 											{/if}
-										</div>
+										</svelte:element>
 									{:else}
 										<div class="frame wanted" style:aspect-ratio={shot.ratio ?? 4 / 3}>
 											<p><span>Placeholder</span> {shot.want}</p>
@@ -993,6 +993,7 @@
 	}
 
 	.frame {
+		display: block;
 		position: relative;
 		max-width: 100%;
 		overflow: hidden;

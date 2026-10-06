@@ -14,7 +14,7 @@ export const STEPS = [
 	{ name: 'Find', at: '2:35' },
 	{ name: 'Take', at: '3:20' },
 	{ name: 'Return', at: '3:45' },
-	{ name: 'Change', at: '4:20' }
+	{ name: 'Change', at: '4:55' }
 ];
 
 /**
@@ -42,6 +42,7 @@ export const STEPS = [
  * @typedef {object} Shot
  * @property {string} label what it is, under it
  * @property {string} [src] which picture (the page's `SHOTS`); without one, a placeholder
+ * @property {string} [href] where the picture links to, in a new tab
  * @property {string} [want] for a placeholder: the file to send, and what it shows
  * @property {number} [ratio] for a placeholder: its width over its height (4 / 3 if not given)
  * @property {{ x: number, y: number, w: number, h: number }} [mark] a box drawn round part of it, in
@@ -244,7 +245,7 @@ export const BEATS = [
 		scene: 'film',
 		line: 'Back to the page.',
 		read: 'gordontu.com',
-		say: '(Play the film: sixteen seconds. Say nothing.)'
+		say: '(Play the film: all fifty seconds. Say nothing.)'
 	},
 	{
 		step: 6,
@@ -261,7 +262,7 @@ export const BEATS = [
 		sub: 'Go see the other great portfolios on the GSAP Showcase.',
 		read: 'gsap.com/showcase',
 		say: 'And just this morning, I found out I’m Site of the Day on the GSAP Showcase. Feel free to check out the great portfolios there.',
-		shots: [{ src: 'siteOfTheDay', label: 'From the GSAP team' }]
+		shots: [{ src: 'siteOfTheDay', label: 'From the GSAP team', href: 'https://gsap.com/showcase/' }]
 	},
 	{
 		step: 7,
@@ -315,13 +316,12 @@ export const EVOLUTION = {
 };
 
 /**
- * The film, "Portfolio update 2026", from `from` to `to` (s): the page coming in on the drop, the
- * glasses reading the hidden line, and the projects. The file is in static/demo, so it plays
+ * The film, "Portfolio update 2026", from `from` to `to` (s): all of it. The file is in static/demo, so it plays
  * offline; where it cannot load, the page falls back to YouTube.
  */
 export const FILM = {
 	src: '/demo/portfolio-update-2026.mp4',
 	youtube: 'D7HTbsX3RzE',
-	from: 8,
-	to: 23.9
+	from: 0,
+	to: 51.7
 };
