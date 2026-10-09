@@ -67,7 +67,7 @@ const data = [
 	{
 		projectName: "Paper China",
 		message: "A school exercise book with China cut into it, one province a page: they turn in the order of their average elevation, so Tibet lies deepest. Count down by population instead, switch to the U.S. book, cut a section, or change the paper.",
-		projectLink: "https://paper-china.vercel.app/",
+		projectLink: "https://gordontu.com/maps/paper-china/live/",
 		projectImgSource: "/projects-optimized/Maps/paper-china/paper-china-cover.webp",
 		projectVideoSource: "/projects-optimized/Maps/paper-china/paper-china-card.mp4",
 		tools: ["Svelte", "Three.js", "GLSL", "D3"],
