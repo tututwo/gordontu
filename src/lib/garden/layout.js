@@ -8,7 +8,7 @@
 
 /**
  * The cells on the sheet that can hold Projects (the paper may draw finer rulings): seven to a line,
- * so today's 28 Projects fill four lines exactly, a whole plot rather than a ragged last line.
+ * so 28 Projects fill four lines exactly and the newer ones begin a fifth, nearest the visitor.
  */
 export const GRID = { cols: 7, rows: 5 };
 

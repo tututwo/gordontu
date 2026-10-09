@@ -10,6 +10,7 @@ import { houseLupine } from './house-lupine.js';
 import { emberSpire } from './ember-spire.js';
 import { voronoiBloom } from './voronoi-bloom.js';
 import { palettePoppy } from './palette-poppy.js';
+import { notebookPeony } from './notebook-peony.js';
 import { clover } from './clover.js';
 import { daisies } from './daisies.js';
 import { forgetMeNots } from './forget-me-nots.js';
@@ -32,13 +33,14 @@ export const species = {
 	'ember-spire': emberSpire,
 	'voronoi-bloom': voronoiBloom,
 	'palette-poppy': palettePoppy,
+	'notebook-peony': notebookPeony,
 	clover,
 	daisies,
 	'forget-me-nots': forgetMeNots
 };
 
 /** The kinds that stand up as flowers, one per Featured Project. */
-export const FLOWERS = ['moon-lotus', 'margins-mophead', 'rain-bell', 'planet-bloom', 'origami-bloom', 'house-lupine', 'ember-spire', 'voronoi-bloom', 'palette-poppy'];
+export const FLOWERS = ['moon-lotus', 'margins-mophead', 'rain-bell', 'planet-bloom', 'origami-bloom', 'house-lupine', 'ember-spire', 'voronoi-bloom', 'palette-poppy', 'notebook-peony'];
 
 /** The kinds that lie flat as ground cover, one per category. */
 export const COVERS = ['clover', 'daisies', 'forget-me-nots'];

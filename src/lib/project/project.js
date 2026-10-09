@@ -65,6 +65,18 @@ export function formatDate(value) {
 /** @type {Omit<Project, 'seed' | 'slug'>[]} */
 const data = [
 	{
+		projectName: "Paper China",
+		message: "A school exercise book with China cut into it, one province a page: they turn in the order of their average elevation, so Tibet lies deepest. Count down by population instead, switch to the U.S. book, cut a section, or change the paper.",
+		projectLink: "https://paper-china.vercel.app/",
+		projectImgSource: "/projects-optimized/Maps/paper-china/paper-china-cover.webp",
+		projectVideoSource: "/projects-optimized/Maps/paper-china/paper-china-card.mp4",
+		tools: ["Svelte", "Three.js", "GLSL", "D3"],
+		category: "maps",
+		date: "2026-10-08",
+		featured: true,
+		plant: "notebook-peony",
+	},
+	{
 		projectName: "City Atlas",
 		message: "San Francisco drawn as an illustrated 3D city from open data on its buildings, streets, shoreline and terrain. Pan and zoom, jump between neighborhoods, or curl a district into a small planet.",
 		projectLink: "https://gordontu.com/maps/city-atlas/live/",

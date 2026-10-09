@@ -9,6 +9,7 @@ import { svg as houseLupine } from './house-lupine.js';
 import { svg as emberSpire } from './ember-spire.js';
 import { svg as voronoiBloom } from './voronoi-bloom.js';
 import { svg as palettePoppy } from './palette-poppy.js';
+import { svg as notebookPeony } from './notebook-peony.js';
 import { svg as clover } from './clover.js';
 import { svg as daisies } from './daisies.js';
 import { svg as forgetMeNots } from './forget-me-nots.js';
@@ -24,6 +25,7 @@ export const svgs = {
 	'ember-spire': emberSpire,
 	'voronoi-bloom': voronoiBloom,
 	'palette-poppy': palettePoppy,
+	'notebook-peony': notebookPeony,
 	clover,
 	daisies,
 	'forget-me-nots': forgetMeNots
