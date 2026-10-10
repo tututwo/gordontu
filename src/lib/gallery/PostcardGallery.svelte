@@ -395,7 +395,8 @@
 						</dl>
 					</div>
 					{#if onCard.projectLink}
-						<a class="open-project text-copy-14" href={onCard.projectLink} target="_blank" rel="external noreferrer" draggable="false">
+						<a class="open-project text-copy-14" href={onCard.projectLink} target="_blank" rel="external noreferrer" draggable="false"
+							onclick={() => window.posthog.capture?.('project_opened', { slug: onCard?.slug })}>
 							Open project ↗
 						</a>
 					{/if}
