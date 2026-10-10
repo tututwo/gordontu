@@ -89,6 +89,15 @@ const data = [
 		plant: "planet-bloom",
 	},
 	{
+		projectName: "Data Viz Challenge Calendar",
+		message: "A bilingual calendar of map, chart and BI challenges, from #30DayMapChallenge to awards and hackathons, with each series' rules and past years. Filter by kind or cadence, add a series to your calendar, or ask an AI assistant through its MCP server.",
+		projectLink: "https://data-viz-challenge.vercel.app/",
+		projectImgSource: "/projects-optimized/CreativeCoding/data-viz-challenge-calendar.webp",
+		tools: ["React.js", "GSAP", "MCP"],
+		category: "creative-code",
+		date: "2026-10-05",
+	},
+	{
 		projectName: "Black Hole",
 		message: "A study of Maxime Heckel's black hole, itself after Melissa Rodriguez's artwork: 200 animated dashed curves ringing an event horizon. Drag to orbit, zoom, pause, or turn the rings from color to white.",
 		projectLink: "https://gordontu.com/creative-code/black-hole/live/",

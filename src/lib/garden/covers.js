@@ -3,6 +3,7 @@
 /** @type {Record<string, [number, number]>} */
 export const covers = {
 	'paper-china': [480, 270],
+	'data-viz-challenge-calendar': [480, 300],
 	'interstate-traffic': [480, 270],
 	'city-atlas': [480, 270],
 	'black-hole': [480, 270],
