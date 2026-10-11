@@ -211,7 +211,7 @@ const data = [
 	{
 		projectName: "Presidential Margins, 1868–2020",
 		message: "Each county's Democratic–Republican margin in 39 presidential elections since 1868, raised so wider gaps stand taller. Play or scrub the years to watch counties flip; drag to pan and orbit.",
-		projectLink: "https://gordontu.com/data-visualization/presidential-margins-1868-2020/live/",
+		projectLink: "https://vite-three-chi.vercel.app/data-visualization/presidential-margins-1868-2020/live/",
 		projectImgSource: "/projects-optimized/Charts/election-3d/election-3d-cover.webp",
 		projectVideoSource: "/projects-optimized/Charts/election-3d/election-3d-card.mp4",
 		tools: ["Three.js", "React.js", "GLSL", "D3"],
