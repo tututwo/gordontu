@@ -65,6 +65,17 @@ export function formatDate(value) {
 /** @type {Omit<Project, 'seed' | 'slug'>[]} */
 const data = [
 	{
+		projectName: "Yale 30-Day Map Challenge",
+		message: "The sign-up board for Yale's #30DayMapChallenge in November 2026: thirty prompts, each pinned to its own place on a hand-drawn 3D campus. Fly between them, take the tour, and join a day with a Yale email, solo or as a team.",
+		projectLink: "https://yale-30-day-map-challenge.vercel.app/signin",
+		projectImgSource: "/projects-optimized/Maps/yale-30-day-map-challenge/yale-30-day-map-challenge-cover.webp",
+		tools: ["Svelte", "Three.js", "GSAP"],
+		category: "maps",
+		date: "2026-10-14",
+		client: "Yale University",
+		featured: true,
+	},
+	{
 		projectName: "Paper China",
 		message: "A school exercise book with China cut into it, one province a page: they turn in the order of their average elevation, so Tibet lies deepest. Count down by population instead, switch to the U.S. book, cut a section, or change the paper.",
 		projectLink: "https://gordontu.com/maps/paper-china/live/",
@@ -96,6 +107,7 @@ const data = [
 		tools: ["React.js", "GSAP", "MCP"],
 		category: "creative-code",
 		date: "2026-10-05",
+		featured: true,
 	},
 	{
 		projectName: "Black Hole",

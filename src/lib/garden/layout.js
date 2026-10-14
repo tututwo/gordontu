@@ -16,7 +16,7 @@ export const GRID = { cols: 7, rows: 5 };
 export const COVER = { maps: 'clover', 'data-visualization': 'daisies', 'creative-code': 'forget-me-nots' };
 
 /**
- * Projects → cells: a Featured Project is a flower of its own kind (`project.plant`), any other the
+ * Projects → cells: a Featured Project with a drawn `plant` is a flower of that kind, any other the
  * ground cover of its category; chronological by date (oldest first, ties by slug so the order never
  * depends on the input's), filling row by row from the far (top) row, left to right.
  * @param {Project[]} projects
@@ -30,7 +30,7 @@ export function layoutCells(projects) {
 			project,
 			col: index % GRID.cols,
 			row: Math.floor(index / GRID.cols),
-			kind: project.featured ? 'flower' : 'cover',
+			kind: project.featured && project.plant ? 'flower' : 'cover',
 			species: (project.featured && project.plant) || COVER[project.category],
 			index
 		}));

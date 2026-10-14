@@ -2,6 +2,7 @@
 // [width, height] in px, so the Garden's hover card keeps the image's proportions before it loads.
 /** @type {Record<string, [number, number]>} */
 export const covers = {
+	'yale-30-day-map-challenge': [480, 270],
 	'paper-china': [480, 270],
 	'data-viz-challenge-calendar': [480, 300],
 	'interstate-traffic': [480, 270],
