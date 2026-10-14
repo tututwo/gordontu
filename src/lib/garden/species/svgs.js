@@ -10,6 +10,8 @@ import { svg as emberSpire } from './ember-spire.js';
 import { svg as voronoiBloom } from './voronoi-bloom.js';
 import { svg as palettePoppy } from './palette-poppy.js';
 import { svg as notebookPeony } from './notebook-peony.js';
+import { svg as thirtyAster } from './thirty-aster.js';
+import { svg as almanacTulip } from './almanac-tulip.js';
 import { svg as clover } from './clover.js';
 import { svg as daisies } from './daisies.js';
 import { svg as forgetMeNots } from './forget-me-nots.js';
@@ -26,6 +28,8 @@ export const svgs = {
 	'voronoi-bloom': voronoiBloom,
 	'palette-poppy': palettePoppy,
 	'notebook-peony': notebookPeony,
+	'thirty-aster': thirtyAster,
+	'almanac-tulip': almanacTulip,
 	clover,
 	daisies,
 	'forget-me-nots': forgetMeNots
